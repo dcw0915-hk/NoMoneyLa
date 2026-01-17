@@ -1,15 +1,23 @@
+//
+// TransactionFormView.swift
+//
+
 import SwiftUI
 import SwiftData
+import UIKit
+
+// MARK: - TransactionFormView
 
 struct TransactionFormView: View {
     @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    
+
     var transaction: Transaction?
-    
+
     @Query(sort: \Category.order) private var categories: [Category]
-    
+    @Query(sort: \Subcategory.order) private var subcategories: [Subcategory]
+
     @State private var amountText = ""
     @State private var date = Date()
     @State private var note = ""
@@ -17,33 +25,39 @@ struct TransactionFormView: View {
     @State private var selectedSubcategoryID: UUID? = nil
     @State private var selectedType: TransactionType = .expense
     @State private var currencyCode: String = "HKD"
-    
+
     @State private var currentTransaction: Transaction? = nil
     @State private var showDeleteAlert = false
     @State private var isEditing: Bool = true
-    
+
     private let currencies = ["HKD", "USD", "JPY"]
-    
+
     init(transaction: Transaction? = nil, isEditing: Bool = true) {
         self.transaction = transaction
         self._isEditing = State(initialValue: transaction == nil ? true : isEditing)
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
-                // 金額 + 貨幣
+                // Amount + Currency
                 Section(header: Text(langManager.localized("form_amount"))) {
                     HStack(spacing: 12) {
                         if isEditing {
                             TextField(langManager.localized("form_amount_placeholder"), text: $amountText)
                                 .keyboardType(.decimalPad)
-                            
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .font(.system(size: 18))
+                                .frame(height: 28)
+                                .controlSize(.small)
+
                             Menu {
                                 ForEach(currencies, id: \.self) { code in
                                     Button(action: { currencyCode = code }) {
                                         HStack {
                                             Text("\(currencySymbol(for: code)) \(code)")
+                                                .font(.system(size: 18))
                                             if currencyCode == code {
                                                 Spacer()
                                                 Image(systemName: "checkmark")
@@ -52,21 +66,27 @@ struct TransactionFormView: View {
                                     }
                                 }
                             } label: {
-                                HStack(spacing: 6) {
+                                HStack(spacing: 4) {
                                     Text("\(currencySymbol(for: currencyCode)) \(currencyCode)")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.primary)
                                     Image(systemName: "chevron.down")
-                                        .font(.system(size: 12, weight: .semibold))
+                                        .font(.system(size: 10, weight: .semibold))
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            .fixedSize()
+                            .frame(minWidth: 110, maxHeight: 28)
+                            .controlSize(.small)
                         } else {
                             Text(format(amount: Decimal(string: amountText) ?? 0, code: currencyCode))
+                                .font(.system(size: 18))
+                                .frame(height: 28)
+                                .foregroundColor(selectedType == .income ? .green : .red) // 顏色依類型
                         }
                     }
                 }
-                
-                // 類型
+
+                // Type
                 Section(header: Text(langManager.localized("form_type"))) {
                     if isEditing {
                         Picker(langManager.localized("form_type_label"), selection: $selectedType) {
@@ -77,72 +97,171 @@ struct TransactionFormView: View {
                     } else {
                         Text(selectedType == .income ? langManager.localized("form_income")
                              : langManager.localized("form_expense"))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     }
                 }
-                
-                // 分類
-                Section(header: Text(langManager.localized("form_category"))) {
+
+                // Category (主要分類 + 子分類) - 優化版本
+                Section(header: Text("主要分類 / 子分類")) {
                     if isEditing {
-                        Picker(langManager.localized("form_parent_category"), selection: $selectedParentID) {
-                            Text(langManager.localized("form_none")).tag(UUID?.none)
-                            ForEach(categories.filter { $0.parentID == nil }) { cat in
-                                Text(cat.name).tag(Optional(cat.id))
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        
-                        let subsForSelectedParent: [Category] = {
+                        let subsForSelectedParent: [Subcategory] = {
                             if let parent = selectedParentID {
-                                return categories.filter { $0.parentID == parent }
+                                return subcategories.filter { $0.parentID == parent }
                             } else {
-                                return categories.filter { $0.parentID != nil }
+                                return []
                             }
                         }()
-                        
-                        Picker(langManager.localized("form_subcategory"), selection: $selectedSubcategoryID) {
-                            Text(langManager.localized("form_none")).tag(UUID?.none)
-                            ForEach(subsForSelectedParent) { sub in
-                                HStack {
-                                    Circle()
-                                        .fill(Color(hex: sub.colorHex ?? "#A8A8A8"))
-                                        .frame(width: 12, height: 12)
-                                    Text(sub.name)
+
+                        HStack(spacing: 12) {
+                            // 左側：主要分類 - 優化佈局
+                            Menu {
+                                Button(action: {
+                                    selectedParentID = nil
+                                    selectedSubcategoryID = nil
+                                }) {
+                                    HStack {
+                                        Text(langManager.localized("form_none"))
+                                        if selectedParentID == nil {
+                                            Spacer()
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
                                 }
-                                .tag(Optional(sub.id))
+                                
+                                ForEach(categories) { cat in
+                                    Button(action: {
+                                        selectedParentID = cat.id
+                                        // 自動選擇該分類的第一個子分類（如果存在）
+                                        if let firstSub = subcategories.first(where: { $0.parentID == cat.id }) {
+                                            selectedSubcategoryID = firstSub.id
+                                        } else {
+                                            selectedSubcategoryID = nil
+                                        }
+                                    }) {
+                                        HStack {
+                                            Text(cat.name)
+                                                .lineLimit(1)
+                                                .truncationMode(.tail)
+                                            if selectedParentID == cat.id {
+                                                Spacer()
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Text(selectedParentName)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                        .foregroundColor(selectedParentID == nil ? .secondary : .primary)
+                                        .frame(maxWidth: .infinity, alignment: .leading) // 佔用可用空間
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .frame(maxWidth: .infinity) // 使用最大寬度
+
+                            // 分隔線
+                            Text("/")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 14))
+
+                            // 右側：子分類 - 優化佈局
+                            Menu {
+                                // None option
+                                Button(action: { selectedSubcategoryID = nil }) {
+                                    HStack {
+                                        Text(langManager.localized("form_none"))
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
+                                        if selectedSubcategoryID == nil {
+                                            Spacer()
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+
+                                // Subcategory items (only for selected parent)
+                                ForEach(subsForSelectedParent) { sub in
+                                    Button(action: {
+                                        selectedSubcategoryID = sub.id
+                                    }) {
+                                        HStack {
+                                            Text(sub.name)
+                                                .lineLimit(1)
+                                                .truncationMode(.tail)
+                                            if selectedSubcategoryID == sub.id {
+                                                Spacer()
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Text(selectedSubcategoryName)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                        .foregroundColor(selectedParentID == nil ? .secondary : .primary)
+                                        .frame(maxWidth: .infinity, alignment: .trailing) // 佔用可用空間
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .disabled(selectedParentID == nil)
+                            .frame(maxWidth: .infinity) // 使用最大寬度
+                        }
+                        .frame(maxWidth: .infinity)
+                        .onChange(of: selectedParentID) { newParent in
+                            DispatchQueue.main.async {
+                                if let subID = selectedSubcategoryID {
+                                    if let sub = subcategories.first(where: { $0.id == subID }) {
+                                        if sub.parentID != newParent {
+                                            selectedSubcategoryID = nil
+                                        }
+                                    } else {
+                                        selectedSubcategoryID = nil
+                                    }
+                                }
+                                if newParent == nil {
+                                    selectedSubcategoryID = nil
+                                }
                             }
                         }
-                        .pickerStyle(.menu)
-                        .disabled(selectedParentID == nil)
-                        .foregroundColor(selectedParentID == nil ? .secondary : .primary)
-                        
                     } else {
                         HStack {
                             Text(categoryPath(parentID: selectedParentID, subID: selectedSubcategoryID))
-                            if let subID = selectedSubcategoryID,
-                               let sub = categories.first(where: { $0.id == subID }) {
-                                Circle()
-                                    .fill(Color(hex: sub.colorHex ?? "#A8A8A8"))
-                                    .frame(width: 20, height: 20)
-                            }
+                                .lineLimit(1)
+                                .truncationMode(.tail)
                         }
                     }
                 }
-                
-                // 備註
+
+                // Note
                 Section(header: Text(langManager.localized("form_note"))) {
                     if isEditing {
                         TextField(langManager.localized("form_note_placeholder"), text: $note)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     } else {
                         Text(note.isEmpty ? "-" : note)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     }
                 }
-                
-                // 日期
+
+                // Date
                 Section(header: Text(langManager.localized("form_date"))) {
                     if isEditing {
                         DatePicker(langManager.localized("form_date_picker"), selection: $date, displayedComponents: .date)
                     } else {
                         Text(date, format: .dateTime.year().month().day())
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     }
                 }
             }
@@ -183,16 +302,13 @@ struct TransactionFormView: View {
                     note = tx.note ?? ""
                     selectedType = tx.type
                     currencyCode = tx.currencyCode
-                    if let catID = tx.categoryID {
-                        if let cat = categories.first(where: { $0.id == catID }) {
-                            if let parent = cat.parentID {
-                                selectedParentID = parent
-                                selectedSubcategoryID = cat.id
-                            } else {
-                                selectedParentID = cat.id
-                                selectedSubcategoryID = nil
-                            }
-                        }
+                    if let subID = tx.subcategoryID,
+                       let sub = subcategories.first(where: { $0.id == subID }) {
+                        selectedSubcategoryID = sub.id
+                        selectedParentID = sub.parentID
+                    } else {
+                        selectedSubcategoryID = nil
+                        selectedParentID = nil
                     }
                 }
             }
@@ -204,28 +320,54 @@ struct TransactionFormView: View {
             }
         }
     }
+
+    // MARK: - Computed Properties
+    
+    private var selectedParentName: String {
+        if let parentID = selectedParentID,
+           let parent = categories.first(where: { $0.id == parentID }) {
+            return parent.name
+        } else {
+            return langManager.localized("form_none")
+        }
+    }
+    
+    private var selectedSubcategoryName: String {
+        if selectedParentID == nil {
+            return "請先選擇主要分類"
+        } else if let subID = selectedSubcategoryID,
+                  let sub = subcategories.first(where: { $0.id == subID }) {
+            return sub.name
+        } else {
+            return langManager.localized("form_none")
+        }
+    }
+
+    // MARK: - Validation
     
     var isValid: Bool {
         Decimal(string: amountText) != nil
     }
+
+    // MARK: - Helper Methods
     
     private func save() {
         guard let amount = Decimal(string: amountText) else { return }
-        let finalCategoryID = selectedSubcategoryID ?? selectedParentID
-        
+        let finalSubcategoryID = selectedSubcategoryID
+
         if let tx = currentTransaction {
             tx.amount = amount
             tx.date = date
             tx.note = note.isEmpty ? nil : note
             tx.type = selectedType
             tx.currencyCode = currencyCode
-            tx.categoryID = finalCategoryID
+            tx.subcategoryID = finalSubcategoryID
             try? context.save()
         } else {
             let tx = Transaction(amount: amount,
                                  date: date,
                                  note: note.isEmpty ? nil : note,
-                                 categoryID: finalCategoryID,
+                                 subcategoryID: finalSubcategoryID,
                                  type: selectedType,
                                  currencyCode: currencyCode)
             context.insert(tx)
@@ -234,29 +376,31 @@ struct TransactionFormView: View {
         }
         dismiss()
     }
-    
+
     private func deleteConfirmed() {
         guard let tx = currentTransaction else { return }
         context.delete(tx)
         try? context.save()
         dismiss()
     }
-    
+
     private func decimalToString(_ d: Decimal) -> String {
         let ns = d as NSDecimalNumber
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
+        formatter.locale = Locale.current
         return formatter.string(from: ns) ?? "\(d)"
     }
-    
+
     private func format(amount: Decimal, code: String = "HKD") -> String {
         let ns = amount as NSDecimalNumber
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = code
+        formatter.locale = Locale.current
         return formatter.string(from: ns) ?? "\(amount)"
     }
-    
+
     private func currencySymbol(for code: String) -> String {
         switch code {
         case "HKD": return "HK$"
@@ -265,19 +409,16 @@ struct TransactionFormView: View {
         default: return code
         }
     }
-    
+
     private func categoryPath(parentID: UUID?, subID: UUID?) -> String {
         if let subID = subID,
-           let sub = categories.first(where: { $0.id == subID }),
+           let sub = subcategories.first(where: { $0.id == subID }),
            let parent = categories.first(where: { $0.id == sub.parentID }) {
-            // 同時顯示父分類 / 子分類
             return "\(parent.name) / \(sub.name)"
         } else if let parentID = parentID,
                   let parent = categories.first(where: { $0.id == parentID }) {
-            // 只選父分類
             return parent.name
         } else {
-            // 無選擇
             return langManager.localized("form_none")
         }
     }

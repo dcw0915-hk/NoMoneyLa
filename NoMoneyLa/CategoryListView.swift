@@ -4,6 +4,7 @@ import SwiftData
 struct CategoryListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Category.order) private var allCategories: [Category]
+    @Query(sort: \Subcategory.order) private var allSubcategories: [Subcategory]
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
 
     @State private var newName: String = ""
@@ -16,8 +17,7 @@ struct CategoryListView: View {
     @FocusState private var isInlineFocused: Bool
 
     private var categories: [Category] {
-        allCategories.filter { $0.parentID == nil }
-                     .sorted(by: { $0.order < $1.order })
+        allCategories.sorted(by: { $0.order < $1.order })
     }
 
     var body: some View {
@@ -169,7 +169,7 @@ struct CategoryListView: View {
         let trimmed = newName.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
         let maxOrder = categories.map { $0.order }.max() ?? 0
-        let newCategory = Category(name: trimmed, parentID: nil, order: maxOrder + 1)
+        let newCategory = Category(name: trimmed, order: maxOrder + 1)
         context.insert(newCategory)
         do {
             try context.save()
@@ -188,16 +188,15 @@ struct CategoryListView: View {
     }
 
     private func safeDelete(_ category: Category) {
-        for tx in transactions where tx.categoryID == category.id {
-            tx.categoryID = nil
-        }
-        let subs = allCategories.filter { $0.parentID == category.id }
+        // 解除交易與子分類的關聯，刪除子分類
+        let subs = allSubcategories.filter { $0.parentID == category.id }
         for sub in subs {
-            for tx in transactions where tx.categoryID == sub.id {
-                tx.categoryID = nil
+            for tx in transactions where tx.subcategoryID == sub.id {
+                tx.subcategoryID = nil
             }
             context.delete(sub)
         }
+        // 若你同時在 transaction 儲存 categoryID，這裡也要處理（本範例沒有 categoryID）
         context.delete(category)
         do {
             try context.save()
@@ -209,14 +208,14 @@ struct CategoryListView: View {
 
     // 排序
     private func reorderCategories() {
-        let topCategories = allCategories.filter { $0.parentID == nil }
-                                         .sorted(by: { $0.order < $1.order })
+        let topCategories = allCategories.sorted(by: { $0.order < $1.order })
         for (index, cat) in topCategories.enumerated() {
             cat.order = index
         }
+        // 子分類排序
         for parent in topCategories {
-            let subs = allCategories.filter { $0.parentID == parent.id }
-                                    .sorted(by: { $0.order < $1.order })
+            let subs = allSubcategories.filter { $0.parentID == parent.id }
+                                        .sorted(by: { $0.order < $1.order })
             for (index, sub) in subs.enumerated() {
                 sub.order = index
             }
