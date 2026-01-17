@@ -11,17 +11,17 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             NavigationStack {
-                ContentView()
-            }
-            .tabItem {
-                Label("Dashboard", systemImage: "house")
-            }
-
-            NavigationStack {
                 TransactionListView()
             }
             .tabItem {
                 Label("Transactions", systemImage: "list.bullet")
+            }
+
+            NavigationStack {
+                ContentView()
+            }
+            .tabItem {
+                Label("Dashboard", systemImage: "house")
             }
 
             NavigationStack {

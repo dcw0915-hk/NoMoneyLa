@@ -13,7 +13,7 @@ struct ContentView: View {
 
     var body: some View {
         VStack {
-            Text(langManager.localized("transactions_title"))
+            Text(langManager.localized("dashboard_title"))
                 .font(.largeTitle)
                 .padding()
             Spacer()

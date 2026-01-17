@@ -81,7 +81,7 @@ struct TransactionFormView: View {
                             Text(format(amount: Decimal(string: amountText) ?? 0, code: currencyCode))
                                 .font(.system(size: 18))
                                 .frame(height: 28)
-                                .foregroundColor(selectedType == .income ? .green : .red) // 顏色依類型
+                                .foregroundColor(selectedType == .income ? .green : .red)
                         }
                     }
                 }
@@ -102,8 +102,8 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // Category (主要分類 + 子分類) - 優化版本
-                Section(header: Text("主要分類 / 子分類")) {
+                // Category (Parent / Subcategory)
+                Section(header: Text(langManager.localized("category_section_header"))) {
                     if isEditing {
                         let subsForSelectedParent: [Subcategory] = {
                             if let parent = selectedParentID {
@@ -114,7 +114,7 @@ struct TransactionFormView: View {
                         }()
 
                         HStack(spacing: 12) {
-                            // 左側：主要分類 - 優化佈局
+                            // Parent category menu
                             Menu {
                                 Button(action: {
                                     selectedParentID = nil
@@ -128,11 +128,11 @@ struct TransactionFormView: View {
                                         }
                                     }
                                 }
-                                
+
                                 ForEach(categories) { cat in
                                     Button(action: {
                                         selectedParentID = cat.id
-                                        // 自動選擇該分類的第一個子分類（如果存在）
+                                        // auto-select first subcategory if exists
                                         if let firstSub = subcategories.first(where: { $0.parentID == cat.id }) {
                                             selectedSubcategoryID = firstSub.id
                                         } else {
@@ -156,22 +156,21 @@ struct TransactionFormView: View {
                                         .lineLimit(1)
                                         .truncationMode(.tail)
                                         .foregroundColor(selectedParentID == nil ? .secondary : .primary)
-                                        .frame(maxWidth: .infinity, alignment: .leading) // 佔用可用空間
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                     Image(systemName: "chevron.down")
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            .frame(maxWidth: .infinity) // 使用最大寬度
+                            .frame(maxWidth: .infinity)
 
-                            // 分隔線
+                            // separator
                             Text("/")
                                 .foregroundColor(.secondary)
                                 .font(.system(size: 14))
 
-                            // 右側：子分類 - 優化佈局
+                            // Subcategory menu
                             Menu {
-                                // None option
                                 Button(action: { selectedSubcategoryID = nil }) {
                                     HStack {
                                         Text(langManager.localized("form_none"))
@@ -184,7 +183,6 @@ struct TransactionFormView: View {
                                     }
                                 }
 
-                                // Subcategory items (only for selected parent)
                                 ForEach(subsForSelectedParent) { sub in
                                     Button(action: {
                                         selectedSubcategoryID = sub.id
@@ -206,14 +204,14 @@ struct TransactionFormView: View {
                                         .lineLimit(1)
                                         .truncationMode(.tail)
                                         .foregroundColor(selectedParentID == nil ? .secondary : .primary)
-                                        .frame(maxWidth: .infinity, alignment: .trailing) // 佔用可用空間
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
                                     Image(systemName: "chevron.down")
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(.secondary)
                                 }
                             }
                             .disabled(selectedParentID == nil)
-                            .frame(maxWidth: .infinity) // 使用最大寬度
+                            .frame(maxWidth: .infinity)
                         }
                         .frame(maxWidth: .infinity)
                         .onChange(of: selectedParentID) { newParent in
@@ -248,7 +246,7 @@ struct TransactionFormView: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                     } else {
-                        Text(note.isEmpty ? "-" : note)
+                        Text(note.isEmpty ? langManager.localized("form_none") : note)
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
@@ -322,7 +320,7 @@ struct TransactionFormView: View {
     }
 
     // MARK: - Computed Properties
-    
+
     private var selectedParentName: String {
         if let parentID = selectedParentID,
            let parent = categories.first(where: { $0.id == parentID }) {
@@ -331,10 +329,10 @@ struct TransactionFormView: View {
             return langManager.localized("form_none")
         }
     }
-    
+
     private var selectedSubcategoryName: String {
         if selectedParentID == nil {
-            return "請先選擇主要分類"
+            return langManager.localized("select_parent_first")
         } else if let subID = selectedSubcategoryID,
                   let sub = subcategories.first(where: { $0.id == subID }) {
             return sub.name
@@ -344,13 +342,13 @@ struct TransactionFormView: View {
     }
 
     // MARK: - Validation
-    
+
     var isValid: Bool {
         Decimal(string: amountText) != nil
     }
 
     // MARK: - Helper Methods
-    
+
     private func save() {
         guard let amount = Decimal(string: amountText) else { return }
         let finalSubcategoryID = selectedSubcategoryID

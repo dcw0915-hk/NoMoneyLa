@@ -50,12 +50,12 @@ struct TransactionListView: View {
                 // 篩選狀態顯示列
                 if filterType != nil || filterCategory != nil || filterSubcategory != nil || !searchText.isEmpty {
                     HStack {
-                        Text("目前篩選：")
+                        Text(langManager.localized("filter_current"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
                         if let type = filterType {
-                            Text(type == .expense ? "支出" : "收入")
+                            Text(type == .expense ? langManager.localized("expense_label") : langManager.localized("income_label"))
                                 .font(.caption)
                                 .padding(4)
                                 .background(RoundedRectangle(cornerRadius: 4).fill(Color.gray.opacity(0.2)))
@@ -76,7 +76,7 @@ struct TransactionListView: View {
                         }
 
                         if !searchText.isEmpty {
-                            Text("搜尋：\(searchText)")
+                            Text("\(langManager.localized("search_label"))：\(searchText)")
                                 .font(.caption)
                                 .padding(4)
                                 .background(RoundedRectangle(cornerRadius: 4).fill(Color.gray.opacity(0.2)))
@@ -84,7 +84,7 @@ struct TransactionListView: View {
 
                         Spacer()
 
-                        Button("清除") {
+                        Button(langManager.localized("clear_button")) {
                             filterType = nil
                             filterCategory = nil
                             filterSubcategory = nil
@@ -132,8 +132,14 @@ struct TransactionListView: View {
                                 .cardStyle()
                             }
                             .buttonStyle(.plain)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    delete(tx: tx)
+                                } label: {
+                                    Label(langManager.localized("delete_button"), systemImage: "trash")
+                                }
+                            }
                         }
-                        .onDelete(perform: deleteItems)
                     }
                     .padding(.horizontal)
                     .padding(.top, 8)
@@ -144,18 +150,18 @@ struct TransactionListView: View {
                 // 類型篩選（左上）
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
-                        Button("全部") { filterType = nil; saveFilterState() }
-                        Button("支出") { filterType = .expense; saveFilterState() }
-                        Button("收入") { filterType = .income; saveFilterState() }
+                        Button(langManager.localized("all_label")) { filterType = nil; saveFilterState() }
+                        Button(langManager.localized("expense_label")) { filterType = .expense; saveFilterState() }
+                        Button(langManager.localized("income_label")) { filterType = .income; saveFilterState() }
                     } label: {
-                        Label(filterType?.rawValue ?? "類型", systemImage: "line.3.horizontal.decrease.circle")
+                        Label(filterType?.rawValue ?? langManager.localized("type_label"), systemImage: "line.3.horizontal.decrease.circle")
                     }
                 }
 
                 // 主要分類（Category）篩選（左上）
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
-                        Button("全部主要分類") { filterCategory = nil; filterSubcategory = nil; saveFilterState() }
+                        Button(langManager.localized("all_parent_category")) { filterCategory = nil; filterSubcategory = nil; saveFilterState() }
                         ForEach(categories) { cat in
                             Button(cat.name) {
                                 filterCategory = cat
@@ -164,14 +170,14 @@ struct TransactionListView: View {
                             }
                         }
                     } label: {
-                        Label(filterCategory?.name ?? "主要分類", systemImage: "folder")
+                        Label(filterCategory?.name ?? langManager.localized("form_parent_category"), systemImage: "folder")
                     }
                 }
 
                 // 子分類（Subcategory）篩選（左上）
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
-                        Button("全部子分類") { filterSubcategory = nil; saveFilterState() }
+                        Button(langManager.localized("all_subcategory")) { filterSubcategory = nil; saveFilterState() }
                         ForEach(subcategories.filter { $0.parentID == filterCategory?.id }) { sub in
                             Button(sub.name) {
                                 filterSubcategory = sub
@@ -179,7 +185,7 @@ struct TransactionListView: View {
                             }
                         }
                     } label: {
-                        Label(filterSubcategory?.name ?? "子分類", systemImage: "tag")
+                        Label(filterSubcategory?.name ?? langManager.localized("form_subcategory"), systemImage: "tag")
                     }
                 }
 
@@ -242,15 +248,12 @@ struct TransactionListView: View {
     }
 
     // MARK: - Helpers
-    private func deleteItems(at offsets: IndexSet) {
-        for index in offsets {
-            let tx = transactions[index]
-            context.delete(tx)
-        }
+    private func delete(tx: Transaction) {
+        context.delete(tx)
         do {
             try context.save()
         } catch {
-            print("刪除失敗：\(error.localizedDescription)")
+            print("\(langManager.localized("delete_failed"))：\(error.localizedDescription)")
         }
     }
 

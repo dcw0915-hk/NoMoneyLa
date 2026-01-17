@@ -1,11 +1,11 @@
-/* 
+/*
   Localizable.strings
-  NoMoneyLa
+  NoMoneyLa (HK Localization)
 
   Created by Ricky Ding on 16/1/2026.
   
 */
-"transactions_title" = "交易紀錄";
+"transactions_title" = "交易記錄";
 "new_transaction_title" = "新增交易";
 "amount_label" = "金額";
 "date_label" = "日期";
@@ -48,7 +48,6 @@
 "form_delete_title" = "刪除交易";
 "form_delete_message" = "確定要刪除此交易？此操作無法復原。";
 "form_none" = "無";
-"settings_title" = "設置";
 "settings_language_section" = "語言";
 "settings_language_label" = "選擇語言";
 "settings_appearance_section" = "外觀";
@@ -57,15 +56,33 @@
 "settings_appearance_light" = "淺色模式";
 "settings_appearance_dark" = "深色模式";
 "settings_manage_categories" = "分類管理";
-"settings_reset_button" = "重置";
+"settings_reset_button" = "重設";
 "subcategory_add_section" = "新增次要分類";
 "subcategory_color_picker" = "選擇顏色";
 "subcategory_name_placeholder" = "輸入名稱";
 "subcategory_add_button" = "新增";
-"subcategory_list_section" = "已建立的子分類";
+"subcategory_list_section" = "已建立的次要分類";
 "subcategory_name_label" = "名稱";
 "subcategory_manage_title" = "管理次要分類";
 "subcategory_delete_title" = "刪除次要分類";
 "subcategory_cancel" = "取消";
 "subcategory_delete" = "刪除";
-"subcategory_delete_message" = "刪除次要分類會讓相關交易失去連結，確定要刪除嗎？";
+"subcategory_delete_message" = "刪除次要分類會令相關交易失去連結，確定要刪除嗎？";
+"search_placeholder" = "搜尋交易或分類";
+"transaction_detail_title" = "交易詳情";
+"filter_current" = "目前篩選：";
+"search_label" = "搜尋";
+"clear_button" = "清除";
+"no_transactions" = "沒有符合條件的交易";
+"no_transactions_description" = "請調整搜尋條件或新增交易";
+"uncategorized" = "未分類";
+"all_label" = "全部";
+"type_label" = "類型";
+"all_parent_category" = "全部主要分類";
+"all_subcategory" = "全部子分類";
+"all_supercategory" = "全部活動／旅程";
+"delete_failed" = "刪除失敗";
+"category_section_header" = "主要分類 / 子分類";
+"select_parent_first" = "請先選擇主要分類";
+"search_placeholder" = "搜尋交易或分類";
+"transaction_detail_title" = "交易詳情";
