@@ -6,6 +6,80 @@ import SwiftUI
 import SwiftData
 import UIKit
 
+// MARK: - SelectAllTextField (UIViewRepresentable)
+struct SelectAllTextField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFirstResponder: Bool
+
+    var placeholder: String
+    var keyboardType: UIKeyboardType = .default
+    var onCommit: (() -> Void)? = nil
+
+    func makeUIView(context: Context) -> UITextField {
+        let tf = UITextField(frame: .zero)
+        tf.delegate = context.coordinator
+        tf.placeholder = placeholder
+        tf.keyboardType = keyboardType
+        tf.borderStyle = .none
+        tf.addTarget(context.coordinator, action: #selector(Coordinator.editingDidBegin), for: .editingDidBegin)
+        tf.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged), for: .editingChanged)
+        tf.addTarget(context.coordinator, action: #selector(Coordinator.editingDidEndOnExit), for: .editingDidEndOnExit)
+        return tf
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        if uiView.text != text {
+            uiView.text = text
+        }
+
+        if isFirstResponder && !uiView.isFirstResponder {
+            uiView.becomeFirstResponder()
+            // selection handled in editingDidBegin
+        } else if !isFirstResponder && uiView.isFirstResponder {
+            uiView.resignFirstResponder()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: SelectAllTextField
+
+        init(_ parent: SelectAllTextField) {
+            self.parent = parent
+        }
+
+        @objc func editingDidBegin(_ sender: UITextField) {
+            // Select all text when editing begins
+            DispatchQueue.main.async {
+                sender.selectAll(nil)
+            }
+            parent.isFirstResponder = true
+        }
+
+        @objc func editingChanged(_ sender: UITextField) {
+            parent.text = sender.text ?? ""
+        }
+
+        @objc func editingDidEndOnExit(_ sender: UITextField) {
+            parent.onCommit?()
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            parent.isFirstResponder = false
+            parent.text = textField.text ?? ""
+        }
+
+        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            textField.resignFirstResponder()
+            parent.onCommit?()
+            return true
+        }
+    }
+}
+
 // MARK: - TransactionFormView
 
 struct TransactionFormView: View {
@@ -30,7 +104,14 @@ struct TransactionFormView: View {
     @State private var showDeleteAlert = false
     @State private var isEditing: Bool = true
 
+    @State private var amountFieldIsFirstResponder: Bool = false
+    @FocusState private var focusedField: Field?
+
     private let currencies = ["HKD", "USD", "JPY"]
+    
+    enum Field {
+        case amount, note
+    }
 
     init(transaction: Transaction? = nil, isEditing: Bool = true) {
         self.transaction = transaction
@@ -44,13 +125,25 @@ struct TransactionFormView: View {
                 Section(header: Text(langManager.localized("form_amount"))) {
                     HStack(spacing: 12) {
                         if isEditing {
-                            TextField(langManager.localized("form_amount_placeholder"), text: $amountText)
-                                .keyboardType(.decimalPad)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .font(.system(size: 18))
-                                .frame(height: 28)
-                                .controlSize(.small)
+                            SelectAllTextField(
+                                text: $amountText,
+                                isFirstResponder: $amountFieldIsFirstResponder,
+                                placeholder: langManager.localized("form_amount_placeholder"),
+                                keyboardType: .decimalPad,
+                                onCommit: {
+                                    if let value = decimalFromString(amountText) {
+                                        amountText = decimalToString(value)
+                                    }
+                                    focusedField = nil
+                                }
+                            )
+                            .frame(height: 28)
+                            .controlSize(.small)
+                            .focused($focusedField, equals: .amount)
+                            .onTapGesture {
+                                // This ensures tapping on the field brings up keyboard
+                                amountFieldIsFirstResponder = true
+                            }
 
                             Menu {
                                 ForEach(currencies, id: \.self) { code in
@@ -78,7 +171,8 @@ struct TransactionFormView: View {
                             .frame(minWidth: 110, maxHeight: 28)
                             .controlSize(.small)
                         } else {
-                            Text(format(amount: Decimal(string: amountText) ?? 0, code: currencyCode))
+                            let displayAmount: Decimal = currentTransaction?.amount ?? (decimalFromString(amountText) ?? 0)
+                            Text(formatCurrency(amount: displayAmount, code: currencyCode))
                                 .font(.system(size: 18))
                                 .frame(height: 28)
                                 .foregroundColor(selectedType == .income ? .green : .red)
@@ -132,7 +226,6 @@ struct TransactionFormView: View {
                                 ForEach(categories) { cat in
                                     Button(action: {
                                         selectedParentID = cat.id
-                                        // auto-select first subcategory if exists
                                         if let firstSub = subcategories.first(where: { $0.parentID == cat.id }) {
                                             selectedSubcategoryID = firstSub.id
                                         } else {
@@ -164,7 +257,6 @@ struct TransactionFormView: View {
                             }
                             .frame(maxWidth: .infinity)
 
-                            // separator
                             Text("/")
                                 .foregroundColor(.secondary)
                                 .font(.system(size: 14))
@@ -245,6 +337,7 @@ struct TransactionFormView: View {
                         TextField(langManager.localized("form_note_placeholder"), text: $note)
                             .lineLimit(1)
                             .truncationMode(.tail)
+                            .focused($focusedField, equals: .note)
                     } else {
                         Text(note.isEmpty ? langManager.localized("form_none") : note)
                             .lineLimit(1)
@@ -288,6 +381,7 @@ struct TransactionFormView: View {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(langManager.localized("form_edit_title")) {
                             isEditing = true
+                            // 🚫 Removed auto-focus when switching to edit
                         }
                     }
                 }
@@ -309,12 +403,26 @@ struct TransactionFormView: View {
                         selectedParentID = nil
                     }
                 }
+                // 🚫 Removed auto-focus for new transaction
             }
             .alert(langManager.localized("form_delete_title"), isPresented: $showDeleteAlert) {
                 Button(langManager.localized("form_cancel"), role: .cancel) {}
                 Button(langManager.localized("form_delete"), role: .destructive) { deleteConfirmed() }
             } message: {
                 Text(langManager.localized("form_delete_message"))
+            }
+            // ADD THIS: Dismiss keyboard when tapping outside
+            .onTapGesture {
+                hideKeyboard()
+            }
+            // ADD THIS: Add a Done button to the keyboard toolbar
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        hideKeyboard()
+                    }
+                }
             }
         }
     }
@@ -344,35 +452,40 @@ struct TransactionFormView: View {
     // MARK: - Validation
 
     var isValid: Bool {
-        Decimal(string: amountText) != nil
+        decimalFromString(amountText) != nil
     }
 
     // MARK: - Helper Methods
 
     private func save() {
-        guard let amount = Decimal(string: amountText) else { return }
-        let finalSubcategoryID = selectedSubcategoryID
-
-        if let tx = currentTransaction {
-            tx.amount = amount
-            tx.date = date
-            tx.note = note.isEmpty ? nil : note
-            tx.type = selectedType
-            tx.currencyCode = currencyCode
-            tx.subcategoryID = finalSubcategoryID
-            try? context.save()
-        } else {
-            let tx = Transaction(amount: amount,
-                                 date: date,
-                                 note: note.isEmpty ? nil : note,
-                                 subcategoryID: finalSubcategoryID,
-                                 type: selectedType,
-                                 currencyCode: currencyCode)
-            context.insert(tx)
-            try? context.save()
-            currentTransaction = tx
+        amountFieldIsFirstResponder = false
+        hideKeyboard()
+        DispatchQueue.main.async {
+            guard let amount = decimalFromString(amountText) else {
+                return
+            }
+            let finalSubcategoryID = selectedSubcategoryID
+            if let tx = currentTransaction {
+                tx.amount = amount
+                tx.date = date
+                tx.note = note.isEmpty ? nil : note
+                tx.type = selectedType
+                tx.currencyCode = currencyCode
+                tx.subcategoryID = finalSubcategoryID
+                try? context.save()
+            } else {
+                let tx = Transaction(amount: amount,
+                                     date: date,
+                                     note: note.isEmpty ? nil : note,
+                                     subcategoryID: finalSubcategoryID,
+                                     type: selectedType,
+                                     currencyCode: currencyCode)
+                context.insert(tx)
+                try? context.save()
+                currentTransaction = tx
+            }
+            dismiss()
         }
-        dismiss()
     }
 
     private func deleteConfirmed() {
@@ -382,15 +495,28 @@ struct TransactionFormView: View {
         dismiss()
     }
 
+    // MARK: - Number Helpers
+
+    private func decimalFromString(_ string: String) -> Decimal? {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale.current
+        formatter.usesGroupingSeparator = true
+        return formatter.number(from: string)?.decimalValue
+    }
+
     private func decimalToString(_ d: Decimal) -> String {
         let ns = d as NSDecimalNumber
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.locale = Locale.current
+        formatter.usesGroupingSeparator = false
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 2
         return formatter.string(from: ns) ?? "\(d)"
     }
 
-    private func format(amount: Decimal, code: String = "HKD") -> String {
+    private func formatCurrency(amount: Decimal, code: String = "HKD") -> String {
         let ns = amount as NSDecimalNumber
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -408,6 +534,10 @@ struct TransactionFormView: View {
         }
     }
 
+    private func decimalToStringNoGrouping(_ d: Decimal) -> String {
+        return decimalToString(d)
+    }
+
     private func categoryPath(parentID: UUID?, subID: UUID?) -> String {
         if let subID = subID,
            let sub = subcategories.first(where: { $0.id == subID }),
@@ -419,5 +549,13 @@ struct TransactionFormView: View {
         } else {
             return langManager.localized("form_none")
         }
+    }
+    
+    // ADD THIS: Helper function to hide keyboard
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                       to: nil, from: nil, for: nil)
+        amountFieldIsFirstResponder = false
+        focusedField = nil
     }
 }

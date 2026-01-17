@@ -31,6 +31,11 @@ struct SubcategoryManagerView: View {
                 // 新增子分類
                 Section(langManager.localized("subcategory_add_section")) {
                     HStack(spacing: 12) {
+                        TextField(langManager.localized("subcategory_name_placeholder"), text: $newName)
+                            .submitLabel(.done)
+                            .onSubmit { addSubcategory() }
+                        
+                        // Color picker moved to just before (left of) the add button
                         ColorPicker("", selection: Binding(
                             get: { Color(hex: newColorHex) },
                             set: { newColorHex = $0.toHex() ?? "#FF6B6B" }
@@ -38,11 +43,7 @@ struct SubcategoryManagerView: View {
                         .labelsHidden()
                         .frame(width: 30, height: 30)   // ✅ compact swatch
                         .clipShape(Circle())
-
-                        TextField(langManager.localized("subcategory_name_placeholder"), text: $newName)
-                            .submitLabel(.done)
-                            .onSubmit { addSubcategory() }
-
+                        
                         Button(langManager.localized("subcategory_add_button")) { addSubcategory() }
                             .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
