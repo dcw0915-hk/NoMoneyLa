@@ -231,7 +231,7 @@ struct CategorySettlementView: View {
     @State private var showPayerTransactions = false
     
     // 添加除錯狀態
-    @State private var debugInfo: String = ""
+    @State private var debugInfo: [String] = []
     
     private var categoryTransactions: [Transaction] {
         let subcategoryIDs = allSubcategories
@@ -247,43 +247,101 @@ struct CategorySettlementView: View {
                 return subcategoryIDs.contains(subID)
             }
             return false
-        }
+        }.filter { $0.type == .expense } // 只計算支出類交易
     }
     
-    // MARK: - 修正的計算函數
+    // MARK: - 正確的計算函數
     
+    // 計算某付款人的總實付金額
     private func totalPaidByPayer(_ payer: Payer) -> Decimal {
         return categoryTransactions.reduce(Decimal(0)) { total, transaction in
-            let payerContributions = transaction.contributions.filter { $0.payer.id == payer.id }
-            let contributionSum = payerContributions.reduce(Decimal(0)) { $0 + $1.amount }
-            return total + contributionSum
+            // 找出此付款人在此交易中的貢獻
+            if let contribution = transaction.contributions.first(where: { $0.payer.id == payer.id }) {
+                return total + contribution.amount
+            }
+            return total
         }
     }
     
-    private func totalShouldPayByPayer(_ payer: Payer) -> Decimal {
-        let relevantTransactions = categoryTransactions.filter { transaction in
-            transaction.contributions.contains { $0.payer.id == payer.id }
+    // 獲取此分類的所有參與者（優先使用已分配的付款人）
+    private func getAllParticipants() -> [Payer] {
+        // 先從已分配的付款人中獲取
+        let assignedPayers = category.assignedPayers(in: context)
+        if !assignedPayers.isEmpty {
+            addDebugInfo("使用已分配的付款人: \(assignedPayers.map { $0.name }.joined(separator: ", "))")
+            return assignedPayers
         }
         
-        if relevantTransactions.isEmpty {
-            return 0
+        // 如果沒有已分配的付款人，則從交易中動態計算
+        var participantIDs = Set<UUID>()
+        for transaction in categoryTransactions {
+            for contribution in transaction.contributions {
+                participantIDs.insert(contribution.payer.id)
+            }
         }
         
-        let totalTransactionsAmount = relevantTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
+        let dynamicParticipants = allPayers.filter { participantIDs.contains($0.id) }
+        addDebugInfo("使用動態參與者: \(dynamicParticipants.map { $0.name }.joined(separator: ", "))")
+        return dynamicParticipants
+    }
+    
+    // 計算每人應付金額（簡單平均法）
+    private func calculateShouldPayAmounts() -> [Payer: Decimal] {
+        var shouldPayAmounts: [Payer: Decimal] = [:]
         
-        let totalPaidByThisPayer = relevantTransactions.reduce(Decimal(0)) { total, transaction in
-            let payerContribution = transaction.contributions
-                .first { $0.payer.id == payer.id }?.amount ?? 0
-            return total + payerContribution
+        // 計算分類總金額
+        let totalCategoryAmount = categoryTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
+        
+        // 計算參與人數
+        let participantCount = Decimal(participants.count)
+        
+        if participantCount > 0 {
+            let perPersonAmount = totalCategoryAmount / participantCount
+            
+            addDebugInfo("總金額: \(formatCurrency(totalCategoryAmount))")
+            addDebugInfo("參與人數: \(participants.count)")
+            addDebugInfo("每人應付（平均）: \(formatCurrency(perPersonAmount))")
+            
+            for payer in participants {
+                shouldPayAmounts[payer] = perPersonAmount
+            }
         }
         
-        if totalPaidByThisPayer == 0 {
-            return 0
+        return shouldPayAmounts
+    }
+    
+    // 計算詳細的分攤金額（考慮分攤比例）
+    private func calculateDetailedShouldPayAmounts() -> [Payer: Decimal] {
+        var shouldPayAmounts: [Payer: Decimal] = [:]
+        
+        // 方法：按實際參與比例分攤
+        // 總共需要分攤的金額 = 所有交易的總金額
+        let totalAmount = categoryTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
+        
+        // 計算每個付款人的總支付比例
+        var totalPaidByAll: Decimal = 0
+        var paidAmounts: [UUID: Decimal] = [:]
+        
+        for payer in participants {
+            let paid = totalPaidByPayer(payer)
+            paidAmounts[payer.id] = paid
+            totalPaidByAll += paid
         }
         
-        let payerContributionRatio = totalPaidByThisPayer / totalTransactionsAmount
+        addDebugInfo("所有參與者總支付: \(formatCurrency(totalPaidByAll))")
         
-        return totalTransactionsAmount * payerContributionRatio
+        if totalPaidByAll > 0 {
+            for payer in participants {
+                let paid = paidAmounts[payer.id] ?? 0
+                let proportion = totalAmount > 0 ? (paid / totalPaidByAll) : 0
+                let shouldPay = totalAmount * proportion
+                shouldPayAmounts[payer] = shouldPay
+                
+                addDebugInfo("\(payer.name): 支付比例 = \(String(format: "%.2f", Double(truncating: proportion as NSNumber) * 100))%, 應付 = \(formatCurrency(shouldPay))")
+            }
+        }
+        
+        return shouldPayAmounts
     }
     
     var body: some View {
@@ -300,7 +358,9 @@ struct CategorySettlementView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text("總金額：\(formatCurrency(category.totalAmount(in: context)))")
+                        // 計算總金額
+                        let totalAmount = categoryTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
+                        Text("總金額：\(formatCurrency(totalAmount))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
@@ -416,12 +476,59 @@ struct CategorySettlementView: View {
                 }
             }
             
+            // 詳細計算結果
+            if !settlementResults.isEmpty {
+                Section("詳細計算結果") {
+                    ForEach(settlementResults, id: \.payer.id) { result in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Circle()
+                                    .fill(Color(hex: result.payer.colorHex ?? "#A8A8A8"))
+                                    .frame(width: 12, height: 12)
+                                
+                                Text(result.payer.name)
+                                    .font(.headline)
+                                
+                                Spacer()
+                                
+                                let paid = totalPaidByPayer(result.payer)
+                                Text("實付：\(formatCurrency(paid))")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            HStack {
+                                Text("淨結餘：")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Text(formatCurrency(result.netBalance))
+                                    .font(.body)
+                                    .foregroundColor(result.netBalance > 0 ? .green : (result.netBalance < 0 ? .red : .primary))
+                                
+                                Spacer()
+                                
+                                if let toPayer = result.shouldPayTo {
+                                    Text("應付款給 \(toPayer.name)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+            
             // 除錯信息區塊
             if !debugInfo.isEmpty {
-                Section("除錯信息") {
-                    Text(debugInfo)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                Section("計算詳情") {
+                    ForEach(debugInfo.indices, id: \.self) { index in
+                        Text(debugInfo[index])
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.vertical, 1)
+                    }
                 }
             }
         }
@@ -433,9 +540,22 @@ struct CategorySettlementView: View {
                     calculateSettlement()
                 }
             }
+            
+            ToolbarItem(placement: .topBarLeading) {
+                Menu {
+                    Button("平均分攤法") {
+                        calculateSettlement(method: .average)
+                    }
+                    
+                    Button("按比例分攤法") {
+                        calculateSettlement(method: .proportional)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
         }
         .onAppear {
-            loadParticipants()
             calculateSettlement()
         }
         .sheet(isPresented: $showPayerTransactions) {
@@ -447,65 +567,90 @@ struct CategorySettlementView: View {
     
     // MARK: - 方法
     
-    private func loadParticipants() {
-        // 打印除錯信息
-        print("=== DEBUG [CategorySettlementView] ===")
-        print("分類: \(category.name)")
-        print("assignedPayerIDs: \(category.assignedPayerIDs)")
-        
-        let assignedPayers = category.assignedPayers(in: context)
-        print("assignedPayers 函數返回: \(assignedPayers.map { $0.name })")
-        
-        let dynamicParticipants = category.participants(in: context)
-        print("動態參與者: \(dynamicParticipants.map { $0.name })")
-        
-        // 優先使用已分配的付款人
-        if !assignedPayers.isEmpty {
-            participants = assignedPayers
-            debugInfo = "使用已分配的付款人: \(assignedPayers.map { $0.name }.joined(separator: ", "))"
-            print("使用已分配的付款人")
-        } else {
-            participants = dynamicParticipants
-            debugInfo = "使用動態參與者: \(dynamicParticipants.map { $0.name }.joined(separator: ", "))"
-            print("使用動態參與者")
-        }
-        
-        print("最終參與者: \(participants.map { $0.name })")
-        print("======================")
+    enum SettlementMethod {
+        case average      // 平均分攤
+        case proportional // 按比例分攤
     }
     
-    private func calculateSettlement() {
-        // 1. 計算每人淨結餘
-        var balances: [Payer: Decimal] = [:]
+    private func addDebugInfo(_ message: String) {
+        debugInfo.append(message)
+        print("DEBUG: \(message)")
+    }
+    
+    private func clearDebugInfo() {
+        debugInfo.removeAll()
+    }
+    
+    private func calculateSettlement(method: SettlementMethod = .average) {
+        clearDebugInfo()
+        addDebugInfo("=== 開始計算結算 ===")
+        addDebugInfo("分類: \(category.name)")
+        addDebugInfo("計算方法: \(method == .average ? "平均分攤法" : "按比例分攤法")")
         
-        for payer in participants {
-            let paid = totalPaidByPayer(payer)
-            let shouldPay = totalShouldPayByPayer(payer)
-            let netBalance = paid - shouldPay
-            balances[payer] = netBalance
-            print("\(payer.name): 實付=\(paid), 應付=\(shouldPay), 淨結餘=\(netBalance)")
+        // 獲取所有參與者
+        participants = getAllParticipants()
+        
+        if participants.isEmpty {
+            addDebugInfo("警告：沒有找到參與者")
+            settlementResults = []
+            settlementSteps = []
+            return
         }
         
-        // 2. 生成結算結果
+        addDebugInfo("參與者數量: \(participants.count)")
+        
+        // 計算分類總金額
+        let totalCategoryAmount = categoryTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
+        addDebugInfo("分類總金額: \(formatCurrency(totalCategoryAmount))")
+        
+        // 1. 計算每人實付金額
+        var paidAmounts: [Payer: Decimal] = [:]
+        for payer in participants {
+            let paid = totalPaidByPayer(payer)
+            paidAmounts[payer] = paid
+            addDebugInfo("\(payer.name) 實付: \(formatCurrency(paid))")
+        }
+        
+        // 2. 計算每人應付金額
+        var shouldPayAmounts: [Payer: Decimal] = [:]
+        
+        switch method {
+        case .average:
+            shouldPayAmounts = calculateAverageShouldPayAmounts(totalAmount: totalCategoryAmount)
+        case .proportional:
+            shouldPayAmounts = calculateProportionalShouldPayAmounts(totalAmount: totalCategoryAmount, paidAmounts: paidAmounts)
+        }
+        
+        // 3. 計算淨結餘
+        var netBalances: [Payer: Decimal] = [:]
         var results: [SettlementResult] = []
-        for (payer, balance) in balances {
+        
+        for payer in participants {
+            let paid = paidAmounts[payer] ?? 0
+            let shouldPay = shouldPayAmounts[payer] ?? 0
+            let netBalance = paid - shouldPay
+            
+            netBalances[payer] = netBalance
+            
+            addDebugInfo("\(payer.name): 實付=\(formatCurrency(paid)), 應付=\(formatCurrency(shouldPay)), 淨結餘=\(formatCurrency(netBalance))")
+            
             results.append(SettlementResult(
                 payer: payer,
-                netBalance: balance,
+                netBalance: netBalance,
                 shouldPayTo: nil,
                 amount: 0
             ))
         }
         
-        // 3. 計算最優結算步驟
-        settlementSteps = calculateOptimalSettlement(balances: balances)
+        // 4. 計算最優結算步驟
+        settlementSteps = calculateOptimalSettlement(balances: netBalances)
         
-        // 4. 更新結算結果中的應付款信息
+        // 5. 更新結算結果中的應付款信息
         for step in settlementSteps {
             if let index = results.firstIndex(where: { $0.payer.id == step.from.id }) {
                 results[index] = SettlementResult(
                     payer: step.from,
-                    netBalance: balances[step.from] ?? 0,
+                    netBalance: netBalances[step.from] ?? 0,
                     shouldPayTo: step.to,
                     amount: step.amount
                 )
@@ -513,21 +658,76 @@ struct CategorySettlementView: View {
         }
         
         settlementResults = results.sorted { $0.netBalance > $1.netBalance }
+        
+        // 檢查計算是否平衡
+        let totalNetBalance = netBalances.values.reduce(0, +)
+        if abs(totalNetBalance) > 0.01 {
+            addDebugInfo("警告：計算不平衡，淨結餘總和 = \(formatCurrency(totalNetBalance))")
+        } else {
+            addDebugInfo("計算平衡，淨結餘總和 ≈ 0")
+        }
+        
+        addDebugInfo("=== 計算完成 ===")
+    }
+    
+    // 平均分攤法
+    private func calculateAverageShouldPayAmounts(totalAmount: Decimal) -> [Payer: Decimal] {
+        var shouldPayAmounts: [Payer: Decimal] = [:]
+        
+        let participantCount = Decimal(participants.count)
+        
+        if participantCount > 0 {
+            let perPersonAmount = totalAmount / participantCount
+            
+            addDebugInfo("每人應付（平均）: \(formatCurrency(perPersonAmount))")
+            
+            for payer in participants {
+                shouldPayAmounts[payer] = perPersonAmount
+            }
+        }
+        
+        return shouldPayAmounts
+    }
+    
+    // 按比例分攤法
+    private func calculateProportionalShouldPayAmounts(totalAmount: Decimal, paidAmounts: [Payer: Decimal]) -> [Payer: Decimal] {
+        var shouldPayAmounts: [Payer: Decimal] = [:]
+        
+        // 計算所有參與者的總支付金額
+        let totalPaidByAll = paidAmounts.values.reduce(0, +)
+        addDebugInfo("所有參與者總支付: \(formatCurrency(totalPaidByAll))")
+        
+        if totalPaidByAll > 0 && totalAmount > 0 {
+            for payer in participants {
+                let paid = paidAmounts[payer] ?? 0
+                let proportion = paid / totalPaidByAll
+                let shouldPay = totalAmount * proportion
+                shouldPayAmounts[payer] = shouldPay
+                
+                addDebugInfo("\(payer.name): 支付比例 = \(String(format: "%.1f", Double(truncating: proportion as NSNumber) * 100))%, 應付 = \(formatCurrency(shouldPay))")
+            }
+        }
+        
+        return shouldPayAmounts
     }
     
     // 計算最優結算方案（最少轉帳次數）
     private func calculateOptimalSettlement(balances: [Payer: Decimal]) -> [(from: Payer, to: Payer, amount: Decimal)] {
-        var creditors: [(payer: Payer, amount: Decimal)] = []
-        var debtors: [(payer: Payer, amount: Decimal)] = []
+        var creditors: [(payer: Payer, amount: Decimal)] = [] // 應收款人（正數）
+        var debtors: [(payer: Payer, amount: Decimal)] = []   // 應付款人（負數）
         
+        // 分離收款人和付款人
         for (payer, balance) in balances {
             if balance > 0 {
                 creditors.append((payer: payer, amount: balance))
+                addDebugInfo("收款人: \(payer.name) (+\(formatCurrency(balance)))")
             } else if balance < 0 {
-                debtors.append((payer: payer, amount: -balance))
+                debtors.append((payer: payer, amount: -balance)) // 轉為正數
+                addDebugInfo("付款人: \(payer.name) (-\(formatCurrency(-balance)))")
             }
         }
         
+        // 排序：金額大的優先處理
         creditors.sort { $0.amount > $1.amount }
         debtors.sort { $0.amount > $1.amount }
         
@@ -542,15 +742,19 @@ struct CategorySettlementView: View {
             
             if settleAmount > 0 {
                 steps.append((from: debtor.payer, to: creditor.payer, amount: settleAmount))
+                addDebugInfo("結算步驟: \(debtor.payer.name) → \(creditor.payer.name) 金額: \(formatCurrency(settleAmount))")
             }
             
+            // 更新剩餘金額
             creditors[i].amount -= settleAmount
             debtors[j].amount -= settleAmount
             
+            // 如果某人金額清零，移動到下一個
             if creditors[i].amount == 0 { i += 1 }
             if debtors[j].amount == 0 { j += 1 }
         }
         
+        addDebugInfo("總共需要 \(steps.count) 筆轉帳")
         return steps
     }
 }
