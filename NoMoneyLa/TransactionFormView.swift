@@ -1,12 +1,16 @@
-//
-// TransactionFormView.swift
-//
-
 import SwiftUI
 import SwiftData
 import UIKit
 
-// MARK: - SelectAllTextField (UIViewRepresentable)
+// MARK: - ContributionEntry (表單暫存用)
+struct ContributionEntry: Identifiable {
+    let id = UUID()
+    var payerID: UUID?
+    var amountText: String = ""
+    var isRemovable: Bool = true
+}
+
+// MARK: - SelectAllTextField
 struct SelectAllTextField: UIViewRepresentable {
     @Binding var text: String
     @Binding var isFirstResponder: Bool
@@ -34,7 +38,6 @@ struct SelectAllTextField: UIViewRepresentable {
 
         if isFirstResponder && !uiView.isFirstResponder {
             uiView.becomeFirstResponder()
-            // selection handled in editingDidBegin
         } else if !isFirstResponder && uiView.isFirstResponder {
             uiView.resignFirstResponder()
         }
@@ -52,7 +55,6 @@ struct SelectAllTextField: UIViewRepresentable {
         }
 
         @objc func editingDidBegin(_ sender: UITextField) {
-            // Select all text when editing begins
             DispatchQueue.main.async {
                 sender.selectAll(nil)
             }
@@ -81,7 +83,6 @@ struct SelectAllTextField: UIViewRepresentable {
 }
 
 // MARK: - TransactionFormView
-
 struct TransactionFormView: View {
     @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
@@ -91,15 +92,20 @@ struct TransactionFormView: View {
 
     @Query(sort: \Category.order) private var categories: [Category]
     @Query(sort: \Subcategory.order) private var subcategories: [Subcategory]
+    @Query(sort: \Payer.order) private var payers: [Payer]
 
-    @State private var amountText = ""
+    @State private var totalAmountText = ""
     @State private var date = Date()
     @State private var note = ""
     @State private var selectedParentID: UUID? = nil
     @State private var selectedSubcategoryID: UUID? = nil
     @State private var selectedType: TransactionType = .expense
     @State private var currencyCode: String = "HKD"
-
+    
+    @State private var contributions: [ContributionEntry] = []
+    @State private var showAmountError = false
+    @State private var showContributionSection = false // 控制是否显示分摊界面
+    
     @State private var currentTransaction: Transaction? = nil
     @State private var showDeleteAlert = false
     @State private var isEditing: Bool = true
@@ -110,7 +116,7 @@ struct TransactionFormView: View {
     private let currencies = ["HKD", "USD", "JPY"]
     
     enum Field {
-        case amount, note
+        case totalAmount, note
     }
 
     init(transaction: Transaction? = nil, isEditing: Bool = true) {
@@ -121,33 +127,31 @@ struct TransactionFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Amount + Currency
+                // 總金額 + 貨幣
                 Section(header: Text(langManager.localized("form_amount"))) {
                     HStack(spacing: 12) {
                         if isEditing {
                             SelectAllTextField(
-                                text: $amountText,
+                                text: $totalAmountText,
                                 isFirstResponder: $amountFieldIsFirstResponder,
                                 placeholder: langManager.localized("form_amount_placeholder"),
                                 keyboardType: .decimalPad,
                                 onCommit: {
-                                    if let value = decimalFromString(amountText) {
-                                        amountText = decimalToString(value)
+                                    if let value = decimalFromString(totalAmountText) {
+                                        totalAmountText = decimalToString(value)
                                     }
-                                    focusedField = nil
                                 }
                             )
                             .frame(height: 28)
                             .controlSize(.small)
-                            .focused($focusedField, equals: .amount)
-                            .onTapGesture {
-                                // This ensures tapping on the field brings up keyboard
-                                amountFieldIsFirstResponder = true
-                            }
+                            .focused($focusedField, equals: .totalAmount)
 
                             Menu {
                                 ForEach(currencies, id: \.self) { code in
-                                    Button(action: { currencyCode = code }) {
+                                    Button(action: {
+                                        hideKeyboard()
+                                        currencyCode = code
+                                    }) {
                                         HStack {
                                             Text("\(currencySymbol(for: code)) \(code)")
                                                 .font(.system(size: 18))
@@ -170,8 +174,11 @@ struct TransactionFormView: View {
                             }
                             .frame(minWidth: 110, maxHeight: 28)
                             .controlSize(.small)
+                            .onTapGesture {
+                                hideKeyboard()
+                            }
                         } else {
-                            let displayAmount: Decimal = currentTransaction?.amount ?? (decimalFromString(amountText) ?? 0)
+                            let displayAmount: Decimal = currentTransaction?.totalAmount ?? (decimalFromString(totalAmountText) ?? 0)
                             Text(formatCurrency(amount: displayAmount, code: currencyCode))
                                 .font(.system(size: 18))
                                 .frame(height: 28)
@@ -180,7 +187,7 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // Type
+                // 類型
                 Section(header: Text(langManager.localized("form_type"))) {
                     if isEditing {
                         Picker(langManager.localized("form_type_label"), selection: $selectedType) {
@@ -188,6 +195,13 @@ struct TransactionFormView: View {
                             Text(langManager.localized("form_expense")).tag(TransactionType.expense)
                         }
                         .pickerStyle(.segmented)
+                        .onChange(of: selectedType) { newType in
+                            hideKeyboard()
+                            handleTypeChange(newType)
+                        }
+                        .onTapGesture {
+                            hideKeyboard()
+                        }
                     } else {
                         Text(selectedType == .income ? langManager.localized("form_income")
                              : langManager.localized("form_expense"))
@@ -196,7 +210,7 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // Category (Parent / Subcategory)
+                // 分類
                 Section(header: Text(langManager.localized("category_section_header"))) {
                     if isEditing {
                         let subsForSelectedParent: [Subcategory] = {
@@ -208,9 +222,9 @@ struct TransactionFormView: View {
                         }()
 
                         HStack(spacing: 12) {
-                            // Parent category menu
                             Menu {
                                 Button(action: {
+                                    hideKeyboard()
                                     selectedParentID = nil
                                     selectedSubcategoryID = nil
                                 }) {
@@ -225,6 +239,7 @@ struct TransactionFormView: View {
 
                                 ForEach(categories) { cat in
                                     Button(action: {
+                                        hideKeyboard()
                                         selectedParentID = cat.id
                                         if let firstSub = subcategories.first(where: { $0.parentID == cat.id }) {
                                             selectedSubcategoryID = firstSub.id
@@ -256,14 +271,19 @@ struct TransactionFormView: View {
                                 }
                             }
                             .frame(maxWidth: .infinity)
+                            .onTapGesture {
+                                hideKeyboard()
+                            }
 
                             Text("/")
                                 .foregroundColor(.secondary)
                                 .font(.system(size: 14))
 
-                            // Subcategory menu
                             Menu {
-                                Button(action: { selectedSubcategoryID = nil }) {
+                                Button(action: {
+                                    hideKeyboard()
+                                    selectedSubcategoryID = nil
+                                }) {
                                     HStack {
                                         Text(langManager.localized("form_none"))
                                             .lineLimit(1)
@@ -277,6 +297,7 @@ struct TransactionFormView: View {
 
                                 ForEach(subsForSelectedParent) { sub in
                                     Button(action: {
+                                        hideKeyboard()
                                         selectedSubcategoryID = sub.id
                                     }) {
                                         HStack {
@@ -304,6 +325,9 @@ struct TransactionFormView: View {
                             }
                             .disabled(selectedParentID == nil)
                             .frame(maxWidth: .infinity)
+                            .onTapGesture {
+                                hideKeyboard()
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .onChange(of: selectedParentID) { newParent in
@@ -331,7 +355,7 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // Note
+                // 備註
                 Section(header: Text(langManager.localized("form_note"))) {
                     if isEditing {
                         TextField(langManager.localized("form_note_placeholder"), text: $note)
@@ -345,21 +369,233 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // Date
+                // 日期
                 Section(header: Text(langManager.localized("form_date"))) {
                     if isEditing {
                         DatePicker(langManager.localized("form_date_picker"), selection: $date, displayedComponents: .date)
+                            .onChange(of: date) { _ in
+                                hideKeyboard()
+                            }
                     } else {
                         Text(date, format: .dateTime.year().month().day())
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
                 }
+                
+                // 分攤開關 - 移到表單底部
+                if selectedType == .expense {
+                    Section {
+                        if isEditing {
+                            Toggle("啟用分攤", isOn: $showContributionSection)
+                                .onChange(of: showContributionSection) { show in
+                                    hideKeyboard()
+                                    if show {
+                                        // 啟用分攤時，如果沒有付款人則添加一個
+                                        if contributions.isEmpty {
+                                            let firstPayer = payers.first ?? defaultPayer
+                                            contributions.append(ContributionEntry(
+                                                payerID: firstPayer?.id,
+                                                amountText: totalAmountText,
+                                                isRemovable: true
+                                            ))
+                                        }
+                                    } else {
+                                        // 禁用分攤時，清除所有付款人
+                                        contributions.removeAll()
+                                    }
+                                }
+                                .onTapGesture {
+                                    hideKeyboard()
+                                }
+                        } else {
+                            HStack {
+                                Text("分攤")
+                                Spacer()
+                                Text(showContributionSection ? "已啟用" : "未啟用")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    } footer: {
+                        Text(showContributionSection ? "分攤已啟用，您可以為此交易分配多個付款人" : "分攤未啟用，將使用預設付款人")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                // 付款人分攤區塊 - 只在支出類型且顯示分攤時顯示，放在開關下面
+                if selectedType == .expense && showContributionSection {
+                    Section(header: HStack {
+                        Text("付款人分攤")
+                        Spacer()
+                        if isEditing && !contributions.isEmpty {
+                            Button(action: {
+                                hideKeyboard()
+                                distributeEqually()
+                            }) {
+                                Text("平均分攤")
+                                    .font(.caption)
+                            }
+                        }
+                    }) {
+                        if isEditing {
+                            // 付款人列表
+                            ForEach(0..<contributions.count, id: \.self) { index in
+                                HStack(spacing: 12) {
+                                    // 付款人選擇器 - 只顯示未選擇的付款人
+                                    Menu {
+                                        Text("選擇付款人")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        
+                                        // 顯示所有未選擇的付款人
+                                        ForEach(getAvailablePayers(for: index)) { payer in
+                                            Button(action: {
+                                                hideKeyboard()
+                                                contributions[index].payerID = payer.id
+                                            }) {
+                                                HStack {
+                                                    Text(payer.name)
+                                                    if contributions[index].payerID == payer.id {
+                                                        Spacer()
+                                                        Image(systemName: "checkmark")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Circle()
+                                                .fill(Color(hex: getPayerColor(for: index) ?? "#A8A8A8"))
+                                                .frame(width: 12, height: 12)
+                                            
+                                            Text(getPayerName(for: index))
+                                                .foregroundColor(contributions[index].payerID == nil ? .secondary : .primary)
+                                                .frame(width: 100)
+                                        }
+                                    }
+                                    .frame(width: 140)
+                                    .onTapGesture {
+                                        hideKeyboard()
+                                    }
+                                    
+                                    // 金額輸入框
+                                    TextField("金額", text: Binding(
+                                        get: { contributions[index].amountText },
+                                        set: { newValue in
+                                            contributions[index].amountText = newValue
+                                            validateAmounts()
+                                        }
+                                    ))
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 80)
+                                    .onTapGesture {
+                                        hideKeyboard()
+                                    }
+                                    
+                                    Text(currencyCode)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    // 移除按鈕
+                                    if contributions[index].isRemovable {
+                                        Button(action: {
+                                            hideKeyboard()
+                                            contributions.remove(at: index)
+                                            validateAmounts()
+                                        }) {
+                                            Image(systemName: "minus.circle")
+                                                .foregroundColor(.red)
+                                        }
+                                        .buttonStyle(BorderlessButtonStyle())
+                                        .onTapGesture {
+                                            hideKeyboard()
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                            
+                            // 新增付款人按鈕
+                            Button(action: {
+                                hideKeyboard()
+                                contributions.append(ContributionEntry(
+                                    payerID: nil,
+                                    amountText: "",
+                                    isRemovable: true
+                                ))
+                            }) {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundColor(.accentColor)
+                                    Text("新增付款人")
+                                }
+                            }
+                            .padding(.top, 4)
+                            
+                            // 分攤總計顯示
+                            if !contributions.isEmpty {
+                                HStack {
+                                    Text("分攤總計")
+                                        .font(.caption)
+                                    Spacer()
+                                    Text("\(formatCurrency(amount: distributedTotal, code: currencyCode)) / \(formatCurrency(amount: totalAmountDecimal, code: currencyCode))")
+                                        .font(.caption)
+                                        .foregroundColor(distributedTotal == totalAmountDecimal ? .green : .red)
+                                }
+                                .padding(.top, 8)
+                            }
+                            
+                            // 金額不一致警告
+                            if showAmountError {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .foregroundColor(.orange)
+                                    Text("分攤總金額與交易總金額不一致")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                }
+                                .padding(.top, 4)
+                            }
+                        } else {
+                            // 查看模式
+                            if contributions.isEmpty {
+                                Text("無付款人")
+                                    .foregroundColor(.secondary)
+                            } else {
+                                ForEach(contributions, id: \.id) { contribution in
+                                    if let payerID = contribution.payerID,
+                                       let payer = payers.first(where: { $0.id == payerID }),
+                                       let amount = decimalFromString(contribution.amountText) {
+                                        HStack {
+                                            Circle()
+                                                .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                                .frame(width: 12, height: 12)
+                                            
+                                            Text(payer.name)
+                                                .font(.body)
+                                            Spacer()
+                                            Text(formatCurrency(amount: amount, code: currencyCode))
+                                                .font(.body)
+                                        }
+                                        .padding(.vertical, 2)
+                                    }
+                                }
+                                HStack {
+                                    Text("總計")
+                                        .font(.headline)
+                                    Spacer()
+                                    Text(formatCurrency(amount: totalAmountDecimal, code: currencyCode))
+                                        .font(.headline)
+                                }
+                                .padding(.top, 8)
+                            }
+                        }
+                    }
+                }
             }
-            .navigationTitle(currentTransaction == nil
-                             ? langManager.localized("form_add_title")
-                             : (isEditing ? langManager.localized("form_edit_title")
-                                : langManager.localized("transaction_detail_title")))
+            .navigationTitle(navigationTitle)
             .toolbar {
                 if isEditing {
                     ToolbarItemGroup(placement: .navigationBarTrailing) {
@@ -371,64 +607,48 @@ struct TransactionFormView: View {
                                     .foregroundColor(.red)
                             }
                         }
-                        Button(langManager.localized("form_save")) { save() }
-                            .disabled(!isValid)
+                        Button(langManager.localized("form_save")) {
+                            hideKeyboard()
+                            save()
+                        }
+                        .disabled(!isValid)
                     }
                     ToolbarItem(placement: .navigationBarLeading) {
-                        Button(langManager.localized("form_cancel")) { dismiss() }
+                        Button(langManager.localized("form_cancel")) {
+                            hideKeyboard()
+                            dismiss()
+                        }
                     }
                 } else {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(langManager.localized("form_edit_title")) {
                             isEditing = true
-                            // 🚫 Removed auto-focus when switching to edit
                         }
                     }
                 }
             }
-            .onAppear {
-                if let tx = transaction {
-                    currentTransaction = tx
-                    amountText = decimalToString(tx.amount)
-                    date = tx.date
-                    note = tx.note ?? ""
-                    selectedType = tx.type
-                    currencyCode = tx.currencyCode
-                    if let subID = tx.subcategoryID,
-                       let sub = subcategories.first(where: { $0.id == subID }) {
-                        selectedSubcategoryID = sub.id
-                        selectedParentID = sub.parentID
-                    } else {
-                        selectedSubcategoryID = nil
-                        selectedParentID = nil
-                    }
-                }
-                // 🚫 Removed auto-focus for new transaction
-            }
+            .onAppear { setupInitialData() }
             .alert(langManager.localized("form_delete_title"), isPresented: $showDeleteAlert) {
                 Button(langManager.localized("form_cancel"), role: .cancel) {}
                 Button(langManager.localized("form_delete"), role: .destructive) { deleteConfirmed() }
             } message: {
                 Text(langManager.localized("form_delete_message"))
             }
-            // ADD THIS: Dismiss keyboard when tapping outside
-            .onTapGesture {
-                hideKeyboard()
-            }
-            // ADD THIS: Add a Done button to the keyboard toolbar
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        hideKeyboard()
-                    }
-                }
-            }
         }
     }
-
+    
     // MARK: - Computed Properties
-
+    
+    private var navigationTitle: String {
+        if currentTransaction == nil {
+            return langManager.localized("form_add_title")
+        } else if isEditing {
+            return langManager.localized("form_edit_title")
+        } else {
+            return langManager.localized("transaction_detail_title")
+        }
+    }
+    
     private var selectedParentName: String {
         if let parentID = selectedParentID,
            let parent = categories.first(where: { $0.id == parentID }) {
@@ -437,10 +657,10 @@ struct TransactionFormView: View {
             return langManager.localized("form_none")
         }
     }
-
+    
     private var selectedSubcategoryName: String {
         if selectedParentID == nil {
-            return langManager.localized("select_parent_first")
+            return "請先選擇主分類"
         } else if let subID = selectedSubcategoryID,
                   let sub = subcategories.first(where: { $0.id == subID }) {
             return sub.name
@@ -448,114 +668,310 @@ struct TransactionFormView: View {
             return langManager.localized("form_none")
         }
     }
-
-    // MARK: - Validation
-
-    var isValid: Bool {
-        decimalFromString(amountText) != nil
+    
+    private var totalAmountDecimal: Decimal {
+        decimalFromString(totalAmountText) ?? 0
     }
-
-    // MARK: - Helper Methods
-
-    private func save() {
-        amountFieldIsFirstResponder = false
-        hideKeyboard()
-        DispatchQueue.main.async {
-            guard let amount = decimalFromString(amountText) else {
-                return
+    
+    private var distributedTotal: Decimal {
+        contributions.reduce(0) { total, contribution in
+            total + (decimalFromString(contribution.amountText) ?? 0)
+        }
+    }
+    
+    private var isValid: Bool {
+        guard let total = decimalFromString(totalAmountText), total > 0 else { return false }
+        
+        // 如果交易類型是收入，不需要驗證付款人
+        if selectedType == .income {
+            return true
+        }
+        
+        // 支出類型
+        if showContributionSection {
+            // 有分攤時，只需要驗證：
+            // 1. 至少有一個付款人
+            // 2. 每個付款人都有選擇
+            // 3. 每個付款人都有有效的金額（>0）
+            guard !contributions.isEmpty else { return false }
+            
+            for contribution in contributions {
+                if contribution.payerID == nil { return false }
+                guard let amount = decimalFromString(contribution.amountText), amount > 0 else { return false }
             }
-            let finalSubcategoryID = selectedSubcategoryID
-            if let tx = currentTransaction {
-                tx.amount = amount
-                tx.date = date
-                tx.note = note.isEmpty ? nil : note
-                tx.type = selectedType
-                tx.currencyCode = currencyCode
-                tx.subcategoryID = finalSubcategoryID
-                try? context.save()
+            
+            // 不再強制要求分攤總額等於交易總額
+            // 允許保存，即使金額不一致
+            return true
+        } else {
+            // 沒有分攤時，只需要確保有預設付款人
+            return defaultPayer != nil
+        }
+    }
+    
+    private func getPayerName(for index: Int) -> String {
+        if let payerID = contributions[index].payerID,
+           let payer = payers.first(where: { $0.id == payerID }) {
+            return payer.name
+        } else {
+            return "選擇付款人"
+        }
+    }
+    
+    private func getPayerColor(for index: Int) -> String? {
+        if let payerID = contributions[index].payerID,
+           let payer = payers.first(where: { $0.id == payerID }) {
+            return payer.colorHex
+        }
+        return nil
+    }
+    
+    // 獲取可用的付款人（排除已經選擇的付款人） - 修正版本
+    private func getAvailablePayers(for index: Int) -> [Payer] {
+        // 獲取當前已選擇的所有付款人ID（除了自己）
+        let selectedPayerIDs = contributions
+            .enumerated()
+            .filter { $0.offset != index } // 排除自己
+            .compactMap { $0.element.payerID }
+        
+        // 也包含未選擇的項目（payerID 為 nil）
+        let allSelectedIDs = Set(selectedPayerIDs)
+        
+        // 返回未選擇的付款人
+        return payers.filter { payer in
+            // 如果這個付款人已經在其他項目中被選擇，則不可用
+            !allSelectedIDs.contains(payer.id)
+        }
+    }
+    
+    // 獲取預設付款人
+    private var defaultPayer: Payer? {
+        payers.first { $0.isDefault } ?? payers.first
+    }
+    
+    // MARK: - Setup Methods
+    
+    private func setupInitialData() {
+        if let tx = transaction {
+            currentTransaction = tx
+            totalAmountText = decimalToString(tx.totalAmount)
+            date = tx.date
+            note = tx.note ?? ""
+            selectedType = tx.type
+            currencyCode = tx.currencyCode
+            
+            if let subID = tx.subcategoryID,
+               let sub = subcategories.first(where: { $0.id == subID }) {
+                selectedSubcategoryID = sub.id
+                selectedParentID = sub.parentID
+            }
+            
+            // 檢查是否有分攤記錄
+            if tx.type == .expense && !tx.contributions.isEmpty {
+                showContributionSection = true
+                contributions = tx.contributions.map { contribution in
+                    ContributionEntry(
+                        payerID: contribution.payer.id,
+                        amountText: decimalToString(contribution.amount),
+                        isRemovable: true
+                    )
+                }
             } else {
-                let tx = Transaction(amount: amount,
-                                     date: date,
-                                     note: note.isEmpty ? nil : note,
-                                     subcategoryID: finalSubcategoryID,
-                                     type: selectedType,
-                                     currencyCode: currencyCode)
-                context.insert(tx)
-                try? context.save()
-                currentTransaction = tx
+                showContributionSection = false
+                contributions = []
             }
+        } else {
+            // 新增交易時，預設不顯示分攤
+            showContributionSection = false
+            contributions = []
+        }
+    }
+    
+    // MARK: - Actions & Helpers
+    
+    private func handleTypeChange(_ newType: TransactionType) {
+        selectedType = newType
+        if newType == .income {
+            showContributionSection = false
+            contributions.removeAll()
+        } else {
+            // 支出類型，但保持分攤關閉狀態
+            showContributionSection = false
+            contributions.removeAll()
+        }
+    }
+    
+    private func distributeEqually() {
+        guard !contributions.isEmpty else { return }
+        let total = totalAmountDecimal
+        let count = Decimal(contributions.count)
+        let share = (count > 0) ? (total / count) : 0
+        let shareString = decimalToString(share)
+        for i in contributions.indices {
+            contributions[i].amountText = shareString
+        }
+        validateAmounts()
+    }
+    
+    private func validateAmounts() {
+        showAmountError = (distributedTotal != totalAmountDecimal)
+    }
+    
+    private func save() {
+        guard let totalAmount = decimalFromString(totalAmountText), totalAmount > 0 else {
+            return
+        }
+        
+        hideKeyboard()
+        
+        let transactionToSave: Transaction
+        
+        if let existingTransaction = currentTransaction {
+            // 更新現有交易
+            transactionToSave = existingTransaction
+        } else {
+            // 創建新交易
+            transactionToSave = Transaction(
+                totalAmount: totalAmount,
+                date: date,
+                type: selectedType,
+                currencyCode: currencyCode
+            )
+            context.insert(transactionToSave)
+        }
+        
+        // 更新交易屬性
+        transactionToSave.totalAmount = totalAmount
+        transactionToSave.date = date
+        transactionToSave.note = note.isEmpty ? nil : note
+        transactionToSave.type = selectedType
+        transactionToSave.currencyCode = currencyCode
+        transactionToSave.subcategoryID = selectedSubcategoryID
+        
+        // 清理現有的付款分攤
+        for contribution in transactionToSave.contributions {
+            context.delete(contribution)
+        }
+        transactionToSave.contributions.removeAll()
+        
+        if selectedType == .expense {
+            if showContributionSection && !contributions.isEmpty {
+                // 有分攤的情況
+                for contribution in contributions {
+                    if let payerID = contribution.payerID,
+                       let payer = payers.first(where: { $0.id == payerID }),
+                       let amount = decimalFromString(contribution.amountText), amount > 0 {
+                        let paymentContribution = PaymentContribution(
+                            amount: amount,
+                            payer: payer,
+                            transaction: transactionToSave
+                        )
+                        transactionToSave.contributions.append(paymentContribution)
+                    }
+                }
+                
+                // 檢查是否需要添加剩餘金額到預設付款人
+                let distributedTotal = transactionToSave.contributions.reduce(0) { $0 + $1.amount }
+                if distributedTotal < totalAmount, let defaultPayer = defaultPayer {
+                    let remainingAmount = totalAmount - distributedTotal
+                    let remainingContribution = PaymentContribution(
+                        amount: remainingAmount,
+                        payer: defaultPayer,
+                        transaction: transactionToSave
+                    )
+                    transactionToSave.contributions.append(remainingContribution)
+                }
+            } else {
+                // 沒有分攤的情況，使用預設付款人
+                if let defaultPayer = defaultPayer {
+                    let paymentContribution = PaymentContribution(
+                        amount: totalAmount,
+                        payer: defaultPayer,
+                        transaction: transactionToSave
+                    )
+                    transactionToSave.contributions.append(paymentContribution)
+                }
+            }
+        }
+        
+        do {
+            try context.save()
             dismiss()
+        } catch {
+            print("保存交易時出錯: \(error)")
+            // 這裡可以添加錯誤提示
         }
     }
-
+    
     private func deleteConfirmed() {
-        guard let tx = currentTransaction else { return }
-        context.delete(tx)
-        try? context.save()
-        dismiss()
-    }
-
-    // MARK: - Number Helpers
-
-    private func decimalFromString(_ string: String) -> Decimal? {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = Locale.current
-        formatter.usesGroupingSeparator = true
-        return formatter.number(from: string)?.decimalValue
-    }
-
-    private func decimalToString(_ d: Decimal) -> String {
-        let ns = d as NSDecimalNumber
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = Locale.current
-        formatter.usesGroupingSeparator = false
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: ns) ?? "\(d)"
-    }
-
-    private func formatCurrency(amount: Decimal, code: String = "HKD") -> String {
-        let ns = amount as NSDecimalNumber
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = code
-        formatter.locale = Locale.current
-        return formatter.string(from: ns) ?? "\(amount)"
-    }
-
-    private func currencySymbol(for code: String) -> String {
-        switch code {
-        case "HKD": return "HK$"
-        case "USD": return "$"
-        case "JPY": return "¥"
-        default: return code
+        guard let transactionToDelete = currentTransaction else {
+            dismiss()
+            return
+        }
+        
+        context.delete(transactionToDelete)
+        
+        do {
+            try context.save()
+            dismiss()
+        } catch {
+            print("刪除交易時出錯: \(error)")
+            // 這裡可以添加錯誤提示
         }
     }
-
-    private func decimalToStringNoGrouping(_ d: Decimal) -> String {
-        return decimalToString(d)
-    }
-
+    
     private func categoryPath(parentID: UUID?, subID: UUID?) -> String {
-        if let subID = subID,
-           let sub = subcategories.first(where: { $0.id == subID }),
-           let parent = categories.first(where: { $0.id == sub.parentID }) {
-            return "\(parent.name) / \(sub.name)"
-        } else if let parentID = parentID,
-                  let parent = categories.first(where: { $0.id == parentID }) {
-            return parent.name
+        if let p = parentID, let parent = categories.first(where: { $0.id == p }) {
+            if let s = subID, let sub = subcategories.first(where: { $0.id == s }) {
+                return "\(parent.name) / \(sub.name)"
+            } else {
+                return parent.name
+            }
         } else {
             return langManager.localized("form_none")
         }
     }
     
-    // ADD THIS: Helper function to hide keyboard
+    // MARK: - Utility Functions
+    
     private func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                       to: nil, from: nil, for: nil)
-        amountFieldIsFirstResponder = false
-        focusedField = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+    
+    private func decimalFromString(_ text: String) -> Decimal? {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.number(from: text)?.decimalValue
+    }
+    
+    private func decimalToString(_ value: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 0
+        return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
+    }
+    
+    private func formatCurrency(amount: Decimal, code: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = code
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+    }
+    
+    private func currencySymbol(for code: String) -> String {
+        let locale = Locale.availableIdentifiers
+            .map { Locale(identifier: $0) }
+            .first { $0.currencyCode == code } ?? Locale.current
+        return locale.currencySymbol ?? code
+    }
+}
+
+// MARK: - Preview (optional)
+struct TransactionFormView_Previews: PreviewProvider {
+    static var previews: some View {
+        TransactionFormView()
+            .environmentObject(LanguageManager())
     }
 }

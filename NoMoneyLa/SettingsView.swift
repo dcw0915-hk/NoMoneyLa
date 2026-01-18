@@ -1,22 +1,14 @@
-//
-//  SettingsView.swift
-//  NoMoneyLa
-//
-//  Created by Ricky Ding on 16/1/2026.
-//
-
 import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var langManager: LanguageManager
     @State private var selectedLanguageRaw: String = AppLanguage.english.rawValue
     
-    @AppStorage("appColorScheme") private var appColorScheme: String = "system" // system / light / dark
+    @AppStorage("appColorScheme") private var appColorScheme: String = "system"
     
     var body: some View {
         NavigationStack {
             List {
-                // 外觀設定（第一列）
                 Section(langManager.localized("settings_appearance_section")) {
                     Picker(langManager.localized("settings_appearance_label"), selection: $appColorScheme) {
                         Text(langManager.localized("settings_appearance_system")).tag("system")
@@ -26,7 +18,6 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                 }
                 
-                // 語言設定（第二列，移除套用按鈕）
                 Section(langManager.localized("settings_language_section")) {
                     Picker(langManager.localized("settings_language_label"), selection: $selectedLanguageRaw) {
                         ForEach(AppLanguage.allCases, id: \.rawValue) { lang in
@@ -39,10 +30,13 @@ struct SettingsView: View {
                     }
                 }
                 
-                // 管理分類（第三列）
                 Section {
                     NavigationLink(destination: CategoryListView()) {
                         Label(langManager.localized("settings_manage_categories"), systemImage: "folder")
+                    }
+                    
+                    NavigationLink(destination: PayerListView()) {
+                        Label("管理付款人", systemImage: "person.2")
                     }
                 }
             }
