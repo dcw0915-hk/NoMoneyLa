@@ -135,7 +135,6 @@ struct PayerTransactionsView: View {
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     
     private var payerTransactions: [Transaction] {
-        // 獲取此分類的所有子分類ID
         let subcategoryIDs = allSubcategories
             .filter { $0.parentID == category.id }
             .map { $0.id }
@@ -144,15 +143,12 @@ struct PayerTransactionsView: View {
             return []
         }
         
-        // 篩選：屬於此分類且包含此付款人
         return allTransactions.filter { transaction in
-            // 檢查是否屬於此分類
             guard let subID = transaction.subcategoryID,
                   subcategoryIDs.contains(subID) else {
                 return false
             }
             
-            // 檢查是否包含此付款人
             return transaction.contributions.contains { $0.payer.id == payer.id }
         }
     }
@@ -168,7 +164,6 @@ struct PayerTransactionsView: View {
     var body: some View {
         NavigationStack {
             List {
-                // 標題
                 Section {
                     PayerHeaderView(
                         payer: payer,
@@ -176,7 +171,6 @@ struct PayerTransactionsView: View {
                     )
                 }
                 
-                // 交易列表
                 Section("交易記錄") {
                     if payerTransactions.isEmpty {
                         Text("此分類中無此付款人的交易記錄")
@@ -192,7 +186,6 @@ struct PayerTransactionsView: View {
                     }
                 }
                 
-                // 統計
                 Section("統計") {
                     PayerStatsRowView(
                         title: "實付總額",
@@ -227,21 +220,20 @@ struct CategorySettlementView: View {
     
     let category: Category
     
-    // 查詢
     @Query(sort: \Subcategory.order) private var allSubcategories: [Subcategory]
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     @Query(sort: \Payer.order) private var allPayers: [Payer]
     
-    // 狀態
     @State private var participants: [Payer] = []
     @State private var settlementResults: [SettlementResult] = []
     @State private var settlementSteps: [(from: Payer, to: Payer, amount: Decimal)] = []
     @State private var selectedPayer: Payer?
     @State private var showPayerTransactions = false
     
-    // 計算此分類下的交易
+    // 添加除錯狀態
+    @State private var debugInfo: String = ""
+    
     private var categoryTransactions: [Transaction] {
-        // 獲取此分類的所有子分類ID
         let subcategoryIDs = allSubcategories
             .filter { $0.parentID == category.id }
             .map { $0.id }
@@ -250,7 +242,6 @@ struct CategorySettlementView: View {
             return []
         }
         
-        // 篩選屬於此分類的交易
         return allTransactions.filter { transaction in
             if let subID = transaction.subcategoryID {
                 return subcategoryIDs.contains(subID)
@@ -261,7 +252,6 @@ struct CategorySettlementView: View {
     
     // MARK: - 修正的計算函數
     
-    // 計算某付款人在此分類的總支出（已支付的金額）
     private func totalPaidByPayer(_ payer: Payer) -> Decimal {
         return categoryTransactions.reduce(Decimal(0)) { total, transaction in
             let payerContributions = transaction.contributions.filter { $0.payer.id == payer.id }
@@ -270,37 +260,29 @@ struct CategorySettlementView: View {
         }
     }
     
-    // 計算某付款人應付金額（修正版本）
     private func totalShouldPayByPayer(_ payer: Payer) -> Decimal {
-        // 先找出此付款人參與的所有交易
         let relevantTransactions = categoryTransactions.filter { transaction in
             transaction.contributions.contains { $0.payer.id == payer.id }
         }
         
-        // 如果沒有參與任何交易，應付為0
         if relevantTransactions.isEmpty {
             return 0
         }
         
-        // 計算所有參與交易的總金額
         let totalTransactionsAmount = relevantTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
         
-        // 計算此付款人在所有交易中的總貢獻
         let totalPaidByThisPayer = relevantTransactions.reduce(Decimal(0)) { total, transaction in
             let payerContribution = transaction.contributions
                 .first { $0.payer.id == payer.id }?.amount ?? 0
             return total + payerContribution
         }
         
-        // 如果總貢獻為0，應付為0
         if totalPaidByThisPayer == 0 {
             return 0
         }
         
-        // 計算此付款人佔總貢獻的比例
         let payerContributionRatio = totalPaidByThisPayer / totalTransactionsAmount
         
-        // 計算應付金額 = 參與交易的總金額 × 貢獻比例
         return totalTransactionsAmount * payerContributionRatio
     }
     
@@ -321,6 +303,14 @@ struct CategorySettlementView: View {
                         Text("總金額：\(formatCurrency(category.totalAmount(in: context)))")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                        
+                        // 顯示分配狀態
+                        let assignedPayers = category.assignedPayers(in: context)
+                        if !assignedPayers.isEmpty {
+                            Text("已分配付款人：\(assignedPayers.map { $0.name }.joined(separator: ", "))")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                        }
                     }
                     
                     Spacer()
@@ -337,7 +327,7 @@ struct CategorySettlementView: View {
             // 參與者列表
             Section("參與者") {
                 if participants.isEmpty {
-                    Text("此分類暫無交易記錄")
+                    Text("此分類暫無交易記錄或未分配付款人")
                         .foregroundColor(.secondary)
                         .italic()
                 } else {
@@ -426,45 +416,12 @@ struct CategorySettlementView: View {
                 }
             }
             
-            // 詳細計算（用於調試）
-            if !settlementResults.isEmpty {
-                Section("詳細計算（調試）") {
-                    ForEach(settlementResults, id: \.payer.id) { result in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Circle()
-                                    .fill(Color(hex: result.payer.colorHex ?? "#A8A8A8"))
-                                    .frame(width: 12, height: 12)
-                                
-                                Text(result.payer.name)
-                                    .font(.headline)
-                                
-                                Spacer()
-                                
-                                Text("淨結餘：\(formatCurrency(result.netBalance))")
-                                    .font(.body)
-                                    .foregroundColor(result.netBalance > 0 ? .green : (result.netBalance < 0 ? .red : .primary))
-                            }
-                            
-                            let paid = totalPaidByPayer(result.payer)
-                            let shouldPay = totalShouldPayByPayer(result.payer)
-                            
-                            HStack {
-                                Text("實付：\(formatCurrency(paid))")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Text("應付：\(formatCurrency(shouldPay))")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Text("差值：\(formatCurrency(paid - shouldPay))")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
+            // 除錯信息區塊
+            if !debugInfo.isEmpty {
+                Section("除錯信息") {
+                    Text(debugInfo)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
         }
@@ -491,7 +448,30 @@ struct CategorySettlementView: View {
     // MARK: - 方法
     
     private func loadParticipants() {
-        participants = category.participants(in: context)
+        // 打印除錯信息
+        print("=== DEBUG [CategorySettlementView] ===")
+        print("分類: \(category.name)")
+        print("assignedPayerIDs: \(category.assignedPayerIDs)")
+        
+        let assignedPayers = category.assignedPayers(in: context)
+        print("assignedPayers 函數返回: \(assignedPayers.map { $0.name })")
+        
+        let dynamicParticipants = category.participants(in: context)
+        print("動態參與者: \(dynamicParticipants.map { $0.name })")
+        
+        // 優先使用已分配的付款人
+        if !assignedPayers.isEmpty {
+            participants = assignedPayers
+            debugInfo = "使用已分配的付款人: \(assignedPayers.map { $0.name }.joined(separator: ", "))"
+            print("使用已分配的付款人")
+        } else {
+            participants = dynamicParticipants
+            debugInfo = "使用動態參與者: \(dynamicParticipants.map { $0.name }.joined(separator: ", "))"
+            print("使用動態參與者")
+        }
+        
+        print("最終參與者: \(participants.map { $0.name })")
+        print("======================")
     }
     
     private func calculateSettlement() {
@@ -537,19 +517,17 @@ struct CategorySettlementView: View {
     
     // 計算最優結算方案（最少轉帳次數）
     private func calculateOptimalSettlement(balances: [Payer: Decimal]) -> [(from: Payer, to: Payer, amount: Decimal)] {
-        var creditors: [(payer: Payer, amount: Decimal)] = [] // 應收款人（正數）
-        var debtors: [(payer: Payer, amount: Decimal)] = []   // 應付款人（負數）
+        var creditors: [(payer: Payer, amount: Decimal)] = []
+        var debtors: [(payer: Payer, amount: Decimal)] = []
         
-        // 分離收款人和付款人
         for (payer, balance) in balances {
             if balance > 0 {
                 creditors.append((payer: payer, amount: balance))
             } else if balance < 0 {
-                debtors.append((payer: payer, amount: -balance)) // 轉為正數
+                debtors.append((payer: payer, amount: -balance))
             }
         }
         
-        // 排序：金額大的優先處理
         creditors.sort { $0.amount > $1.amount }
         debtors.sort { $0.amount > $1.amount }
         
@@ -566,11 +544,9 @@ struct CategorySettlementView: View {
                 steps.append((from: debtor.payer, to: creditor.payer, amount: settleAmount))
             }
             
-            // 更新剩餘金額
             creditors[i].amount -= settleAmount
             debtors[j].amount -= settleAmount
             
-            // 如果某人金額清零，移動到下一個
             if creditors[i].amount == 0 { i += 1 }
             if debtors[j].amount == 0 { j += 1 }
         }

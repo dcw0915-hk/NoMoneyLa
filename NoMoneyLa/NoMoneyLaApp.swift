@@ -22,6 +22,7 @@ struct NoMoneyLaApp: App {
         performOneTimeMigrationIfNeeded(ctx)
         initializeOrders(in: ctx)
         createDefaultPayerIfNeeded(in: ctx)
+        createUncategorizedSubcategoriesIfNeeded(in: ctx)
     }
 
     var body: some Scene {
@@ -52,7 +53,15 @@ struct NoMoneyLaApp: App {
             let allSubcategories = try context.fetch(FetchDescriptor<Subcategory>())
             let grouped = Dictionary(grouping: allSubcategories, by: { $0.parentID })
             for (_, group) in grouped {
-                let sorted = group.sorted(by: { $0.order < $1.order })
+                let sorted = group.sorted(by: {
+                    if $0.name == "未分類" && $1.name != "未分類" {
+                        return true
+                    } else if $0.name != "未分類" && $1.name == "未分類" {
+                        return false
+                    } else {
+                        return $0.order < $1.order
+                    }
+                })
                 for (idx, sub) in sorted.enumerated() {
                     sub.order = idx
                 }
@@ -120,6 +129,33 @@ struct NoMoneyLaApp: App {
             UserDefaults.standard.set(true, forKey: migratedKey)
         } catch {
             print("遷移到多付款人時發生錯誤：", error)
+        }
+    }
+
+    private func createUncategorizedSubcategoriesIfNeeded(in context: ModelContext) {
+        do {
+            let categories = try context.fetch(FetchDescriptor<Category>())
+            let allSubcategories = try context.fetch(FetchDescriptor<Subcategory>())
+            
+            for category in categories {
+                let hasUncategorized = allSubcategories.contains {
+                    $0.parentID == category.id && $0.name == "未分類"
+                }
+                
+                if !hasUncategorized {
+                    let uncategorized = Subcategory(
+                        name: "未分類",
+                        parentID: category.id,
+                        order: -1,
+                        colorHex: "#A8A8A8"
+                    )
+                    context.insert(uncategorized)
+                }
+            }
+            
+            try context.save()
+        } catch {
+            print("建立未分類子分類時發生錯誤：", error)
         }
     }
 }

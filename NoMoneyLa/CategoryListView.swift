@@ -2,8 +2,6 @@ import SwiftUI
 import SwiftData
 
 // AssignPayersView.swift
-// 接收 categoryID，於 onAppear 從 ModelContext fetch 出受管理的 Category 實例再修改並儲存
-
 struct AssignPayersView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -97,21 +95,37 @@ struct AssignPayersView: View {
                 let payersFetch = FetchDescriptor<Payer>(sortBy: [SortDescriptor(\.order)])
                 let payers = try context.fetch(payersFetch)
                 self.allPayers = payers
-
+                
                 // 取得受管理的 category 實例（以 id 比對）
                 let categoriesFetch = FetchDescriptor<Category>()
                 let categories = try context.fetch(categoriesFetch)
                 if let found = categories.first(where: { $0.id == self.categoryID }) {
                     self.managedCategory = found
                     self.selectedPayerIDs = Set(found.assignedPayerIDs)
-                    print("DEBUG: 找到受管理的 Category，已載入已分配付款人 \(found.assignedPayerIDs)")
+                    
+                    // 除錯信息
+                    print("=== DEBUG [AssignPayersView] ===")
+                    print("分類名稱: \(found.name)")
+                    print("分類ID: \(found.id)")
+                    print("assignedPayerIDs: \(found.assignedPayerIDs)")
+                    print("selectedPayerIDs: \(self.selectedPayerIDs)")
+                    print("付款人總數: \(payers.count)")
+                    
+                    // 測試 assignedPayers 函數
+                    let assigned = found.assignedPayers(in: self.context)
+                    print("assignedPayers 函數返回數量: \(assigned.count)")
+                    for payer in assigned {
+                        print("  - \(payer.name) (\(payer.id))")
+                    }
+                    print("======================")
+                    
                 } else {
-                    print("DEBUG: 無法在 ModelContext 中找到 category id: \(self.categoryID)")
+                    print("DEBUG [AssignPayersView]: 無法在 ModelContext 中找到 category id: \(self.categoryID)")
                     self.managedCategory = nil
                     self.selectedPayerIDs = []
                 }
             } catch {
-                print("DEBUG: 載入付款人或分類時出錯：\(error)")
+                print("DEBUG [AssignPayersView]: 載入付款人或分類時出錯：\(error)")
                 self.allPayers = []
                 self.managedCategory = nil
                 self.selectedPayerIDs = []
@@ -132,29 +146,40 @@ struct AssignPayersView: View {
     // MARK: - Save
     private func saveAssignedPayers() {
         guard let category = managedCategory else {
-            print("DEBUG: 無受管理的 Category，無法儲存")
+            print("DEBUG [AssignPayersView]: 無受管理的 Category，無法儲存")
             dismiss()
             return
         }
 
         // 去重並儲存
-        category.assignedPayerIDs = Array(Set(selectedPayerIDs))
-
+        let newAssignedIDs = Array(Set(selectedPayerIDs))
+        category.assignedPayerIDs = newAssignedIDs
+        
+        // 除錯信息
+        print("=== DEBUG [AssignPayersView - Save] ===")
+        print("分類: \(category.name)")
+        print("儲存前 assignedPayerIDs: \(category.assignedPayerIDs)")
+        
         do {
             try context.save()
-            print("DEBUG: 已成功儲存 assignedPayerIDs: \(category.assignedPayerIDs)")
+            
+            // 重新讀取確認儲存
+            let categoriesFetch = FetchDescriptor<Category>()
+            let categories = try context.fetch(categoriesFetch)
+            if let savedCategory = categories.first(where: { $0.id == category.id }) {
+                print("儲存後 assignedPayerIDs: \(savedCategory.assignedPayerIDs)")
+                print("儲存成功！")
+            }
+            print("======================")
         } catch {
-            print("DEBUG: 儲存 assignedPayerIDs 時發生錯誤：\(error)")
+            print("DEBUG [AssignPayersView]: 儲存 assignedPayerIDs 時發生錯誤：\(error)")
         }
 
         dismiss()
     }
 }
 
-
 // CategoryListView.swift
-// 顯示分類清單，並以 .sheet(item:) 開啟 AssignPayersView（傳入 category.id）
-
 struct CategoryListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Category.order) private var allCategories: [Category]
@@ -165,10 +190,8 @@ struct CategoryListView: View {
     @State private var showDeleteAlert = false
     @State private var categoryToDelete: Category?
 
-    // 使用 optional Category 作為 .sheet(item:)
     @State private var showingAssignPayersForCategory: Category?
 
-    // Inline edit state
     @State private var editingCategoryID: UUID?
     @State private var inlineEditedName: String = ""
     @FocusState private var isInlineFocused: Bool
@@ -223,11 +246,12 @@ struct CategoryListView: View {
 
                                 Spacer()
 
-                                let participantCount = category.participants(in: context).count
-                                if participantCount > 0 {
-                                    Text("\(participantCount)人")
+                                // 顯示已分配的付款人數量
+                                let assignedPayers = category.assignedPayers(in: context)
+                                if !assignedPayers.isEmpty {
+                                    Text("\(assignedPayers.count)人已分配")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(.blue)
                                 }
                             }
                             .padding(.vertical, 8)
@@ -243,11 +267,26 @@ struct CategoryListView: View {
                 Text("刪除分類「\(category.name)」會同時刪除其子分類，並讓相關交易失去連結，確定要刪除嗎？")
             }
             .sheet(item: $showingAssignPayersForCategory) { category in
-                // 傳入 category.id，並注入 modelContext（保險）
                 AssignPayersView(categoryID: category.id)
                     .environment(\.modelContext, context)
                     .onDisappear {
                         showingAssignPayersForCategory = nil
+                        // 在關閉時打印除錯信息
+                        print("DEBUG [CategoryListView]: AssignPayersView 已關閉")
+                        print("DEBUG [CategoryListView]: 重新檢查分類狀態")
+                        
+                        // 重新讀取分類數據
+                        do {
+                            let categoriesFetch = FetchDescriptor<Category>()
+                            let categories = try context.fetch(categoriesFetch)
+                            if let updatedCategory = categories.first(where: { $0.id == category.id }) {
+                                print("分類 \(updatedCategory.name) 的 assignedPayerIDs: \(updatedCategory.assignedPayerIDs)")
+                                let assigned = updatedCategory.assignedPayers(in: context)
+                                print("assignedPayers 函數返回: \(assigned.map { $0.name })")
+                            }
+                        } catch {
+                            print("重新讀取分類錯誤: \(error)")
+                        }
                     }
             }
         }
@@ -306,14 +345,28 @@ struct CategoryListView: View {
     }
 
     private func actionButtons(for category: Category) -> some View {
-        HStack(spacing: 10) {
+        // 除錯打印
+        let assignedPayers = category.assignedPayers(in: context)
+        print("=== DEBUG [CategoryListView - actionButtons] ===")
+        print("分類: \(category.name)")
+        print("assignedPayerIDs: \(category.assignedPayerIDs)")
+        print("assignedPayers 函數返回數量: \(assignedPayers.count)")
+        print("assignedPayers 名稱: \(assignedPayers.map { $0.name })")
+        print("======================")
+        
+        return HStack(spacing: 10) {
             Button {
-                print("DEBUG: 點擊分配付款人按鈕 for \(category.name)")
+                print("=== DEBUG [CategoryListView - 點擊分配付款人] ===")
+                print("分類: \(category.name)")
+                print("ID: \(category.id)")
+                print("當前 assignedPayerIDs: \(category.assignedPayerIDs)")
+                print("======================")
                 showingAssignPayersForCategory = category
             } label: {
-                Image(systemName: category.assignedPayerIDs.isEmpty ? "person.2" : "person.2.fill")
+                let assignedCount = assignedPayers.count
+                Image(systemName: assignedCount > 0 ? "person.2.fill" : "person.2")
                     .imageScale(.large)
-                    .foregroundColor(category.assignedPayerIDs.isEmpty ? .primary : .blue)
+                    .foregroundColor(assignedCount > 0 ? .blue : .primary)
             }
             .buttonStyle(BorderlessButtonStyle())
             .frame(width: 36, height: 36)

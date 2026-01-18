@@ -7,9 +7,8 @@ final class Category {
     var id: UUID = UUID()
     var name: String
     var order: Int = 0
-    var colorHex: String?    // 可選：父分類也可有顏色
+    var colorHex: String?
 
-    // 分類專用付款人（儲存 Payer 的 id）
     var assignedPayerIDs: [UUID] = []
 
     init(id: UUID = UUID(), name: String, order: Int = 0, colorHex: String? = nil, assignedPayerIDs: [UUID] = []) {
@@ -26,7 +25,6 @@ extension Category {
     // 計算此分類的參與者（從交易中動態計算）
     func participants(in context: ModelContext) -> [Payer] {
         do {
-            // 獲取此分類下的所有子分類
             let subcategoriesFetch = FetchDescriptor<Subcategory>()
             let allSubcategories = try context.fetch(subcategoriesFetch)
             let subcategories = allSubcategories.filter { $0.parentID == self.id }
@@ -36,11 +34,9 @@ extension Category {
                 return []
             }
 
-            // 獲取此分類下的所有交易
             let transactionsFetch = FetchDescriptor<Transaction>()
             let allTransactions = try context.fetch(transactionsFetch)
 
-            // 篩選屬於此分類的交易
             let transactions = allTransactions.filter { transaction in
                 if let subID = transaction.subcategoryID {
                     return subcategoryIDs.contains(subID)
@@ -48,7 +44,6 @@ extension Category {
                 return false
             }
 
-            // 從交易中收集所有付款人
             var payerIDs = Set<UUID>()
             for transaction in transactions {
                 for contribution in transaction.contributions {
@@ -56,7 +51,6 @@ extension Category {
                 }
             }
 
-            // 獲取對應的付款人對象
             let payersFetch = FetchDescriptor<Payer>()
             let allPayers = try context.fetch(payersFetch)
             return allPayers.filter { payerIDs.contains($0.id) }
@@ -97,14 +91,34 @@ extension Category {
 
     // 獲取已分配的付款人
     func assignedPayers(in context: ModelContext) -> [Payer] {
-        guard !assignedPayerIDs.isEmpty else { return [] }
-
+        guard !assignedPayerIDs.isEmpty else {
+            print("DEBUG [Category.assignedPayers]: assignedPayerIDs 為空")
+            return []
+        }
+        
+        print("DEBUG [Category.assignedPayers]: 開始獲取已分配付款人")
+        print("  - assignedPayerIDs: \(assignedPayerIDs)")
+        
         do {
             let payersFetch = FetchDescriptor<Payer>()
             let allPayers = try context.fetch(payersFetch)
-            return allPayers.filter { assignedPayerIDs.contains($0.id) }
+            print("  - 資料庫中總共有 \(allPayers.count) 個付款人")
+            
+            // 逐一查找每個 ID 對應的付款人
+            var result: [Payer] = []
+            for payerID in assignedPayerIDs {
+                if let payer = allPayers.first(where: { $0.id == payerID }) {
+                    result.append(payer)
+                    print("  - 找到付款人: \(payer.name) (ID: \(payerID))")
+                } else {
+                    print("  - 警告: 找不到 ID 為 \(payerID) 的付款人")
+                }
+            }
+            
+            print("  - 總共找到 \(result.count) 個已分配付款人")
+            return result
         } catch {
-            print("獲取分配付款人時出錯：\(error)")
+            print("DEBUG [Category.assignedPayers]: 獲取分配付款人時出錯：\(error)")
             return []
         }
     }

@@ -104,7 +104,7 @@ struct TransactionFormView: View {
     
     @State private var contributions: [ContributionEntry] = []
     @State private var showAmountError = false
-    @State private var showContributionSection = false // 控制是否显示分摊界面
+    @State private var showContributionSection = false
     
     @State private var currentTransaction: Transaction? = nil
     @State private var showDeleteAlert = false
@@ -127,7 +127,6 @@ struct TransactionFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // 總金額 + 貨幣
                 Section(header: Text(langManager.localized("form_amount"))) {
                     HStack(spacing: 12) {
                         if isEditing {
@@ -187,7 +186,6 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // 類型
                 Section(header: Text(langManager.localized("form_type"))) {
                     if isEditing {
                         Picker(langManager.localized("form_type_label"), selection: $selectedType) {
@@ -210,7 +208,6 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // 分類
                 Section(header: Text(langManager.localized("category_section_header"))) {
                     if isEditing {
                         let subsForSelectedParent: [Subcategory] = {
@@ -241,10 +238,11 @@ struct TransactionFormView: View {
                                     Button(action: {
                                         hideKeyboard()
                                         selectedParentID = cat.id
-                                        if let firstSub = subcategories.first(where: { $0.parentID == cat.id }) {
-                                            selectedSubcategoryID = firstSub.id
-                                        } else {
-                                            selectedSubcategoryID = nil
+                                        // 自動選擇該分類下的「未分類」子分類
+                                        if let uncategorizedSub = subcategories.first(where: {
+                                            $0.parentID == cat.id && $0.name == "未分類"
+                                        }) {
+                                            selectedSubcategoryID = uncategorizedSub.id
                                         }
                                     }) {
                                         HStack {
@@ -280,21 +278,6 @@ struct TransactionFormView: View {
                                 .font(.system(size: 14))
 
                             Menu {
-                                Button(action: {
-                                    hideKeyboard()
-                                    selectedSubcategoryID = nil
-                                }) {
-                                    HStack {
-                                        Text(langManager.localized("form_none"))
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
-                                        if selectedSubcategoryID == nil {
-                                            Spacer()
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-
                                 ForEach(subsForSelectedParent) { sub in
                                     Button(action: {
                                         hideKeyboard()
@@ -332,16 +315,14 @@ struct TransactionFormView: View {
                         .frame(maxWidth: .infinity)
                         .onChange(of: selectedParentID) { newParent in
                             DispatchQueue.main.async {
-                                if let subID = selectedSubcategoryID {
-                                    if let sub = subcategories.first(where: { $0.id == subID }) {
-                                        if sub.parentID != newParent {
-                                            selectedSubcategoryID = nil
-                                        }
-                                    } else {
-                                        selectedSubcategoryID = nil
+                                if let newParent = newParent {
+                                    // 當選擇父分類時，自動選擇「未分類」子分類
+                                    if let uncategorizedSub = subcategories.first(where: {
+                                        $0.parentID == newParent && $0.name == "未分類"
+                                    }) {
+                                        selectedSubcategoryID = uncategorizedSub.id
                                     }
-                                }
-                                if newParent == nil {
+                                } else {
                                     selectedSubcategoryID = nil
                                 }
                             }
@@ -355,7 +336,6 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // 備註
                 Section(header: Text(langManager.localized("form_note"))) {
                     if isEditing {
                         TextField(langManager.localized("form_note_placeholder"), text: $note)
@@ -369,7 +349,6 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // 日期
                 Section(header: Text(langManager.localized("form_date"))) {
                     if isEditing {
                         DatePicker(langManager.localized("form_date_picker"), selection: $date, displayedComponents: .date)
@@ -383,7 +362,6 @@ struct TransactionFormView: View {
                     }
                 }
                 
-                // 分攤開關 - 移到表單底部
                 if selectedType == .expense {
                     Section {
                         if isEditing {
@@ -391,7 +369,6 @@ struct TransactionFormView: View {
                                 .onChange(of: showContributionSection) { show in
                                     hideKeyboard()
                                     if show {
-                                        // 啟用分攤時，如果沒有付款人則添加一個
                                         if contributions.isEmpty {
                                             let firstPayer = payers.first ?? defaultPayer
                                             contributions.append(ContributionEntry(
@@ -401,7 +378,6 @@ struct TransactionFormView: View {
                                             ))
                                         }
                                     } else {
-                                        // 禁用分攤時，清除所有付款人
                                         contributions.removeAll()
                                     }
                                 }
@@ -423,7 +399,6 @@ struct TransactionFormView: View {
                     }
                 }
                 
-                // 付款人分攤區塊 - 只在支出類型且顯示分攤時顯示，放在開關下面
                 if selectedType == .expense && showContributionSection {
                     Section(header: HStack {
                         Text("付款人分攤")
@@ -439,16 +414,13 @@ struct TransactionFormView: View {
                         }
                     }) {
                         if isEditing {
-                            // 付款人列表
                             ForEach(0..<contributions.count, id: \.self) { index in
                                 HStack(spacing: 12) {
-                                    // 付款人選擇器 - 只顯示未選擇的付款人
                                     Menu {
                                         Text("選擇付款人")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                         
-                                        // 顯示所有未選擇的付款人
                                         ForEach(getAvailablePayers(for: index)) { payer in
                                             Button(action: {
                                                 hideKeyboard()
@@ -479,7 +451,6 @@ struct TransactionFormView: View {
                                         hideKeyboard()
                                     }
                                     
-                                    // 金額輸入框
                                     TextField("金額", text: Binding(
                                         get: { contributions[index].amountText },
                                         set: { newValue in
@@ -498,7 +469,6 @@ struct TransactionFormView: View {
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     
-                                    // 移除按鈕
                                     if contributions[index].isRemovable {
                                         Button(action: {
                                             hideKeyboard()
@@ -517,7 +487,6 @@ struct TransactionFormView: View {
                                 .padding(.vertical, 4)
                             }
                             
-                            // 新增付款人按鈕
                             Button(action: {
                                 hideKeyboard()
                                 contributions.append(ContributionEntry(
@@ -534,7 +503,6 @@ struct TransactionFormView: View {
                             }
                             .padding(.top, 4)
                             
-                            // 分攤總計顯示
                             if !contributions.isEmpty {
                                 HStack {
                                     Text("分攤總計")
@@ -547,7 +515,6 @@ struct TransactionFormView: View {
                                 .padding(.top, 8)
                             }
                             
-                            // 金額不一致警告
                             if showAmountError {
                                 HStack {
                                     Image(systemName: "exclamationmark.triangle")
@@ -559,7 +526,6 @@ struct TransactionFormView: View {
                                 .padding(.top, 4)
                             }
                         } else {
-                            // 查看模式
                             if contributions.isEmpty {
                                 Text("無付款人")
                                     .foregroundColor(.secondary)
@@ -682,17 +648,16 @@ struct TransactionFormView: View {
     private var isValid: Bool {
         guard let total = decimalFromString(totalAmountText), total > 0 else { return false }
         
-        // 如果交易類型是收入，不需要驗證付款人
+        // 檢查分類選擇
+        if selectedParentID != nil && selectedSubcategoryID == nil {
+            return false // 有父分類但沒有子分類
+        }
+        
         if selectedType == .income {
             return true
         }
         
-        // 支出類型
         if showContributionSection {
-            // 有分攤時，只需要驗證：
-            // 1. 至少有一個付款人
-            // 2. 每個付款人都有選擇
-            // 3. 每個付款人都有有效的金額（>0）
             guard !contributions.isEmpty else { return false }
             
             for contribution in contributions {
@@ -700,11 +665,8 @@ struct TransactionFormView: View {
                 guard let amount = decimalFromString(contribution.amountText), amount > 0 else { return false }
             }
             
-            // 不再強制要求分攤總額等於交易總額
-            // 允許保存，即使金額不一致
             return true
         } else {
-            // 沒有分攤時，只需要確保有預設付款人
             return defaultPayer != nil
         }
     }
@@ -726,25 +688,19 @@ struct TransactionFormView: View {
         return nil
     }
     
-    // 獲取可用的付款人（排除已經選擇的付款人） - 修正版本
     private func getAvailablePayers(for index: Int) -> [Payer] {
-        // 獲取當前已選擇的所有付款人ID（除了自己）
         let selectedPayerIDs = contributions
             .enumerated()
-            .filter { $0.offset != index } // 排除自己
+            .filter { $0.offset != index }
             .compactMap { $0.element.payerID }
         
-        // 也包含未選擇的項目（payerID 為 nil）
         let allSelectedIDs = Set(selectedPayerIDs)
         
-        // 返回未選擇的付款人
         return payers.filter { payer in
-            // 如果這個付款人已經在其他項目中被選擇，則不可用
             !allSelectedIDs.contains(payer.id)
         }
     }
     
-    // 獲取預設付款人
     private var defaultPayer: Payer? {
         payers.first { $0.isDefault } ?? payers.first
     }
@@ -766,7 +722,6 @@ struct TransactionFormView: View {
                 selectedParentID = sub.parentID
             }
             
-            // 檢查是否有分攤記錄
             if tx.type == .expense && !tx.contributions.isEmpty {
                 showContributionSection = true
                 contributions = tx.contributions.map { contribution in
@@ -781,7 +736,6 @@ struct TransactionFormView: View {
                 contributions = []
             }
         } else {
-            // 新增交易時，預設不顯示分攤
             showContributionSection = false
             contributions = []
         }
@@ -795,7 +749,6 @@ struct TransactionFormView: View {
             showContributionSection = false
             contributions.removeAll()
         } else {
-            // 支出類型，但保持分攤關閉狀態
             showContributionSection = false
             contributions.removeAll()
         }
@@ -827,10 +780,8 @@ struct TransactionFormView: View {
         let transactionToSave: Transaction
         
         if let existingTransaction = currentTransaction {
-            // 更新現有交易
             transactionToSave = existingTransaction
         } else {
-            // 創建新交易
             transactionToSave = Transaction(
                 totalAmount: totalAmount,
                 date: date,
@@ -840,7 +791,6 @@ struct TransactionFormView: View {
             context.insert(transactionToSave)
         }
         
-        // 更新交易屬性
         transactionToSave.totalAmount = totalAmount
         transactionToSave.date = date
         transactionToSave.note = note.isEmpty ? nil : note
@@ -848,7 +798,6 @@ struct TransactionFormView: View {
         transactionToSave.currencyCode = currencyCode
         transactionToSave.subcategoryID = selectedSubcategoryID
         
-        // 清理現有的付款分攤
         for contribution in transactionToSave.contributions {
             context.delete(contribution)
         }
@@ -856,7 +805,6 @@ struct TransactionFormView: View {
         
         if selectedType == .expense {
             if showContributionSection && !contributions.isEmpty {
-                // 有分攤的情況
                 for contribution in contributions {
                     if let payerID = contribution.payerID,
                        let payer = payers.first(where: { $0.id == payerID }),
@@ -870,7 +818,6 @@ struct TransactionFormView: View {
                     }
                 }
                 
-                // 檢查是否需要添加剩餘金額到預設付款人
                 let distributedTotal = transactionToSave.contributions.reduce(0) { $0 + $1.amount }
                 if distributedTotal < totalAmount, let defaultPayer = defaultPayer {
                     let remainingAmount = totalAmount - distributedTotal
@@ -882,7 +829,6 @@ struct TransactionFormView: View {
                     transactionToSave.contributions.append(remainingContribution)
                 }
             } else {
-                // 沒有分攤的情況，使用預設付款人
                 if let defaultPayer = defaultPayer {
                     let paymentContribution = PaymentContribution(
                         amount: totalAmount,
@@ -899,7 +845,6 @@ struct TransactionFormView: View {
             dismiss()
         } catch {
             print("保存交易時出錯: \(error)")
-            // 這裡可以添加錯誤提示
         }
     }
     
@@ -916,7 +861,6 @@ struct TransactionFormView: View {
             dismiss()
         } catch {
             print("刪除交易時出錯: \(error)")
-            // 這裡可以添加錯誤提示
         }
     }
     
@@ -931,8 +875,6 @@ struct TransactionFormView: View {
             return langManager.localized("form_none")
         }
     }
-    
-    // MARK: - Utility Functions
     
     private func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -965,13 +907,5 @@ struct TransactionFormView: View {
             .map { Locale(identifier: $0) }
             .first { $0.currencyCode == code } ?? Locale.current
         return locale.currencySymbol ?? code
-    }
-}
-
-// MARK: - Preview (optional)
-struct TransactionFormView_Previews: PreviewProvider {
-    static var previews: some View {
-        TransactionFormView()
-            .environmentObject(LanguageManager())
     }
 }
