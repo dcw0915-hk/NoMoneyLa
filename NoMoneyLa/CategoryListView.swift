@@ -1,6 +1,160 @@
 import SwiftUI
 import SwiftData
 
+// AssignPayersView.swift
+// 接收 categoryID，於 onAppear 從 ModelContext fetch 出受管理的 Category 實例再修改並儲存
+
+struct AssignPayersView: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+
+    let categoryID: UUID
+
+    @State private var managedCategory: Category?
+    @State private var selectedPayerIDs: Set<UUID> = []
+    @State private var allPayers: [Payer] = []
+    @State private var isLoading = false
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView("載入中...")
+                        .padding()
+                } else if allPayers.isEmpty {
+                    ContentUnavailableView(
+                        "沒有付款人",
+                        systemImage: "person.3",
+                        description: Text("請先在「管理付款人」中建立付款人")
+                    )
+                } else {
+                    List {
+                        Section("可選付款人") {
+                            ForEach(allPayers) { payer in
+                                HStack {
+                                    Circle()
+                                        .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                        .frame(width: 20, height: 20)
+
+                                    Text(payer.name)
+                                        .font(.body)
+
+                                    Spacer()
+
+                                    if selectedPayerIDs.contains(payer.id) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.blue)
+                                            .font(.title3)
+                                    } else {
+                                        Image(systemName: "circle")
+                                            .foregroundColor(.gray)
+                                            .font(.title3)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    togglePayerSelection(payer.id)
+                                }
+                            }
+                        }
+
+                        Section {
+                            if selectedPayerIDs.isEmpty {
+                                Text("未選擇任何付款人")
+                                    .foregroundColor(.secondary)
+                                    .italic()
+                            } else {
+                                Text("已選擇 \(selectedPayerIDs.count) 位付款人")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(managedCategory?.name ?? "分配付款人")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("儲存") { saveAssignedPayers() }
+                        .disabled(isLoading)
+                }
+            }
+            .onAppear { loadData() }
+        }
+    }
+
+    // MARK: - Data
+    private func loadData() {
+        isLoading = true
+
+        DispatchQueue.main.async {
+            do {
+                // 取得所有付款人
+                let payersFetch = FetchDescriptor<Payer>(sortBy: [SortDescriptor(\.order)])
+                let payers = try context.fetch(payersFetch)
+                self.allPayers = payers
+
+                // 取得受管理的 category 實例（以 id 比對）
+                let categoriesFetch = FetchDescriptor<Category>()
+                let categories = try context.fetch(categoriesFetch)
+                if let found = categories.first(where: { $0.id == self.categoryID }) {
+                    self.managedCategory = found
+                    self.selectedPayerIDs = Set(found.assignedPayerIDs)
+                    print("DEBUG: 找到受管理的 Category，已載入已分配付款人 \(found.assignedPayerIDs)")
+                } else {
+                    print("DEBUG: 無法在 ModelContext 中找到 category id: \(self.categoryID)")
+                    self.managedCategory = nil
+                    self.selectedPayerIDs = []
+                }
+            } catch {
+                print("DEBUG: 載入付款人或分類時出錯：\(error)")
+                self.allPayers = []
+                self.managedCategory = nil
+                self.selectedPayerIDs = []
+            }
+
+            self.isLoading = false
+        }
+    }
+
+    private func togglePayerSelection(_ payerID: UUID) {
+        if selectedPayerIDs.contains(payerID) {
+            selectedPayerIDs.remove(payerID)
+        } else {
+            selectedPayerIDs.insert(payerID)
+        }
+    }
+
+    // MARK: - Save
+    private func saveAssignedPayers() {
+        guard let category = managedCategory else {
+            print("DEBUG: 無受管理的 Category，無法儲存")
+            dismiss()
+            return
+        }
+
+        // 去重並儲存
+        category.assignedPayerIDs = Array(Set(selectedPayerIDs))
+
+        do {
+            try context.save()
+            print("DEBUG: 已成功儲存 assignedPayerIDs: \(category.assignedPayerIDs)")
+        } catch {
+            print("DEBUG: 儲存 assignedPayerIDs 時發生錯誤：\(error)")
+        }
+
+        dismiss()
+    }
+}
+
+
+// CategoryListView.swift
+// 顯示分類清單，並以 .sheet(item:) 開啟 AssignPayersView（傳入 category.id）
+
 struct CategoryListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Category.order) private var allCategories: [Category]
@@ -10,6 +164,9 @@ struct CategoryListView: View {
     @State private var newName: String = ""
     @State private var showDeleteAlert = false
     @State private var categoryToDelete: Category?
+
+    // 使用 optional Category 作為 .sheet(item:)
+    @State private var showingAssignPayersForCategory: Category?
 
     // Inline edit state
     @State private var editingCategoryID: UUID?
@@ -34,96 +191,48 @@ struct CategoryListView: View {
                     ForEach(categories) { category in
                         HStack(spacing: 12) {
                             if editingCategoryID == category.id {
-                                HStack(spacing: 8) {
-                                    TextField("名稱", text: $inlineEditedName)
-                                        .focused($isInlineFocused)
-                                        .submitLabel(.done)
-                                        .onSubmit { commitInlineEdit(for: category) }
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 10)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color(UIColor.secondarySystemBackground))
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color(UIColor.separator), lineWidth: 0.5)
-                                        )
-                                        .frame(minWidth: 100)
-                                        .lineLimit(1)
-
-                                    Button {
-                                        commitInlineEdit(for: category)
-                                    } label: {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.accentColor)
-                                    }
-                                    .buttonStyle(BorderlessButtonStyle())
-                                    .frame(width: 36, height: 36)
-
-                                    Button {
-                                        cancelInlineEdit()
-                                    } label: {
-                                        Image(systemName: "xmark")
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .buttonStyle(BorderlessButtonStyle())
-                                    .frame(width: 36, height: 36)
-                                }
-                                .onAppear {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                        isInlineFocused = true
-                                    }
-                                }
+                                inlineEditView(for: category)
                             } else {
-                                Text(category.name)
-                                    .font(.body)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
+                                normalView(for: category)
                             }
 
                             Spacer()
 
-                            HStack(spacing: 10) {
-                                Button {
-                                    startInlineEdit(for: category)
-                                } label: {
-                                    Image(systemName: "pencil")
-                                        .imageScale(.large)
-                                        .foregroundColor(.primary)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
-                                .frame(width: 36, height: 36)
-                                .contentShape(Rectangle())
-
-                                NavigationLink {
-                                    SubcategoryManagerView(parentCategory: category)
-                                } label: {
-                                    Image(systemName: "list.bullet")
-                                        .imageScale(.large)
-                                        .foregroundColor(.primary)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
-                                .frame(width: 36, height: 36)
-                                .contentShape(Rectangle())
-
-                                Button(role: .destructive) {
-                                    categoryToDelete = category
-                                    showDeleteAlert = true
-                                } label: {
-                                    Image(systemName: "trash")
-                                        .imageScale(.large)
-                                        .foregroundColor(.red)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
-                                .frame(width: 36, height: 36)
-                                .contentShape(Rectangle())
-                            }
+                            actionButtons(for: category)
                         }
                         .padding(.vertical, 4)
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                     }
                     .onMove(perform: moveCategory)
+                }
+
+                Section("分類債務結算") {
+                    ForEach(categories) { category in
+                        NavigationLink {
+                            CategorySettlementView(category: category)
+                        } label: {
+                            HStack {
+                                if let colorHex = category.colorHex {
+                                    Circle()
+                                        .fill(Color(hex: colorHex))
+                                        .frame(width: 12, height: 12)
+                                }
+
+                                Text(category.name)
+                                    .font(.body)
+
+                                Spacer()
+
+                                let participantCount = category.participants(in: context).count
+                                if participantCount > 0 {
+                                    Text("\(participantCount)人")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    }
                 }
             }
             .navigationTitle("分類管理")
@@ -133,10 +242,120 @@ struct CategoryListView: View {
             } message: { category in
                 Text("刪除分類「\(category.name)」會同時刪除其子分類，並讓相關交易失去連結，確定要刪除嗎？")
             }
+            .sheet(item: $showingAssignPayersForCategory) { category in
+                // 傳入 category.id，並注入 modelContext（保險）
+                AssignPayersView(categoryID: category.id)
+                    .environment(\.modelContext, context)
+                    .onDisappear {
+                        showingAssignPayersForCategory = nil
+                    }
+            }
         }
     }
 
-    // Inline edit helpers
+    // MARK: - 子視圖
+    private func inlineEditView(for category: Category) -> some View {
+        HStack(spacing: 8) {
+            TextField("名稱", text: $inlineEditedName)
+                .focused($isInlineFocused)
+                .submitLabel(.done)
+                .onSubmit { commitInlineEdit(for: category) }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(UIColor.secondarySystemBackground))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(UIColor.separator), lineWidth: 0.5)
+                )
+                .frame(minWidth: 100)
+                .lineLimit(1)
+
+            Button {
+                commitInlineEdit(for: category)
+            } label: {
+                Image(systemName: "checkmark")
+                    .foregroundColor(.accentColor)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+            .frame(width: 36, height: 36)
+
+            Button {
+                cancelInlineEdit()
+            } label: {
+                Image(systemName: "xmark")
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+            .frame(width: 36, height: 36)
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInlineFocused = true
+            }
+        }
+    }
+
+    private func normalView(for category: Category) -> some View {
+        Text(category.name)
+            .font(.body)
+            .lineLimit(1)
+            .truncationMode(.tail)
+    }
+
+    private func actionButtons(for category: Category) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                print("DEBUG: 點擊分配付款人按鈕 for \(category.name)")
+                showingAssignPayersForCategory = category
+            } label: {
+                Image(systemName: category.assignedPayerIDs.isEmpty ? "person.2" : "person.2.fill")
+                    .imageScale(.large)
+                    .foregroundColor(category.assignedPayerIDs.isEmpty ? .primary : .blue)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+            .frame(width: 36, height: 36)
+            .contentShape(Rectangle())
+
+            Button {
+                startInlineEdit(for: category)
+            } label: {
+                Image(systemName: "pencil")
+                    .imageScale(.large)
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+            .frame(width: 36, height: 36)
+            .contentShape(Rectangle())
+
+            NavigationLink {
+                SubcategoryManagerView(parentCategory: category)
+            } label: {
+                Image(systemName: "list.bullet")
+                    .imageScale(.large)
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+            .frame(width: 36, height: 36)
+            .contentShape(Rectangle())
+
+            Button(role: .destructive) {
+                categoryToDelete = category
+                showDeleteAlert = true
+            } label: {
+                Image(systemName: "trash")
+                    .imageScale(.large)
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+            .frame(width: 36, height: 36)
+            .contentShape(Rectangle())
+        }
+    }
+
+    // MARK: - 方法
     private func startInlineEdit(for category: Category) {
         editingCategoryID = category.id
         inlineEditedName = category.name
@@ -164,7 +383,6 @@ struct CategoryListView: View {
         isInlineFocused = false
     }
 
-    // CRUD
     private func addCategory() {
         let trimmed = newName.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
@@ -188,7 +406,6 @@ struct CategoryListView: View {
     }
 
     private func safeDelete(_ category: Category) {
-        // 解除交易與子分類的關聯，刪除子分類
         let subs = allSubcategories.filter { $0.parentID == category.id }
         for sub in subs {
             for tx in transactions where tx.subcategoryID == sub.id {
@@ -196,7 +413,6 @@ struct CategoryListView: View {
             }
             context.delete(sub)
         }
-        // 若你同時在 transaction 儲存 categoryID，這裡也要處理（本範例沒有 categoryID）
         context.delete(category)
         do {
             try context.save()
@@ -206,13 +422,11 @@ struct CategoryListView: View {
         }
     }
 
-    // 排序
     private func reorderCategories() {
         let topCategories = allCategories.sorted(by: { $0.order < $1.order })
         for (index, cat) in topCategories.enumerated() {
             cat.order = index
         }
-        // 子分類排序
         for parent in topCategories {
             let subs = allSubcategories.filter { $0.parentID == parent.id }
                                         .sorted(by: { $0.order < $1.order })
