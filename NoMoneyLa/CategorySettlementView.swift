@@ -285,60 +285,35 @@ struct CategorySettlementView: View {
         return dynamicParticipants
     }
     
-    // 計算每人應付金額（簡單平均法）
-    private func calculateShouldPayAmounts() -> [Payer: Decimal] {
+    // 計算每人應付金額（每筆交易平均分攤法）
+    private func calculateAveragePerTransaction() -> [Payer: Decimal] {
         var shouldPayAmounts: [Payer: Decimal] = [:]
         
-        // 計算分類總金額
-        let totalCategoryAmount = categoryTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
-        
-        // 計算參與人數
-        let participantCount = Decimal(participants.count)
-        
-        if participantCount > 0 {
-            let perPersonAmount = totalCategoryAmount / participantCount
-            
-            addDebugInfo("總金額: \(formatCurrency(totalCategoryAmount))")
-            addDebugInfo("參與人數: \(participants.count)")
-            addDebugInfo("每人應付（平均）: \(formatCurrency(perPersonAmount))")
-            
-            for payer in participants {
-                shouldPayAmounts[payer] = perPersonAmount
-            }
-        }
-        
-        return shouldPayAmounts
-    }
-    
-    // 計算詳細的分攤金額（考慮分攤比例）
-    private func calculateDetailedShouldPayAmounts() -> [Payer: Decimal] {
-        var shouldPayAmounts: [Payer: Decimal] = [:]
-        
-        // 方法：按實際參與比例分攤
-        // 總共需要分攤的金額 = 所有交易的總金額
-        let totalAmount = categoryTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
-        
-        // 計算每個付款人的總支付比例
-        var totalPaidByAll: Decimal = 0
-        var paidAmounts: [UUID: Decimal] = [:]
-        
+        // 初始化每人應付總額為 0
         for payer in participants {
-            let paid = totalPaidByPayer(payer)
-            paidAmounts[payer.id] = paid
-            totalPaidByAll += paid
+            shouldPayAmounts[payer] = 0
         }
         
-        addDebugInfo("所有參與者總支付: \(formatCurrency(totalPaidByAll))")
-        
-        if totalPaidByAll > 0 {
+        // 逐筆交易計算平均分攤
+        for transaction in categoryTransactions {
+            let participantCount = Decimal(participants.count)
+            if participantCount == 0 { continue }
+            
+            let perPersonAmount = transaction.totalAmount / participantCount
+            
+            addDebugInfo("交易 \(transaction.date.formatted(date: .abbreviated, time: .omitted)): \(formatCurrency(transaction.totalAmount))")
+            addDebugInfo("  每人應付: \(formatCurrency(perPersonAmount))")
+            
+            // 每人都應付平均金額
             for payer in participants {
-                let paid = paidAmounts[payer.id] ?? 0
-                let proportion = totalAmount > 0 ? (paid / totalPaidByAll) : 0
-                let shouldPay = totalAmount * proportion
-                shouldPayAmounts[payer] = shouldPay
-                
-                addDebugInfo("\(payer.name): 支付比例 = \(String(format: "%.2f", Double(truncating: proportion as NSNumber) * 100))%, 應付 = \(formatCurrency(shouldPay))")
+                shouldPayAmounts[payer] = (shouldPayAmounts[payer] ?? 0) + perPersonAmount
             }
+        }
+        
+        // 打印每人應付總額
+        for payer in participants {
+            let shouldPay = shouldPayAmounts[payer] ?? 0
+            addDebugInfo("\(payer.name) 應付總額: \(formatCurrency(shouldPay))")
         }
         
         return shouldPayAmounts
@@ -540,20 +515,6 @@ struct CategorySettlementView: View {
                     calculateSettlement()
                 }
             }
-            
-            ToolbarItem(placement: .topBarLeading) {
-                Menu {
-                    Button("平均分攤法") {
-                        calculateSettlement(method: .average)
-                    }
-                    
-                    Button("按比例分攤法") {
-                        calculateSettlement(method: .proportional)
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
         }
         .onAppear {
             calculateSettlement()
@@ -567,11 +528,6 @@ struct CategorySettlementView: View {
     
     // MARK: - 方法
     
-    enum SettlementMethod {
-        case average      // 平均分攤
-        case proportional // 按比例分攤
-    }
-    
     private func addDebugInfo(_ message: String) {
         debugInfo.append(message)
         print("DEBUG: \(message)")
@@ -581,11 +537,11 @@ struct CategorySettlementView: View {
         debugInfo.removeAll()
     }
     
-    private func calculateSettlement(method: SettlementMethod = .average) {
+    private func calculateSettlement() {
         clearDebugInfo()
         addDebugInfo("=== 開始計算結算 ===")
         addDebugInfo("分類: \(category.name)")
-        addDebugInfo("計算方法: \(method == .average ? "平均分攤法" : "按比例分攤法")")
+        addDebugInfo("計算方法: 每筆交易平均分攤法")
         
         // 獲取所有參與者
         participants = getAllParticipants()
@@ -611,20 +567,14 @@ struct CategorySettlementView: View {
             addDebugInfo("\(payer.name) 實付: \(formatCurrency(paid))")
         }
         
-        // 2. 計算每人應付金額
-        var shouldPayAmounts: [Payer: Decimal] = [:]
-        
-        switch method {
-        case .average:
-            shouldPayAmounts = calculateAverageShouldPayAmounts(totalAmount: totalCategoryAmount)
-        case .proportional:
-            shouldPayAmounts = calculateProportionalShouldPayAmounts(totalAmount: totalCategoryAmount, paidAmounts: paidAmounts)
-        }
+        // 2. 計算每人應付金額（每筆交易平均分攤）
+        let shouldPayAmounts = calculateAveragePerTransaction()
         
         // 3. 計算淨結餘
         var netBalances: [Payer: Decimal] = [:]
         var results: [SettlementResult] = []
         
+        addDebugInfo("--- 淨結餘計算 ---")
         for payer in participants {
             let paid = paidAmounts[payer] ?? 0
             let shouldPay = shouldPayAmounts[payer] ?? 0
@@ -668,47 +618,6 @@ struct CategorySettlementView: View {
         }
         
         addDebugInfo("=== 計算完成 ===")
-    }
-    
-    // 平均分攤法
-    private func calculateAverageShouldPayAmounts(totalAmount: Decimal) -> [Payer: Decimal] {
-        var shouldPayAmounts: [Payer: Decimal] = [:]
-        
-        let participantCount = Decimal(participants.count)
-        
-        if participantCount > 0 {
-            let perPersonAmount = totalAmount / participantCount
-            
-            addDebugInfo("每人應付（平均）: \(formatCurrency(perPersonAmount))")
-            
-            for payer in participants {
-                shouldPayAmounts[payer] = perPersonAmount
-            }
-        }
-        
-        return shouldPayAmounts
-    }
-    
-    // 按比例分攤法
-    private func calculateProportionalShouldPayAmounts(totalAmount: Decimal, paidAmounts: [Payer: Decimal]) -> [Payer: Decimal] {
-        var shouldPayAmounts: [Payer: Decimal] = [:]
-        
-        // 計算所有參與者的總支付金額
-        let totalPaidByAll = paidAmounts.values.reduce(0, +)
-        addDebugInfo("所有參與者總支付: \(formatCurrency(totalPaidByAll))")
-        
-        if totalPaidByAll > 0 && totalAmount > 0 {
-            for payer in participants {
-                let paid = paidAmounts[payer] ?? 0
-                let proportion = paid / totalPaidByAll
-                let shouldPay = totalAmount * proportion
-                shouldPayAmounts[payer] = shouldPay
-                
-                addDebugInfo("\(payer.name): 支付比例 = \(String(format: "%.1f", Double(truncating: proportion as NSNumber) * 100))%, 應付 = \(formatCurrency(shouldPay))")
-            }
-        }
-        
-        return shouldPayAmounts
     }
     
     // 計算最優結算方案（最少轉帳次數）

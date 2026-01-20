@@ -52,22 +52,7 @@ struct PayerListView: View {
                                 .frame(width: 18, height: 18)
 
                             if editingPayerID == payer.id {
-                                TextField("名稱", text: $inlineEditedName)
-                                    .focused($isInlineFocused)
-                                    .submitLabel(.done)
-                                    .onSubmit { commitInlineEdit(for: payer) }
-                                    .padding(.vertical, 6)
-                                    .padding(.horizontal, 8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color(UIColor.secondarySystemBackground))
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color(UIColor.separator), lineWidth: 0.5)
-                                    )
-                                    .frame(minWidth: 100)
-                                    .lineLimit(1)
+                                inlineEditView(for: payer)
                             } else {
                                 Text(payer.name)
                                     .font(.body)
@@ -77,40 +62,40 @@ struct PayerListView: View {
 
                             Spacer()
 
-                            ColorPicker("", selection: Binding(
-                                get: { Color(hex: payer.colorHex ?? "#A8A8A8") },
-                                set: { newColor in
-                                    payer.colorHex = newColor.toHex() ?? "#A8A8A8"
-                                    try? context.save()
+                            // 編輯模式時隱藏顏色選擇器和編輯按鈕
+                            if editingPayerID != payer.id {
+                                ColorPicker("", selection: Binding(
+                                    get: { Color(hex: payer.colorHex ?? "#A8A8A8") },
+                                    set: { newColor in
+                                        payer.colorHex = newColor.toHex() ?? "#A8A8A8"
+                                        try? context.save()
+                                    }
+                                ))
+                                .labelsHidden()
+                                .frame(width: 30, height: 30)
+                                .clipShape(Circle())
+
+                                Button {
+                                    startInlineEdit(for: payer)
+                                } label: {
+                                    Image(systemName: "pencil")
+                                        .imageScale(.medium)
+                                        .foregroundColor(.primary)
                                 }
-                            ))
-                            .labelsHidden()
-                            .frame(width: 30, height: 30)
-                            .clipShape(Circle())
-
-                            Button {
-                                startInlineEdit(for: payer)
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .imageScale(.medium)
-                                    .foregroundColor(.primary)
+                                .buttonStyle(BorderlessButtonStyle())
+                                .frame(width: 32, height: 32)
                             }
-                            .buttonStyle(BorderlessButtonStyle())
-                            .frame(width: 32, height: 32)
-
-                            Button(role: .destructive) {
-                                payerToDelete = payer
-                                showDeleteAlert = true
-                            } label: {
-                                Image(systemName: "trash")
-                                    .imageScale(.medium)
-                                    .foregroundColor(.red)
-                            }
-                            .buttonStyle(BorderlessButtonStyle())
-                            .frame(width: 32, height: 32)
                         }
                         .frame(height: 44)
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        // 添加左滑刪除功能
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deletePayer(payer)
+                            } label: {
+                                Label("刪除", systemImage: "trash")
+                            }
+                        }
                     }
                     .onMove(perform: movePayer)
                 }
@@ -125,6 +110,52 @@ struct PayerListView: View {
         }
     }
 
+    // MARK: - 子視圖
+    private func inlineEditView(for payer: Payer) -> some View {
+        HStack(spacing: 8) {
+            TextField("名稱", text: $inlineEditedName)
+                .focused($isInlineFocused)
+                .submitLabel(.done)
+                .onSubmit { commitInlineEdit(for: payer) }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(UIColor.secondarySystemBackground))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(UIColor.separator), lineWidth: 0.5)
+                )
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+
+            Button {
+                commitInlineEdit(for: payer)
+            } label: {
+                Image(systemName: "checkmark")
+                    .foregroundColor(.accentColor)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+
+            Button {
+                cancelInlineEdit()
+            } label: {
+                Image(systemName: "xmark")
+                    .foregroundColor(.secondary)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInlineFocused = true
+            }
+        }
+    }
+
+    // MARK: - 方法
     private func startInlineEdit(for payer: Payer) {
         editingPayerID = payer.id
         inlineEditedName = payer.name
@@ -146,6 +177,12 @@ struct PayerListView: View {
                 print("儲存付款人名稱失敗：\(error.localizedDescription)")
             }
         }
+        editingPayerID = nil
+        inlineEditedName = ""
+        isInlineFocused = false
+    }
+
+    private func cancelInlineEdit() {
         editingPayerID = nil
         inlineEditedName = ""
         isInlineFocused = false
@@ -175,6 +212,13 @@ struct PayerListView: View {
         try? context.save()
     }
 
+    // 左滑刪除觸發的方法
+    private func deletePayer(_ payer: Payer) {
+        payerToDelete = payer
+        showDeleteAlert = true
+    }
+
+    // 實際執行刪除的方法
     private func safeDelete(_ payer: Payer) {
         for tx in transactions {
             tx.contributions.removeAll { $0.payer.id == payer.id }

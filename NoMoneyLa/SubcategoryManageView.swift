@@ -63,22 +63,7 @@ struct SubcategoryManagerView: View {
                                 .frame(width: 18, height: 18)
 
                             if editingSubcategoryID == sub.id {
-                                TextField(langManager.localized("subcategory_name_label"), text: $inlineEditedName)
-                                    .focused($isInlineFocused)
-                                    .submitLabel(.done)
-                                    .onSubmit { commitInlineEdit(for: sub) }
-                                    .padding(.vertical, 6)
-                                    .padding(.horizontal, 8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color(UIColor.secondarySystemBackground))
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color(UIColor.separator), lineWidth: 0.5)
-                                    )
-                                    .frame(minWidth: 100)
-                                    .lineLimit(1)
+                                inlineEditView(for: sub)
                             } else {
                                 Text(sub.name)
                                     .font(.body)
@@ -88,46 +73,50 @@ struct SubcategoryManagerView: View {
 
                             Spacer()
 
-                            ColorPicker("", selection: Binding(
-                                get: { Color(hex: sub.colorHex ?? "#A8A8A8") },
-                                set: { newColor in
-                                    sub.colorHex = newColor.toHex() ?? "#A8A8A8"
-                                    try? context.save()
+                            // 編輯模式時隱藏顏色選擇器和操作按鈕
+                            if editingSubcategoryID != sub.id {
+                                ColorPicker("", selection: Binding(
+                                    get: { Color(hex: sub.colorHex ?? "#A8A8A8") },
+                                    set: { newColor in
+                                        sub.colorHex = newColor.toHex() ?? "#A8A8A8"
+                                        try? context.save()
+                                    }
+                                ))
+                                .labelsHidden()
+                                .frame(width: 30, height: 30)
+                                .clipShape(Circle())
+                                
+                                // 未分類子分類不顯示編輯按鈕
+                                if sub.name != "未分類" {
+                                    Button {
+                                        startInlineEdit(for: sub)
+                                    } label: {
+                                        Image(systemName: "pencil")
+                                            .imageScale(.medium)
+                                            .foregroundColor(.primary)
+                                    }
+                                    .buttonStyle(BorderlessButtonStyle())
+                                    .frame(width: 32, height: 32)
+                                } else {
+                                    // 未分類子分類佔位空間
+                                    Spacer()
+                                        .frame(width: 32)
                                 }
-                            ))
-                            .labelsHidden()
-                            .frame(width: 30, height: 30)
-                            .clipShape(Circle())
-
-                            if sub.name != "未分類" {
-                                Button {
-                                    startInlineEdit(for: sub)
-                                } label: {
-                                    Image(systemName: "pencil")
-                                        .imageScale(.medium)
-                                        .foregroundColor(.primary)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
-                                .frame(width: 32, height: 32)
-
-                                Button(role: .destructive) {
-                                    subcategoryToDelete = sub
-                                    showDeleteAlert = true
-                                } label: {
-                                    Image(systemName: "trash")
-                                        .imageScale(.medium)
-                                        .foregroundColor(.red)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
-                                .frame(width: 32, height: 32)
-                            } else {
-                                // 未分類子分類不顯示編輯和刪除按鈕
-                                Spacer()
-                                    .frame(width: 64)
                             }
                         }
                         .frame(height: 44)
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        // 添加左滑刪除功能（未分類除外）
+                        .swipeActions(edge: .trailing, allowsFullSwipe: sub.name != "未分類") {
+                            if sub.name != "未分類" {
+                                Button(role: .destructive) {
+                                    deleteSubcategory(sub)
+                                } label: {
+                                    Label("刪除", systemImage: "trash")
+                                }
+                            }
+                        }
+                        .disabled(sub.name == "未分類") // 未分類不可編輯
                     }
                     .onMove(perform: moveSubcategory)
                 }
@@ -145,6 +134,52 @@ struct SubcategoryManagerView: View {
         }
     }
 
+    // MARK: - 子視圖
+    private func inlineEditView(for sub: Subcategory) -> some View {
+        HStack(spacing: 8) {
+            TextField(langManager.localized("subcategory_name_label"), text: $inlineEditedName)
+                .focused($isInlineFocused)
+                .submitLabel(.done)
+                .onSubmit { commitInlineEdit(for: sub) }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(UIColor.secondarySystemBackground))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(UIColor.separator), lineWidth: 0.5)
+                )
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+
+            Button {
+                commitInlineEdit(for: sub)
+            } label: {
+                Image(systemName: "checkmark")
+                    .foregroundColor(.accentColor)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+
+            Button {
+                cancelInlineEdit()
+            } label: {
+                Image(systemName: "xmark")
+                    .foregroundColor(.secondary)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInlineFocused = true
+            }
+        }
+    }
+
+    // MARK: - 方法
     private func ensureUncategorizedExists() {
         let hasUncategorized = subcategories.contains { $0.name == "未分類" }
         
@@ -187,6 +222,12 @@ struct SubcategoryManagerView: View {
         isInlineFocused = false
     }
 
+    private func cancelInlineEdit() {
+        editingSubcategoryID = nil
+        inlineEditedName = ""
+        isInlineFocused = false
+    }
+
     private func addSubcategory() {
         let trimmed = newName.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
@@ -220,6 +261,14 @@ struct SubcategoryManagerView: View {
         try? context.save()
     }
 
+    // 左滑刪除觸發的方法
+    private func deleteSubcategory(_ sub: Subcategory) {
+        if sub.name == "未分類" { return } // 未分類不可刪除
+        subcategoryToDelete = sub
+        showDeleteAlert = true
+    }
+
+    // 實際執行刪除的方法
     private func safeDelete(_ sub: Subcategory) {
         if sub.name == "未分類" { return } // 未分類不可刪除
         

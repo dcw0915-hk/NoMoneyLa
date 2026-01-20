@@ -221,10 +221,21 @@ struct CategoryListView: View {
 
                             Spacer()
 
-                            actionButtons(for: category)
+                            // 編輯模式時隱藏操作按鈕
+                            if editingCategoryID != category.id {
+                                actionButtons(for: category)
+                            }
                         }
                         .padding(.vertical, 4)
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        // 添加左滑刪除功能
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deleteCategory(category)
+                            } label: {
+                                Label("刪除", systemImage: "trash")
+                            }
+                        }
                     }
                     .onMove(perform: moveCategory)
                 }
@@ -309,7 +320,7 @@ struct CategoryListView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color(UIColor.separator), lineWidth: 0.5)
                 )
-                .frame(minWidth: 100)
+                .frame(maxWidth: .infinity)
                 .lineLimit(1)
 
             Button {
@@ -317,18 +328,18 @@ struct CategoryListView: View {
             } label: {
                 Image(systemName: "checkmark")
                     .foregroundColor(.accentColor)
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(BorderlessButtonStyle())
-            .frame(width: 36, height: 36)
 
             Button {
                 cancelInlineEdit()
             } label: {
                 Image(systemName: "xmark")
                     .foregroundColor(.secondary)
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(BorderlessButtonStyle())
-            .frame(width: 36, height: 36)
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -345,22 +356,10 @@ struct CategoryListView: View {
     }
 
     private func actionButtons(for category: Category) -> some View {
-        // 除錯打印
         let assignedPayers = category.assignedPayers(in: context)
-        print("=== DEBUG [CategoryListView - actionButtons] ===")
-        print("分類: \(category.name)")
-        print("assignedPayerIDs: \(category.assignedPayerIDs)")
-        print("assignedPayers 函數返回數量: \(assignedPayers.count)")
-        print("assignedPayers 名稱: \(assignedPayers.map { $0.name })")
-        print("======================")
         
         return HStack(spacing: 10) {
             Button {
-                print("=== DEBUG [CategoryListView - 點擊分配付款人] ===")
-                print("分類: \(category.name)")
-                print("ID: \(category.id)")
-                print("當前 assignedPayerIDs: \(category.assignedPayerIDs)")
-                print("======================")
                 showingAssignPayersForCategory = category
             } label: {
                 let assignedCount = assignedPayers.count
@@ -393,18 +392,8 @@ struct CategoryListView: View {
             .buttonStyle(BorderlessButtonStyle())
             .frame(width: 36, height: 36)
             .contentShape(Rectangle())
-
-            Button(role: .destructive) {
-                categoryToDelete = category
-                showDeleteAlert = true
-            } label: {
-                Image(systemName: "trash")
-                    .imageScale(.large)
-                    .foregroundColor(.red)
-            }
-            .buttonStyle(BorderlessButtonStyle())
-            .frame(width: 36, height: 36)
-            .contentShape(Rectangle())
+            
+            // 刪除按鈕已移除，改為左滑刪除
         }
     }
 
@@ -458,6 +447,13 @@ struct CategoryListView: View {
         try? context.save()
     }
 
+    // 左滑刪除觸發的方法
+    private func deleteCategory(_ category: Category) {
+        categoryToDelete = category
+        showDeleteAlert = true
+    }
+
+    // 實際執行刪除的方法
     private func safeDelete(_ category: Category) {
         let subs = allSubcategories.filter { $0.parentID == category.id }
         for sub in subs {
