@@ -9,15 +9,6 @@ struct SettlementResult {
     let amount: Decimal     // 應付金額
 }
 
-// MARK: - 工具函數
-func formatCurrency(_ amount: Decimal) -> String {
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .currency
-    formatter.currencyCode = "HKD"
-    formatter.maximumFractionDigits = 2
-    return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
-}
-
 // MARK: - 付款人交易行視圖
 struct PayerTransactionRowView: View {
     let transaction: Transaction

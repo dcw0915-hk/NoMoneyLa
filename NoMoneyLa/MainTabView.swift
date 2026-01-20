@@ -10,6 +10,7 @@ import SwiftData
 
 struct MainTabView: View {
     @Environment(\.modelContext) private var context
+    @EnvironmentObject var dashboardVM: DashboardViewModel
     @Query(sort: \Category.order) private var categories: [Category]
     
     var body: some View {
@@ -22,10 +23,10 @@ struct MainTabView: View {
             }
 
             NavigationStack {
-                ContentView()
+                DashboardView()
             }
             .tabItem {
-                Label("Dashboard", systemImage: "house")
+                Label("分析", systemImage: "chart.bar.fill")
             }
 
             NavigationStack {

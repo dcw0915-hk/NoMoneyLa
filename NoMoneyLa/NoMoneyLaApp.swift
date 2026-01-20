@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct NoMoneyLaApp: App {
     @StateObject private var langManager = LanguageManager()
+    @StateObject private var dashboardVM: DashboardViewModel
     let container: ModelContainer
     
     @AppStorage("appColorScheme") private var appColorScheme: String = "system"
@@ -19,6 +20,10 @@ struct NoMoneyLaApp: App {
         )
         
         let ctx = container.mainContext
+        
+        // 初始化 DashboardViewModel
+        _dashboardVM = StateObject(wrappedValue: DashboardViewModel(context: ctx))
+        
         performOneTimeMigrationIfNeeded(ctx)
         initializeOrders(in: ctx)
         createDefaultPayerIfNeeded(in: ctx)
@@ -30,6 +35,7 @@ struct NoMoneyLaApp: App {
             MainTabView()
                 .modelContainer(container)
                 .environmentObject(langManager)
+                .environmentObject(dashboardVM)
                 .preferredColorScheme(resolveColorScheme(appColorScheme))
         }
     }
