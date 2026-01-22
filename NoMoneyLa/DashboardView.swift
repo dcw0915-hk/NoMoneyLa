@@ -35,39 +35,35 @@ struct DashboardView: View {
                     dashboardVM.refreshData()
                 }
                 
-                // 主要內容
+                // 主要內容 - 改為直向滾動
                 ScrollView {
-                    VStack(spacing: 16) {
-                        // 統計卡片網格
-                        LazyVGrid(
-                            columns: [
-                                GridItem(.flexible(), spacing: 16),
-                                GridItem(.flexible(), spacing: 16)
-                            ],
-                            spacing: 16
-                        ) {
-                            TotalSpendingCard(
-                                stats: dashboardVM.monthlyStats,
-                                isLoading: dashboardVM.isLoading
-                            )
-                            
-                            CategoryBreakdownCard(
-                                categories: dashboardVM.categoryStats,
-                                isLoading: dashboardVM.isLoading
-                            )
-                            
-                            DailyAverageCard(
-                                stats: dashboardVM.monthlyStats,
-                                isLoading: dashboardVM.isLoading
-                            )
-                            
-                            SpendingInsightCard(
-                                insights: dashboardVM.spendingInsights,
-                                isLoading: dashboardVM.isLoading
-                            )
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
+                    VStack(spacing: 16) {  // 垂直排列卡片
+                        // 1. 總消費卡片（傳遞 period）
+                        TotalSpendingCard(
+                            stats: dashboardVM.monthlyStats,
+                            isLoading: dashboardVM.isLoading,
+                            period: dashboardVM.selectedPeriod
+                        )
+                        
+                        // 2. 日均消費卡片（傳遞 period）
+                        DailyAverageCard(
+                            stats: dashboardVM.monthlyStats,
+                            isLoading: dashboardVM.isLoading,
+                            period: dashboardVM.selectedPeriod
+                        )
+                        
+                        // 3. 分類分佈卡片
+                        CategoryBreakdownCard(
+                            categories: dashboardVM.categoryStats,
+                            isLoading: dashboardVM.isLoading
+                        )
+                        
+                        // 4. 消費洞察卡片（傳遞 period）
+                        SpendingInsightCard(
+                            insights: dashboardVM.spendingInsights,
+                            isLoading: dashboardVM.isLoading,
+                            period: dashboardVM.selectedPeriod
+                        )
                         
                         // 最近交易（可選擴展）
                         if !dashboardVM.isLoading,
@@ -82,13 +78,15 @@ struct DashboardView: View {
                             emptyStateView
                         }
                     }
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 16)
                 }
                 .refreshable {
                     dashboardVM.refreshData()
                 }
             }
             .navigationTitle("消費分析")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -96,12 +94,12 @@ struct DashboardView: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                             .foregroundColor(.blue)
+                            .font(.body)
                     }
                     .disabled(dashboardVM.isLoading)
                 }
             }
             .onAppear {
-                // 初始化時載入數據
                 if dashboardVM.selectedPayer != nil && !dashboardVM.isLoading {
                     dashboardVM.refreshData()
                 }
@@ -147,6 +145,7 @@ struct RecentTransactionsSection: View {
     @Environment(\.modelContext) private var context
     
     @State private var recentTransactions: [Transaction] = []
+    @State private var totalFilteredTransactions = 0
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -157,17 +156,23 @@ struct RecentTransactionsSection: View {
                 
                 Spacer()
                 
-                NavigationLink("查看全部") {
-                    // 可以導航到篩選後的交易列表
-                    TransactionListView()
+                // 只顯示有交易時才顯示查看全部
+                if totalFilteredTransactions > 0 {
+                    NavigationLink("查看全部") {
+                        TransactionListView(
+                            filterPayer: dashboardVM.selectedPayer,
+                            filterPeriod: dashboardVM.selectedPeriod,
+                            filterDate: dashboardVM.selectedDate
+                        )
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
                 }
-                .font(.caption)
-                .foregroundColor(.blue)
             }
             .padding(.horizontal, 16)
             
             if recentTransactions.isEmpty {
-                Text("無最近交易")
+                Text("此期間無交易記錄")
                     .foregroundColor(.secondary)
                     .italic()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -176,6 +181,13 @@ struct RecentTransactionsSection: View {
                 ForEach(recentTransactions.prefix(3)) { transaction in
                     TransactionRow(transaction: transaction)
                 }
+                
+                // 顯示篩選條件信息
+                Text("篩選：\(dashboardVM.selectedPayer?.name ?? "")｜\(formatPeriod())")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 4)
             }
         }
         .onAppear {
@@ -193,9 +205,15 @@ struct RecentTransactionsSection: View {
     }
     
     private func loadRecentTransactions() {
-        guard let payer = dashboardVM.selectedPayer else { return }
+        guard let payer = dashboardVM.selectedPayer else {
+            recentTransactions = []
+            totalFilteredTransactions = 0
+            return
+        }
         
-        // 簡單方法：獲取所有交易，然後在 Swift 中過濾
+        // 計算時間範圍
+        let (startDate, endDate) = dashboardVM.calculateDateRange()
+        
         do {
             let fetchDescriptor = FetchDescriptor<Transaction>(
                 sortBy: [SortDescriptor(\.date, order: .reverse)]
@@ -203,20 +221,38 @@ struct RecentTransactionsSection: View {
             
             let allTransactions = try context.fetch(fetchDescriptor)
             
-            // 過濾包含該付款人的交易
-            recentTransactions = allTransactions.filter { transaction in
-                transaction.contributions.contains { $0.payer.id == payer.id }
+            // 篩選：包含該付款人 + 在時間範圍內
+            let filtered = allTransactions.filter { transaction in
+                let isInPeriod = transaction.date >= startDate && transaction.date <= endDate
+                let hasPayer = transaction.contributions.contains { $0.payer.id == payer.id }
+                return isInPeriod && hasPayer
             }
             
-            // 只取前5筆
-            if recentTransactions.count > 5 {
-                recentTransactions = Array(recentTransactions.prefix(5))
+            totalFilteredTransactions = filtered.count
+            
+            // 只取前5筆顯示
+            if filtered.count > 5 {
+                recentTransactions = Array(filtered.prefix(5))
+            } else {
+                recentTransactions = filtered
             }
             
         } catch {
             print("載入最近交易失敗: \(error)")
             recentTransactions = []
+            totalFilteredTransactions = 0
         }
+    }
+    
+    private func formatPeriod() -> String {
+        let formatter = DateFormatter()
+        switch dashboardVM.selectedPeriod {
+        case .month:
+            formatter.dateFormat = "yyyy年M月"
+        case .year:
+            formatter.dateFormat = "yyyy年"
+        }
+        return formatter.string(from: dashboardVM.selectedDate)
     }
 }
 
@@ -260,6 +296,14 @@ struct TransactionRow: View {
         .background(Color(.systemBackground))
         .cornerRadius(8)
         .padding(.horizontal, 16)
+    }
+    
+    private func formatCurrency(_ amount: Decimal, code: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = code
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 }
 

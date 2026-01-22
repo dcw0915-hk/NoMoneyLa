@@ -537,11 +537,26 @@ struct CategorySettlementView: View {
         // 獲取所有參與者
         participants = getAllParticipants()
         
+        // ✅ 加入呢啲檢查
+        addDebugInfo("--- 參與者檢查 ---")
+        addDebugInfo("總參與者數量: \(participants.count)")
+        
         if participants.isEmpty {
             addDebugInfo("警告：沒有找到參與者")
             settlementResults = []
             settlementSteps = []
             return
+        }
+        
+        addDebugInfo("=== 交易詳細 ===")
+        addDebugInfo("找到交易數量: \(categoryTransactions.count)")
+        
+        for (index, transaction) in categoryTransactions.enumerated() {
+            addDebugInfo("交易 \(index+1):")
+            addDebugInfo("  金額: \(formatCurrency(transaction.totalAmount))")
+            addDebugInfo("  類型: \(transaction.type == .expense ? "支出" : "收入")")
+            addDebugInfo("  日期: \(transaction.date.formatted(date: .abbreviated, time: .omitted))")
+            addDebugInfo("  付款人: \(transaction.contributions.map { $0.payer.name }.joined(separator: ", "))")
         }
         
         addDebugInfo("參與者數量: \(participants.count)")

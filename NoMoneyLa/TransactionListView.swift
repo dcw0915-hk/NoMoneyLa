@@ -119,128 +119,6 @@ struct TransactionCardView: View {
     }
 }
 
-// MARK: - FilterBarView
-struct FilterBarView: View {
-    @EnvironmentObject var langManager: LanguageManager
-    let filterType: TransactionType?
-    let filterCategory: Category?
-    let filterSubcategory: Subcategory?
-    let searchText: String
-    let clearFilters: () -> Void
-    
-    var body: some View {
-        HStack {
-            Text(langManager.localized("filter_current"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            
-            if let type = filterType {
-                Text(type == .expense ? langManager.localized("expense_label") : langManager.localized("income_label"))
-                    .font(.caption)
-                    .padding(4)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.gray.opacity(0.2)))
-            }
-            
-            if let cat = filterCategory {
-                Text(cat.name)
-                    .font(.caption)
-                    .padding(4)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.gray.opacity(0.2)))
-            }
-            
-            if let sub = filterSubcategory {
-                Text(sub.name)
-                    .font(.caption)
-                    .padding(4)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.gray.opacity(0.2)))
-            }
-            
-            if !searchText.isEmpty {
-                Text("\(langManager.localized("search_label"))：\(searchText)")
-                    .font(.caption)
-                    .padding(4)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.gray.opacity(0.2)))
-            }
-            
-            Spacer()
-            
-            Button(langManager.localized("clear_button")) {
-                clearFilters()
-            }
-            .font(.caption)
-            .foregroundColor(.blue)
-        }
-        .padding(.horizontal)
-    }
-}
-
-// MARK: - ToolbarMenuView
-struct ToolbarMenuView: View {
-    @EnvironmentObject var langManager: LanguageManager
-    let categories: [Category]
-    let subcategories: [Subcategory]
-    let filterCategory: Category?
-    let filterType: TransactionType?
-    let filterSubcategory: Subcategory?
-    let onSelectType: (TransactionType?) -> Void
-    let onSelectCategory: (Category?) -> Void
-    let onSelectSubcategory: (Subcategory?) -> Void
-    let saveFilterState: () -> Void
-    
-    var body: some View {
-        HStack {
-            Menu {
-                Button(langManager.localized("all_label")) {
-                    onSelectType(nil)
-                    saveFilterState()
-                }
-                Button(langManager.localized("expense_label")) {
-                    onSelectType(.expense)
-                    saveFilterState()
-                }
-                Button(langManager.localized("income_label")) {
-                    onSelectType(.income)
-                    saveFilterState()
-                }
-            } label: {
-                Label(filterType?.rawValue ?? langManager.localized("type_label"), systemImage: "line.3.horizontal.decrease.circle")
-            }
-            
-            Menu {
-                Button(langManager.localized("all_parent_category")) {
-                    onSelectCategory(nil)
-                    onSelectSubcategory(nil)
-                    saveFilterState()
-                }
-                ForEach(categories) { cat in
-                    Button(cat.name) {
-                        onSelectCategory(cat)
-                        onSelectSubcategory(nil)
-                        saveFilterState()
-                    }
-                }
-            } label: {
-                Label(filterCategory?.name ?? langManager.localized("form_parent_category"), systemImage: "folder")
-            }
-            
-            Menu {
-                Button(langManager.localized("all_subcategory")) {
-                    onSelectSubcategory(nil)
-                    saveFilterState()
-                }
-                ForEach(subcategories.filter { $0.parentID == filterCategory?.id }) { sub in
-                    Button(sub.name) {
-                        onSelectSubcategory(sub)
-                        saveFilterState()
-                    }
-                }
-            } label: {
-                Label(filterSubcategory?.name ?? langManager.localized("form_subcategory"), systemImage: "tag")
-            }
-        }
-    }
-}
-
 // MARK: - TransactionListView
 struct TransactionListView: View {
     @EnvironmentObject var langManager: LanguageManager
@@ -252,14 +130,35 @@ struct TransactionListView: View {
     @Query(sort: \Payer.order) private var payers: [Payer]
 
     @State private var searchText = ""
-
+    
+    // 新增：可選的預設篩選參數
+    let initialFilterPayer: Payer?
+    let initialFilterPeriod: TimePeriod?
+    let initialFilterDate: Date?
+    
+    // 原本的篩選狀態
     @AppStorage("filterTypeRaw") private var filterTypeRaw: String = ""
     @AppStorage("filterCategoryName") private var filterCategoryName: String = ""
     @AppStorage("filterSubcategoryName") private var filterSubcategoryName: String = ""
+    @AppStorage("filterPayerName") private var filterPayerName: String = ""  // 新增：付款人篩選存儲
 
     @State private var filterType: TransactionType? = nil
     @State private var filterCategory: Category? = nil
     @State private var filterSubcategory: Subcategory? = nil
+    @State private var filterPayer: Payer? = nil  // 新增：付款人篩選
+    @State private var filterStartDate: Date? = nil  // 新增：開始日期
+    @State private var filterEndDate: Date? = nil    // 新增：結束日期
+
+    // 初始化函數
+    init(
+        filterPayer: Payer? = nil,
+        filterPeriod: TimePeriod? = nil,
+        filterDate: Date? = nil
+    ) {
+        self.initialFilterPayer = filterPayer
+        self.initialFilterPeriod = filterPeriod
+        self.initialFilterDate = filterDate
+    }
 
     var body: some View {
         NavigationStack {
@@ -270,6 +169,8 @@ struct TransactionListView: View {
                         filterType: filterType,
                         filterCategory: filterCategory,
                         filterSubcategory: filterSubcategory,
+                        filterPayer: filterPayer,
+                        filterDateRange: formattedDateRange(),
                         searchText: searchText,
                         clearFilters: clearFilters
                     )
@@ -306,23 +207,33 @@ struct TransactionListView: View {
                     .padding(.top, 8)
                 }
             }
-            .navigationTitle(langManager.localized("transactions_title"))
+            .navigationTitle(getNavigationTitle())
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     ToolbarMenuView(
                         categories: categories,
                         subcategories: subcategories,
+                        payers: payers,
                         filterCategory: filterCategory,
                         filterType: filterType,
                         filterSubcategory: filterSubcategory,
+                        filterPayer: filterPayer,
                         onSelectType: { newType in
                             filterType = newType
+                            saveFilterState()
                         },
                         onSelectCategory: { newCategory in
                             filterCategory = newCategory
+                            filterSubcategory = nil
+                            saveFilterState()
                         },
                         onSelectSubcategory: { newSubcategory in
                             filterSubcategory = newSubcategory
+                            saveFilterState()
+                        },
+                        onSelectPayer: { newPayer in
+                            filterPayer = newPayer
+                            saveFilterState()
                         },
                         saveFilterState: saveFilterState
                     )
@@ -338,18 +249,25 @@ struct TransactionListView: View {
                 }
             }
             .searchable(text: $searchText, prompt: Text(langManager.localized("search_placeholder")))
-            .onAppear { restoreFilterState() }
+            .onAppear {
+                restoreFilterState()
+                applyInitialFilters()
+            }
         }
     }
     
     private var shouldShowFilterBar: Bool {
-        filterType != nil || filterCategory != nil || filterSubcategory != nil || !searchText.isEmpty
+        filterType != nil || filterCategory != nil || filterSubcategory != nil ||
+        filterPayer != nil || filterStartDate != nil || !searchText.isEmpty
     }
     
     private func clearFilters() {
         filterType = nil
         filterCategory = nil
         filterSubcategory = nil
+        filterPayer = nil
+        filterStartDate = nil
+        filterEndDate = nil
         searchText = ""
         saveFilterState()
     }
@@ -357,19 +275,41 @@ struct TransactionListView: View {
     private func filteredTransactions() -> [Transaction] {
         let keyword = searchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
-        var result = filterType == nil ? transactions : transactions.filter { $0.type == filterType }
-
+        var result = transactions
+        
+        // 篩選交易類型
+        if let type = filterType {
+            result = result.filter { $0.type == type }
+        }
+        
+        // 篩選分類
         if let cat = filterCategory {
             result = result.filter { tx in
                 guard let txSubID = tx.subcategoryID else { return false }
                 return subcategories.first(where: { $0.id == txSubID })?.parentID == cat.id
             }
         }
-
+        
+        // 篩選子分類
         if let sub = filterSubcategory {
             result = result.filter { $0.subcategoryID == sub.id }
         }
-
+        
+        // 篩選付款人
+        if let payer = filterPayer {
+            result = result.filter { tx in
+                tx.contributions.contains { $0.payer.id == payer.id }
+            }
+        }
+        
+        // 篩選日期範圍
+        if let startDate = filterStartDate, let endDate = filterEndDate {
+            result = result.filter { tx in
+                tx.date >= startDate && tx.date <= endDate
+            }
+        }
+        
+        // 關鍵詞搜索
         guard !keyword.isEmpty else { return result }
 
         return result.filter { tx in
@@ -453,6 +393,7 @@ struct TransactionListView: View {
         filterTypeRaw = filterType?.rawValue ?? ""
         filterCategoryName = filterCategory?.name ?? ""
         filterSubcategoryName = filterSubcategory?.name ?? ""
+        filterPayerName = filterPayer?.name ?? ""  // 保存付款人名稱
     }
 
     private func restoreFilterState() {
@@ -469,6 +410,91 @@ struct TransactionListView: View {
         } else {
             filterSubcategory = nil
         }
+        
+        // 恢復付款人篩選
+        if !filterPayerName.isEmpty {
+            filterPayer = payers.first { $0.name == filterPayerName }
+        } else {
+            filterPayer = nil
+        }
+    }
+    
+    private func applyInitialFilters() {
+        // 應用初始篩選參數
+        filterPayer = initialFilterPayer
+        
+        if let period = initialFilterPeriod, let date = initialFilterDate {
+            let (startDate, endDate) = calculateDateRange(period: period, date: date)
+            filterStartDate = startDate
+            filterEndDate = endDate
+        }
+    }
+    
+    private func calculateDateRange(period: TimePeriod, date: Date) -> (startDate: Date, endDate: Date) {
+        let calendar = Calendar.current
+        var startDate: Date
+        var endDate: Date
+        
+        switch period {
+        case .month:
+            let components = calendar.dateComponents([.year, .month], from: date)
+            startDate = calendar.date(from: components)!
+            
+            var endComponents = DateComponents()
+            endComponents.month = 1
+            endComponents.day = -1
+            endDate = calendar.date(byAdding: endComponents, to: startDate)!
+            
+        case .year:
+            let components = calendar.dateComponents([.year], from: date)
+            startDate = calendar.date(from: components)!
+            
+            var endComponents = DateComponents()
+            endComponents.year = 1
+            endComponents.day = -1
+            endDate = calendar.date(byAdding: endComponents, to: startDate)!
+        }
+        
+        return (startDate, endDate)
+    }
+    
+    private func formattedDateRange() -> String? {
+        guard let startDate = filterStartDate, let endDate = filterEndDate else {
+            return nil
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        
+        return "\(formatter.string(from: startDate))-\(formatter.string(from: endDate))"
+    }
+    
+    private func getNavigationTitle() -> String {
+        if filterPayer != nil || filterStartDate != nil {
+            var parts: [String] = []
+            
+        if let payer = filterPayer {
+            parts.append(payer.name)
+        }
+        
+        if let startDate = filterStartDate, let endDate = filterEndDate {
+            let formatter = DateFormatter()
+            if Calendar.current.isDate(startDate, equalTo: endDate, toGranularity: .month) {
+                formatter.dateFormat = "yyyy年M月"
+                parts.append(formatter.string(from: startDate))
+            } else if Calendar.current.isDate(startDate, equalTo: endDate, toGranularity: .year) {
+                formatter.dateFormat = "yyyy年"
+                parts.append(formatter.string(from: startDate))
+            } else {
+                formatter.dateFormat = "M/d"
+                parts.append("\(formatter.string(from: startDate))-\(formatter.string(from: endDate))")
+            }
+        }
+        
+        return parts.joined(separator: " - ")
+    }
+    
+    return langManager.localized("transactions_title")
     }
 
     private func categoryName(for subID: UUID?) -> String {

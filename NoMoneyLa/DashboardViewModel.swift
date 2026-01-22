@@ -80,7 +80,9 @@ class DashboardViewModel: ObservableObject {
             
             // 計算消費洞察
             spendingInsights = calculateSpendingInsights(
-                transactions: transactions
+                transactions: transactions,
+                startDate: startDate,
+                endDate: endDate
             )
             
         } catch {
@@ -109,6 +111,11 @@ class DashboardViewModel: ObservableObject {
             },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
+        
+        // 年視圖時限制獲取數量
+        if selectedPeriod == .year {
+            fetchDescriptor.fetchLimit = 1000
+        }
         
         let allTransactions = try context.fetch(fetchDescriptor)
         
@@ -167,21 +174,25 @@ class DashboardViewModel: ObservableObject {
             return total + contributionSum
         }
         
-        // 計算上月數據（僅在月視圖時）
-        var previousMonthAmount: Decimal = 0
+        // 計算上期數據
+        var previousPeriodAmount: Decimal = 0
         var changePercentage: Double = 0
         
-        if selectedPeriod == .month {
-            previousMonthAmount = calculatePreviousMonthAmount(payerID: payer.id, currentMonth: startDate)
-            if previousMonthAmount > 0 {
-                let change = totalAmount - previousMonthAmount
-                let percentage = (change / previousMonthAmount) * 100
-                changePercentage = Double(truncating: percentage as NSDecimalNumber)
-            }
+        switch selectedPeriod {
+        case .month:
+            previousPeriodAmount = calculatePreviousMonthAmount(payerID: payer.id, currentMonth: startDate)
+        case .year:
+            previousPeriodAmount = calculatePreviousYearAmount(payerID: payer.id, currentYear: startDate)
+        }
+        
+        if previousPeriodAmount > 0 {
+            let change = totalAmount - previousPeriodAmount
+            let percentage = (change / previousPeriodAmount) * 100
+            changePercentage = Double(truncating: percentage as NSDecimalNumber)
         }
         
         // 計算日均消費
-        let daysInRange = calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 30
+        let daysInRange = calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 1
         let dailyAverage = daysInRange > 0 ? totalAmount / Decimal(daysInRange) : 0
         
         // 找出最高交易
@@ -191,13 +202,16 @@ class DashboardViewModel: ObservableObject {
             return t1Amount < t2Amount
         }
         
+        let periodDays = daysInRange + 1
+        
         return MonthlyStats(
             totalAmount: totalAmount,
-            previousMonthAmount: previousMonthAmount,
+            previousMonthAmount: previousPeriodAmount,
             changePercentage: changePercentage,
             dailyAverage: dailyAverage,
             highestTransaction: highestTransaction,
-            transactionCount: transactions.count
+            transactionCount: transactions.count,
+            periodDays: periodDays
         )
     }
     
@@ -236,6 +250,45 @@ class DashboardViewModel: ObservableObject {
             }
         } catch {
             print("計算上月金額失敗: \(error)")
+            return 0
+        }
+    }
+    
+    private func calculatePreviousYearAmount(payerID: UUID, currentYear: Date) -> Decimal {
+        let calendar = Calendar.current
+        
+        // 計算上年的時間範圍
+        guard let previousYear = calendar.date(byAdding: .year, value: -1, to: currentYear) else {
+            return 0
+        }
+        
+        let startComponents = calendar.dateComponents([.year], from: previousYear)
+        guard let startDate = calendar.date(from: startComponents) else { return 0 }
+        
+        var endComponents = DateComponents()
+        endComponents.year = 1
+        endComponents.day = -1
+        guard let endDate = calendar.date(byAdding: endComponents, to: startDate) else { return 0 }
+        
+        do {
+            // 獲取上年所有交易
+            var fetchDescriptor = FetchDescriptor<Transaction>(
+                predicate: #Predicate<Transaction> { transaction in
+                    transaction.date >= startDate &&
+                    transaction.date <= endDate
+                }
+            )
+            
+            let allTransactions = try context.fetch(fetchDescriptor)
+            
+            // 過濾包含該付款人的交易並計算總額
+            return allTransactions.reduce(Decimal(0)) { total, transaction in
+                let payerContributions = transaction.contributions.filter { $0.payer.id == payerID }
+                let contributionSum = payerContributions.reduce(Decimal(0)) { $0 + $1.amount }
+                return total + contributionSum
+            }
+        } catch {
+            print("計算上年金額失敗: \(error)")
             return 0
         }
     }
@@ -308,7 +361,11 @@ class DashboardViewModel: ObservableObject {
         return stats.sorted { $0.amount > $1.amount }
     }
     
-    private func calculateSpendingInsights(transactions: [Transaction]) -> SpendingInsights? {
+    private func calculateSpendingInsights(
+        transactions: [Transaction],
+        startDate: Date,
+        endDate: Date
+    ) -> SpendingInsights? {
         guard !transactions.isEmpty else { return nil }
         
         let calendar = Calendar.current
@@ -317,6 +374,8 @@ class DashboardViewModel: ObservableObject {
         var transactionByCategory: [UUID: Int] = [:]
         var highestAmount: Decimal = 0
         var peakDay: Date?
+        var monthlyTotals: [Int: Decimal] = [:]  // 新增：每月統計（僅年視圖）
+        var monthlyCounts: [Int: Int] = [:]     // 新增：每月交易數
         
         // 分析交易模式
         for transaction in transactions {
@@ -341,6 +400,13 @@ class DashboardViewModel: ObservableObject {
             // 統計分類使用頻率
             if let subcategoryID = transaction.subcategoryID {
                 transactionByCategory[subcategoryID] = (transactionByCategory[subcategoryID] ?? 0) + 1
+            }
+            
+            // 年視圖：統計每月數據
+            if selectedPeriod == .year {
+                let month = calendar.component(.month, from: transaction.date)
+                monthlyTotals[month] = (monthlyTotals[month] ?? 0) + transactionAmount
+                monthlyCounts[month] = (monthlyCounts[month] ?? 0) + 1
             }
         }
         
@@ -368,12 +434,28 @@ class DashboardViewModel: ObservableObject {
         // 判斷最活躍消費日
         let mostActiveDay = weekendRatio > 0.5 ? "週末" : "平日"
         
+        // 年視圖：找出消費最高月份
+        var peakMonth: String?
+        var peakMonthAmount: Decimal = 0
+        if selectedPeriod == .year, !monthlyTotals.isEmpty {
+            if let (month, amount) = monthlyTotals.max(by: { $0.value < $1.value }) {
+                peakMonthAmount = amount
+                // 將月份數字轉為中文
+                let monthNames = ["", "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
+                peakMonth = monthNames[month]
+            }
+        }
+        
         return SpendingInsights(
             peakSpendingDay: peakDay,
             peakSpendingAmount: highestAmount,
             weekendVsWeekdayRatio: weekendRatio,
             mostFrequentCategory: mostFrequentCategory,
-            mostActiveDay: mostActiveDay
+            mostActiveDay: mostActiveDay,
+            weekdayTransactionCount: weekdayTransactions,
+            weekendTransactionCount: weekendTransactions,
+            peakMonth: peakMonth,
+            peakMonthAmount: peakMonthAmount
         )
     }
     
