@@ -26,6 +26,7 @@ extension View {
 
 // MARK: - TransactionCardView
 struct TransactionCardView: View {
+    @EnvironmentObject var langManager: LanguageManager
     let transaction: Transaction
     let categoryName: String
     let formatPayerText: (Transaction) -> String
@@ -97,7 +98,7 @@ struct TransactionCardView: View {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.caption2)
                             .foregroundColor(.orange)
-                        Text("分攤不足：\(formatCurrency(difference, transaction.currencyCode))")
+                        Text("\(langManager.localized("contribution_insufficient"))：\(formatCurrency(difference, transaction.currencyCode))")
                             .font(.caption2)
                             .foregroundColor(.orange)
                     }
@@ -108,7 +109,7 @@ struct TransactionCardView: View {
                         Image(systemName: "arrow.down.circle.fill")
                             .font(.caption2)
                             .foregroundColor(.red)
-                        Text("分攤過多：\(formatCurrency(abs(difference), transaction.currencyCode))")
+                        Text("\(langManager.localized("contribution_excess"))：\(formatCurrency(abs(difference), transaction.currencyCode))")
                             .font(.caption2)
                             .foregroundColor(.red)
                     }
@@ -140,14 +141,14 @@ struct TransactionListView: View {
     @AppStorage("filterTypeRaw") private var filterTypeRaw: String = ""
     @AppStorage("filterCategoryName") private var filterCategoryName: String = ""
     @AppStorage("filterSubcategoryName") private var filterSubcategoryName: String = ""
-    @AppStorage("filterPayerName") private var filterPayerName: String = ""  // 新增：付款人篩選存儲
+    @AppStorage("filterPayerName") private var filterPayerName: String = ""
 
     @State private var filterType: TransactionType? = nil
     @State private var filterCategory: Category? = nil
     @State private var filterSubcategory: Subcategory? = nil
-    @State private var filterPayer: Payer? = nil  // 新增：付款人篩選
-    @State private var filterStartDate: Date? = nil  // 新增：開始日期
-    @State private var filterEndDate: Date? = nil    // 新增：結束日期
+    @State private var filterPayer: Payer? = nil
+    @State private var filterStartDate: Date? = nil
+    @State private var filterEndDate: Date? = nil
 
     // 初始化函數
     init(
@@ -336,7 +337,7 @@ struct TransactionListView: View {
 
     private func formatPayerText(for transaction: Transaction) -> String {
         if transaction.contributions.isEmpty {
-            return "無付款人"
+            return langManager.localized("no_payers")
         }
         
         if transaction.contributions.count == 1,
@@ -345,29 +346,29 @@ struct TransactionListView: View {
         } else {
             let payerCount = transaction.contributions.count
             let totalAmount = transaction.contributions.reduce(0) { $0 + $1.amount }
-            return "\(payerCount)人分攤，共\(formatCurrency(totalAmount, transaction.currencyCode))"
+            return String(format: langManager.localized("payers_split_format"), payerCount) + ", \(langManager.localized("total_label"))\(formatCurrency(totalAmount, transaction.currencyCode))"
         }
     }
     
     // 獲取分攤狀態
     private func getContributionStatus(for transaction: Transaction) -> (message: String, icon: String, color: Color) {
         if transaction.contributions.isEmpty {
-            return ("未分攤", "exclamationmark.circle", .orange)
+            return (langManager.localized("no_contribution"), "exclamationmark.circle", .orange)
         }
         
         let totalContributed = transaction.contributions.reduce(0) { $0 + $1.amount }
         let difference = transaction.totalAmount - totalContributed
         
         if difference == 0 {
-            return ("", "", .clear) // 分攤完成，不顯示警告
+            return ("", "", .clear)
         } else if difference > 0 {
             // 分攤不足
             let amount = formatCurrency(difference, transaction.currencyCode)
-            return ("不足 \(amount)", "exclamationmark.triangle", .orange)
+            return ("\(langManager.localized("insufficient")) \(amount)", "exclamationmark.triangle", .orange)
         } else {
             // 分攤過多
             let amount = formatCurrency(abs(difference), transaction.currencyCode)
-            return ("過多 \(amount)", "exclamationmark.triangle.fill", .red)
+            return ("\(langManager.localized("excess")) \(amount)", "exclamationmark.triangle.fill", .red)
         }
     }
     
@@ -393,7 +394,7 @@ struct TransactionListView: View {
         filterTypeRaw = filterType?.rawValue ?? ""
         filterCategoryName = filterCategory?.name ?? ""
         filterSubcategoryName = filterSubcategory?.name ?? ""
-        filterPayerName = filterPayer?.name ?? ""  // 保存付款人名稱
+        filterPayerName = filterPayer?.name ?? ""
     }
 
     private func restoreFilterState() {
@@ -464,7 +465,7 @@ struct TransactionListView: View {
         }
         
         let formatter = DateFormatter()
-        formatter.dateFormat = "M/d"
+        formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "M/d" : "M/d"
         
         return "\(formatter.string(from: startDate))-\(formatter.string(from: endDate))"
     }
@@ -473,28 +474,28 @@ struct TransactionListView: View {
         if filterPayer != nil || filterStartDate != nil {
             var parts: [String] = []
             
-        if let payer = filterPayer {
-            parts.append(payer.name)
-        }
-        
-        if let startDate = filterStartDate, let endDate = filterEndDate {
-            let formatter = DateFormatter()
-            if Calendar.current.isDate(startDate, equalTo: endDate, toGranularity: .month) {
-                formatter.dateFormat = "yyyy年M月"
-                parts.append(formatter.string(from: startDate))
-            } else if Calendar.current.isDate(startDate, equalTo: endDate, toGranularity: .year) {
-                formatter.dateFormat = "yyyy年"
-                parts.append(formatter.string(from: startDate))
-            } else {
-                formatter.dateFormat = "M/d"
-                parts.append("\(formatter.string(from: startDate))-\(formatter.string(from: endDate))")
+            if let payer = filterPayer {
+                parts.append(payer.name)
             }
+            
+            if let startDate = filterStartDate, let endDate = filterEndDate {
+                let formatter = DateFormatter()
+                if Calendar.current.isDate(startDate, equalTo: endDate, toGranularity: .month) {
+                    formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "yyyy年M月" : "MMM yyyy"
+                    parts.append(formatter.string(from: startDate))
+                } else if Calendar.current.isDate(startDate, equalTo: endDate, toGranularity: .year) {
+                    formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "yyyy年" : "yyyy"
+                    parts.append(formatter.string(from: startDate))
+                } else {
+                    formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "M/d" : "M/d"
+                    parts.append("\(formatter.string(from: startDate))-\(formatter.string(from: endDate))")
+                }
+            }
+            
+            return parts.joined(separator: " - ")
         }
         
-        return parts.joined(separator: " - ")
-    }
-    
-    return langManager.localized("transactions_title")
+        return langManager.localized("transactions_title")
     }
 
     private func categoryName(for subID: UUID?) -> String {

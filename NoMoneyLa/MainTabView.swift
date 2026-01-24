@@ -1,54 +1,54 @@
-//
-//  MainTabView.swift
-//  NoMoneyLa
-//
-//  Created by Ricky Ding on 16/1/2026.
-//
+// MainTabView.swift 完整修正版：
 
 import SwiftUI
 import SwiftData
 
 struct MainTabView: View {
     @Environment(\.modelContext) private var context
+    @EnvironmentObject var langManager: LanguageManager  // 新增呢行
     @EnvironmentObject var dashboardVM: DashboardViewModel
     @Query(sort: \Category.order) private var categories: [Category]
     
     var body: some View {
         TabView {
+            // 交易頁面
             NavigationStack {
                 TransactionListView()
             }
             .tabItem {
-                Label("Transactions", systemImage: "list.bullet")
+                Label(langManager.localized("transactions_tab"), systemImage: "list.bullet")
             }
 
+            // 分析頁面
             NavigationStack {
                 DashboardView()
             }
             .tabItem {
-                Label("分析", systemImage: "chart.bar.fill")
+                Label(langManager.localized("analysis_tab"), systemImage: "chart.bar.fill")
             }
 
+            // 設定頁面
             NavigationStack {
                 SettingsView()
             }
             .tabItem {
-                Label("Settings", systemImage: "gear")
+                Label(langManager.localized("settings_tab"), systemImage: "gear")
             }
             
-            // 債務結算頁面（取代原本嘅測試頁面）
+            // 債務結算頁面（獨立頁面）
             NavigationStack {
                 SettlementTabView()
             }
             .tabItem {
-                Label("債務結算", systemImage: "dollarsign.circle")
+                Label(langManager.localized("settlement_tab"), systemImage: "dollarsign.circle")
             }
         }
     }
 }
 
-// 新增：債務結算主頁面
+// MARK: - 債務結算主頁面
 struct SettlementTabView: View {
+    @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
     @Query(sort: \Category.order) private var categories: [Category]
     
@@ -69,7 +69,7 @@ struct SettlementTabView: View {
             // 選擇分類區域
             VStack(spacing: 16) {
                 HStack {
-                    Text("選擇分類進行債務結算")
+                    Text(langManager.localized("settlement_select_category"))
                         .font(.headline)
                         .foregroundColor(.primary)
                     
@@ -101,15 +101,16 @@ struct SettlementTabView: View {
             // 結算內容區域
             if let category = selectedCategory {
                 CategorySettlementView(category: category)
+                    .id(category.id)  // 關鍵修改：加呢行，強制視圖重建
                     .navigationBarHidden(true)
             } else {
                 emptyStateView
                     .frame(maxHeight: .infinity)
             }
         }
-        .navigationTitle("債務結算")
+        .navigationTitle(langManager.localized("settlement_title"))
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: "搜尋分類")
+        .searchable(text: $searchText, prompt: Text(langManager.localized("search_categories")))
         .sheet(isPresented: $showCategoryList) {
             categorySelectionSheet
         }
@@ -132,7 +133,7 @@ struct SettlementTabView: View {
                 // 顯示已分配付款人數量
                 let assignedPayers = category.assignedPayers(in: context)
                 if !assignedPayers.isEmpty {
-                    Text("已分配付款人：\(assignedPayers.map { $0.name }.joined(separator: ", "))")
+                    Text("\(langManager.localized("assigned_payers"))：\(assignedPayers.map { $0.name }.joined(separator: ", "))")
                         .font(.caption)
                         .foregroundColor(.blue)
                         .lineLimit(1)
@@ -142,7 +143,7 @@ struct SettlementTabView: View {
                 let transactionCount = countTransactions(for: category)
                 let totalAmount = calculateTotalAmount(for: category)
                 if transactionCount > 0 {
-                    Text("\(transactionCount) 筆交易，總額 \(formatCurrency(totalAmount))")
+                    Text("\(transactionCount) \(langManager.localized("transactions")), \(langManager.localized("total_amount")) \(formatCurrency(totalAmount))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -154,7 +155,7 @@ struct SettlementTabView: View {
                 Button {
                     showCategoryList = true
                 } label: {
-                    Text("更改")
+                    Text(langManager.localized("change_button"))
                         .font(.caption)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -164,7 +165,7 @@ struct SettlementTabView: View {
                 
                 if let defaultCategory = categories.first(where: { $0.isDefault }),
                    category.id == defaultCategory.id {
-                    Text("預設")
+                    Text(langManager.localized("default_label"))
                         .font(.caption2)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -190,12 +191,12 @@ struct SettlementTabView: View {
                 .frame(width: 40, height: 40)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("未選擇分類")
+                Text(langManager.localized("no_category_selected"))
                     .font(.title2)
                     .bold()
                     .foregroundColor(.primary)
                 
-                Text("請選擇一個分類來計算債務結算")
+                Text(langManager.localized("select_category_for_settlement"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -205,7 +206,7 @@ struct SettlementTabView: View {
             Button {
                 showCategoryList = true
             } label: {
-                Text("選擇分類")
+                Text(langManager.localized("select_category"))
                     .font(.subheadline)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
@@ -229,18 +230,18 @@ struct SettlementTabView: View {
                 .foregroundColor(.gray.opacity(0.3))
             
             VStack(spacing: 8) {
-                Text("開始債務結算")
+                Text(langManager.localized("start_settlement"))
                     .font(.title2)
                     .bold()
                     .foregroundColor(.primary)
                 
-                Text("選擇一個分類來計算各付款人之間的債務關係")
+                Text(langManager.localized("settlement_description"))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
                 
-                Text("系統會根據交易記錄自動計算每人應付/應收款項，並提供最優還款方案")
+                Text(langManager.localized("settlement_how_it_works"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -253,7 +254,7 @@ struct SettlementTabView: View {
             } label: {
                 HStack {
                     Image(systemName: "folder.badge.plus")
-                    Text("選擇分類")
+                    Text(langManager.localized("select_category"))
                 }
                 .font(.headline)
                 .padding(.horizontal, 32)
@@ -272,9 +273,9 @@ struct SettlementTabView: View {
             List {
                 if filteredCategories.isEmpty {
                     ContentUnavailableView(
-                        "沒有分類",
+                        langManager.localized("no_categories"),
                         systemImage: "folder",
-                        description: Text("請先在「分類管理」中建立分類")
+                        description: Text(langManager.localized("create_categories_first"))
                     )
                 } else {
                     ForEach(filteredCategories) { category in
@@ -293,7 +294,7 @@ struct SettlementTabView: View {
                                 // 顯示交易統計
                                 let transactionCount = countTransactions(for: category)
                                 if transactionCount > 0 {
-                                    Text("\(transactionCount) 筆交易")
+                                    Text("\(transactionCount) \(langManager.localized("transactions"))")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -308,7 +309,7 @@ struct SettlementTabView: View {
                             }
                             
                             if category.isDefault {
-                                Text("預設")
+                                Text(langManager.localized("default_label"))
                                     .font(.caption2)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
@@ -326,16 +327,16 @@ struct SettlementTabView: View {
                     }
                 }
             }
-            .navigationTitle("選擇分類")
+            .navigationTitle(langManager.localized("select_category"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") {
+                    Button(langManager.localized("done_button")) {
                         showCategoryList = false
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: "搜尋分類")
+            .searchable(text: $searchText, prompt: Text(langManager.localized("search_categories")))
         }
         .presentationDetents([.medium, .large])
     }

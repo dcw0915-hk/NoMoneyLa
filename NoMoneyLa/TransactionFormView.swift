@@ -365,7 +365,7 @@ struct TransactionFormView: View {
                 if selectedType == .expense {
                     Section {
                         if isEditing {
-                            Toggle("啟用分攤", isOn: $showContributionSection)
+                            Toggle(langManager.localized("enable_contribution_toggle"), isOn: $showContributionSection)
                                 .onChange(of: showContributionSection) { show in
                                     hideKeyboard()
                                     if show {
@@ -386,14 +386,16 @@ struct TransactionFormView: View {
                                 }
                         } else {
                             HStack {
-                                Text("分攤")
+                                Text(langManager.localized("contribution_label"))
                                 Spacer()
-                                Text(showContributionSection ? "已啟用" : "未啟用")
+                                Text(showContributionSection ? langManager.localized("contribution_enabled") : langManager.localized("contribution_disabled"))
                                     .foregroundColor(.secondary)
                             }
                         }
                     } footer: {
-                        Text(showContributionSection ? "分攤已啟用，您可以為此交易分配多個付款人" : "分攤未啟用，將使用預設付款人")
+                        Text(showContributionSection ?
+                             langManager.localized("contribution_enabled_description") :
+                             langManager.localized("contribution_disabled_description"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -401,14 +403,14 @@ struct TransactionFormView: View {
                 
                 if selectedType == .expense && showContributionSection {
                     Section(header: HStack {
-                        Text("付款人分攤")
+                        Text(langManager.localized("contribution_header"))
                         Spacer()
                         if isEditing && !contributions.isEmpty {
                             Button(action: {
                                 hideKeyboard()
                                 distributeEqually()
                             }) {
-                                Text("平均分攤")
+                                Text(langManager.localized("distribute_equally_button"))
                                     .font(.caption)
                             }
                         }
@@ -417,7 +419,7 @@ struct TransactionFormView: View {
                             ForEach(0..<contributions.count, id: \.self) { index in
                                 HStack(spacing: 12) {
                                     Menu {
-                                        Text("選擇付款人")
+                                        Text(langManager.localized("select_payer_prompt"))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                         
@@ -451,7 +453,7 @@ struct TransactionFormView: View {
                                         hideKeyboard()
                                     }
                                     
-                                    TextField("金額", text: Binding(
+                                    TextField(langManager.localized("amount_label"), text: Binding(
                                         get: { contributions[index].amountText },
                                         set: { newValue in
                                             contributions[index].amountText = newValue
@@ -498,14 +500,14 @@ struct TransactionFormView: View {
                                 HStack {
                                     Image(systemName: "plus.circle.fill")
                                         .foregroundColor(.accentColor)
-                                    Text("新增付款人")
+                                    Text(langManager.localized("add_new_payer"))
                                 }
                             }
                             .padding(.top, 4)
                             
                             if !contributions.isEmpty {
                                 HStack {
-                                    Text("分攤總計")
+                                    Text(langManager.localized("contribution_total"))
                                         .font(.caption)
                                     Spacer()
                                     Text("\(formatCurrency(amount: distributedTotal, code: currencyCode)) / \(formatCurrency(amount: totalAmountDecimal, code: currencyCode))")
@@ -519,7 +521,7 @@ struct TransactionFormView: View {
                                 HStack {
                                     Image(systemName: "exclamationmark.triangle")
                                         .foregroundColor(.orange)
-                                    Text("分攤總金額與交易總金額不一致")
+                                    Text(langManager.localized("contribution_amount_mismatch"))
                                         .font(.caption)
                                         .foregroundColor(.orange)
                                 }
@@ -527,7 +529,7 @@ struct TransactionFormView: View {
                             }
                         } else {
                             if contributions.isEmpty {
-                                Text("無付款人")
+                                Text(langManager.localized("no_payers"))
                                     .foregroundColor(.secondary)
                             } else {
                                 ForEach(contributions, id: \.id) { contribution in
@@ -549,7 +551,7 @@ struct TransactionFormView: View {
                                     }
                                 }
                                 HStack {
-                                    Text("總計")
+                                    Text(langManager.localized("total_label"))
                                         .font(.headline)
                                     Spacer()
                                     Text(formatCurrency(amount: totalAmountDecimal, code: currencyCode))
@@ -626,7 +628,7 @@ struct TransactionFormView: View {
     
     private var selectedSubcategoryName: String {
         if selectedParentID == nil {
-            return "請先選擇主分類"
+            return langManager.localized("select_parent_first")
         } else if let subID = selectedSubcategoryID,
                   let sub = subcategories.first(where: { $0.id == subID }) {
             return sub.name
@@ -676,7 +678,7 @@ struct TransactionFormView: View {
            let payer = payers.first(where: { $0.id == payerID }) {
             return payer.name
         } else {
-            return "選擇付款人"
+            return langManager.localized("select_payer")
         }
     }
     
@@ -749,6 +751,7 @@ struct TransactionFormView: View {
             contributions = []
         }
     }
+    
     // MARK: - Actions & Helpers
     
     private func handleTypeChange(_ newType: TransactionType) {

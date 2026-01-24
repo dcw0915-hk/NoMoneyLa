@@ -1,8 +1,10 @@
-// PayerListView.swift
+// PayerListView.swift 完整更新版本
+
 import SwiftUI
 import SwiftData
 
 struct PayerListView: View {
+    @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
     @Query(sort: \Payer.order) private var allPayers: [Payer]
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
@@ -23,9 +25,9 @@ struct PayerListView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("新增付款人") {
+                Section(langManager.localized("add_payer_section")) {
                     HStack(spacing: 12) {
-                        TextField("輸入名稱", text: $newName)
+                        TextField(langManager.localized("enter_name_placeholder"), text: $newName)
                             .submitLabel(.done)
                             .onSubmit { addPayer() }
                         
@@ -38,13 +40,13 @@ struct PayerListView: View {
                         .frame(width: 30, height: 30)
                         .clipShape(Circle())
                         
-                        Button("新增") { addPayer() }
+                        Button(langManager.localized("add_button")) { addPayer() }
                             .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                     .frame(height: 44)
                 }
 
-                Section("已建立的付款人") {
+                Section(langManager.localized("existing_payers_section")) {
                     ForEach(payers) { payer in
                         HStack(spacing: 12) {
                             Circle()
@@ -93,19 +95,19 @@ struct PayerListView: View {
                             Button(role: .destructive) {
                                 deletePayer(payer)
                             } label: {
-                                Label("刪除", systemImage: "trash")
+                                Label(langManager.localized("delete_button"), systemImage: "trash")
                             }
                         }
                     }
                     .onMove(perform: movePayer)
                 }
             }
-            .navigationTitle("管理付款人")
-            .alert("刪除付款人", isPresented: $showDeleteAlert, presenting: payerToDelete) { payer in
-                Button("取消", role: .cancel) {}
-                Button("刪除", role: .destructive) { safeDelete(payer) }
+            .navigationTitle(langManager.localized("manage_payers_title"))
+            .alert(langManager.localized("delete_payer_title"), isPresented: $showDeleteAlert, presenting: payerToDelete) { payer in
+                Button(langManager.localized("cancel_button"), role: .cancel) {}
+                Button(langManager.localized("delete_button"), role: .destructive) { safeDelete(payer) }
             } message: { payer in
-                Text("刪除付款人「\(payer.name)」會同時刪除其在所有交易中的分攤記錄，確定要刪除嗎？")
+                Text(String(format: langManager.localized("delete_payer_confirmation"), payer.name))
             }
         }
     }
@@ -113,7 +115,7 @@ struct PayerListView: View {
     // MARK: - 子視圖
     private func inlineEditView(for payer: Payer) -> some View {
         HStack(spacing: 8) {
-            TextField("名稱", text: $inlineEditedName)
+            TextField(langManager.localized("name_label"), text: $inlineEditedName)
                 .focused($isInlineFocused)
                 .submitLabel(.done)
                 .onSubmit { commitInlineEdit(for: payer) }

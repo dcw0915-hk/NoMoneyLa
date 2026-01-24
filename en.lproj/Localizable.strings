@@ -1,82 +1,254 @@
-"transactions_title" = "Transactions";
-"new_transaction_title" = "New Transaction";
-"amount_label" = "Amount";
-"date_label" = "Date";
-"note_label" = "Note";
+/* Common */
+"loading_label" = "Loading...";
+"no_payers_title" = "No Payers";
+"create_payers_first" = "Please create payers first in 'Manage Payers'";
+"available_payers_section" = "Available Payers";
+"no_payers_selected" = "No payers selected";
+"selected_payers_count" = "%d payer(s) selected";
+"cancel_button" = "Cancel";
 "save_button" = "Save";
+"assign_payers_title" = "Assign Payers";
+"add_category_section" = "Add Category";
+"enter_name_placeholder" = "Enter name";
+"add_button" = "Add";
+"existing_categories_section" = "Existing Categories";
 "delete_button" = "Delete";
-"dashboard_title" = "Overview";
-"expense_label" = "Expense";
-"income_label" = "Income";
-"net_label" = "Net";
-"categories_title" = "Categories";
-"add_category_title" = "Add Main Category";
-"subcategory_label" = "Subcategory";
-"is_expense_label" = "Is Expense";
-"goals_title" = "Goals";
-"add_goal_title" = "Add Goal";
-"monthly_limit_label" = "Monthly Limit";
-"progress_label" = "Progress";
-"settings_title" = "Settings";
-"language_label" = "Language";
-"theme_label" = "Theme";
-"dark_mode_label" = "Dark Mode";
+"manage_categories_title" = "Manage Categories";
+"delete_category_title" = "Delete Category";
+"delete_category_confirmation" = "Deleting category '%@' will also delete its subcategories and unlink related transactions. Are you sure?";
+"cannot_delete_title" = "Cannot Delete";
+"understand_button" = "Understand";
+"cannot_delete_default_category" = "'Uncategorized' is a system default category for unclassified transactions. All transactions need a category, and this one cannot be deleted.";
+"name_label" = "Name";
+"uncategorized_label" = "Uncategorized";
+"add_payer_section" = "Add Payer";
+"existing_payers_section" = "Existing Payers";
+"manage_payers_title" = "Manage Payers";
+"delete_payer_title" = "Delete Payer";
+"delete_payer_confirmation" = "Deleting payer '%@' will remove their contribution records from all transactions. Are you sure?";
+"enable_contribution_toggle" = "Enable Contribution";
+"contribution_label" = "Contribution";
+"contribution_enabled" = "Enabled";
+"contribution_disabled" = "Disabled";
+"contribution_enabled_description" = "Contribution enabled, you can assign multiple payers for this transaction";
+"contribution_disabled_description" = "Contribution disabled, will use default payer";
+"select_payer_prompt" = "Select Payer";
+"add_new_payer" = "Add New Payer";
+"contribution_total" = "Contribution Total";
+"contribution_amount_mismatch" = "Contribution total doesn't match transaction amount";
+"no_payers" = "No payers";
+"total_label" = "Total";
+"payers_split_format" = "%d payer(s) split";
+"filter_label" = "Filter";
+"done_button" = "Done";
+"view_all" = "View All";
+"no_transactions_in_period" = "No transactions in this period";
+"no_contribution" = "No contribution";
+"insufficient" = "Insufficient";
+"excess" = "Excess";
+"contribution_insufficient" = "Contribution insufficient";
+"contribution_excess" = "Contribution excess";
+
+/* SubcategoryManageView */
+"subcategory_manage_title_format" = "Manage Subcategories: %@";
+"subcategory_delete_message" = "Deleting subcategory '%@' will unlink related transactions from this subcategory. Are you sure?";
+
+/* TransactionFormView */
+"contribution_header" = "Payer Contributions";
+"distribute_equally_button" = "Distribute Equally";
+"amount_label" = "Amount";
+"select_payer" = "Select Payer";
+"select_parent_first" = "Select parent category first";
+"category_section_header" = "Category";
+
+/* TransactionFormView - Section Headers */
 "form_amount" = "Amount";
+"form_type" = "Type";
+"form_note" = "Note";
+"form_date" = "Date";
+"form_cancel" = "Cancel";
+"form_save" = "Save";
+"form_delete" = "Delete";
+
+/* TransactionFormView - Labels and Placeholders */
+"form_type_label" = "Transaction Type";
 "form_amount_placeholder" = "Enter amount";
-"form_type" = "Transaction Type";
+"form_note_placeholder" = "Enter note";
+
+/* TransactionFormView - Date Picker */
+"form_date_picker" = "Select date";
+
+/* TransactionFormView - Currency Menu */
+"currency_HKD" = "Hong Kong Dollar";
+"currency_USD" = "US Dollar";
+"currency_JPY" = "Japanese Yen";
+
+/* TransactionFormView - Picker Options */
 "form_income" = "Income";
 "form_expense" = "Expense";
-"form_category" = "Category";
-"form_parent_category" = "Main Category";
-"form_subcategory" = "Subcategory";
-"form_note" = "Note";
-"form_note_placeholder" = "Enter note";
-"form_date" = "Date";
-"form_date_picker" = "Pick a date";
+"form_none" = "None";
+
+/* TransactionFormView - Navigation Titles */
 "form_add_title" = "Add Transaction";
 "form_edit_title" = "Edit Transaction";
-"form_save" = "Save";
-"form_cancel" = "Cancel";
-"form_delete" = "Delete";
+"transaction_detail_title" = "Transaction Details";
+
+/* TransactionFormView - Alert Titles */
 "form_delete_title" = "Delete Transaction";
 "form_delete_message" = "Are you sure you want to delete this transaction? This action cannot be undone.";
-"form_none" = "None";
-"settings_language_section" = "Language";
-"settings_language_label" = "Choose Language";
+
+/* TransactionFormView - Validation Messages */
+"form_amount_required" = "Amount is required";
+"form_amount_invalid" = "Please enter a valid amount";
+"category_required" = "Category is required";
+
+/* TransactionListView */
+"search_placeholder" = "Search transactions...";
+"transactions_title" = "Transactions";
+
+/* DashboardComponents */
+"categories_label" = "categories";
+"filter_current" = "Current Filters";
+"clear_button" = "Clear";
+"dashboard_analyze_target" = "Analyze Target";
+"dashboard_period" = "Period";
+"period_month" = "Month";
+"period_year" = "Year";
+"all_label" = "All";
+"type_label" = "Type";
+"all_parent_category" = "All Parent Categories";
+"form_parent_category" = "Parent Category";
+"all_subcategory" = "All Subcategories";
+"form_subcategory" = "Subcategory";
+"all_payers" = "All Payers";
+"payer_label" = "Payer";
+"monthly_total_spending" = "Monthly Total Spending";
+"yearly_total_spending" = "Yearly Total Spending";
+"no_data" = "No Data";
+"vs_last_month" = "vs Last Month";
+"vs_last_year" = "vs Last Year";
+"dashboard_include_all_transactions" = "Includes all transactions";
+"category_distribution" = "Category Distribution";
+"no_category_data" = "No Category Data";
+"view_more_categories" = "View More Categories";
+"daily_average_spending" = "Daily Average Spending";
+"day_unit" = "day";
+"calculation_method" = "Calculation Method";
+"total_spending" = "Total Spending";
+"days_unit" = "days";
+"total_days" = "Total";
+"monthly_average" = "Monthly Average";
+"highest_single_spending" = "Highest Single Spending";
+"yearly_highest_spending" = "Yearly Highest Spending";
+"spending_insights" = "Spending Insights";
+"primary_time_period" = "Primary Spending Time";
+"weekend_spending" = "Weekend Spending Ratio";
+"total_transactions_label" = "Total Transactions";
+"transactions_unit" = "transactions";
+"highest_spending" = "Highest Spending";
+"most_used_category" = "Most Used Category";
+"yearly_most_used_category" = "Yearly Most Used Category";
+"highest_spending_month" = "Highest Spending Month";
+"month_amount" = "Month Amount";
+"spending_time_distribution" = "Spending Time Distribution";
+"weekday" = "Weekday";
+"weekend" = "Weekend";
+"no_insights_data" = "No Insights Data";
+"record_more_transactions_for_insights" = "Record more transactions for insights";
+"transactions_label" = "transactions";
+
+/* DashboardView */
+"dashboard_title" = "Dashboard";
+"no_spending_data" = "No Spending Data";
+"no_transactions_in_selected_period" = "No transactions in selected period";
+"view_all_transactions" = "View All Transactions";
+"recent_transactions" = "Recent Transactions";
+"transaction_default_name" = "Transaction";
+
+/* MainTabView */
+"transactions_tab" = "Transactions";
+"analysis_tab" = "Analysis";
+"settings_tab" = "Settings";
+"settlement_tab" = "Bill Split";
+"settlement_select_category" = "Select Category for Split";
+"search_categories" = "Search categories";
+"no_category_selected" = "No Category Selected";
+"select_category_for_settlement" = "Select a category for bill splitting";
+"select_category" = "Select Category";
+"start_settlement" = "Start Bill Split";
+"settlement_description" = "Select a category to view bill splitting between participants";
+"settlement_how_it_works" = "System automatically calculates each person's share and provides minimal transfer solution";
+"no_categories" = "No Categories";
+"create_categories_first" = "Please create categories first";
+"change_button" = "Change";
+"default_label" = "Default";
+"assigned_payers" = "Assigned Payers";
+"transactions" = "transactions";
+"total_amount" = "Total Amount";
+"settlement_title" = "Bill Split";
+
+/* SimpleAssignPayersView */
+"assign_payers_to_category" = "Assign Payers to: %@";
+"category_id_label" = "Category ID";
+"assigned_payers_count" = "Assigned Payers Count";
+
+/* SettingsView */
 "settings_appearance_section" = "Appearance";
 "settings_appearance_label" = "Theme Mode";
 "settings_appearance_system" = "Follow System";
-"settings_appearance_light" = "Light Mode";
-"settings_appearance_dark" = "Dark Mode";
+"settings_appearance_light" = "Light";
+"settings_appearance_dark" = "Dark";
+"settings_language_section" = "Language";
+"settings_language_label" = "App Language";
+"settings_data_management" = "Data Management";
 "settings_manage_categories" = "Manage Categories";
-"settings_reset_button" = "Reset";
-"subcategory_add_section" = "Add Subcategory";
-"subcategory_color_picker" = "Pick a Color";
-"subcategory_name_placeholder" = "Enter name";
-"subcategory_add_button" = "Add";
-"subcategory_list_section" = "Created Subcategories";
-"subcategory_name_label" = "Name";
-"subcategory_manage_title" = "Manage Subcategories";
-"subcategory_delete_title" = "Delete Subcategory";
-"subcategory_cancel" = "Cancel";
-"subcategory_delete" = "Delete";
-"subcategory_delete_message" = "Deleting a subcategory will unlink related transactions. Are you sure you want to delete?";
-"search_placeholder" = "Search transactions or categories";
-"transaction_detail_title" = "Transaction Details";
-"filter_current" = "Current filter:";
-"search_label" = "Search";
-"clear_button" = "Clear";
-"no_transactions" = "No matching transactions";
-"no_transactions_description" = "Adjust search filters or add a transaction";
-"uncategorized" = "Uncategorized";
-"all_label" = "All";
-"type_label" = "Type";
-"all_parent_category" = "All main categories";
-"all_subcategory" = "All subcategories";
-"all_supercategory" = "All activities/trips";
-"delete_failed" = "Delete failed";
-"category_section_header" = "Main category / Subcategory";
-"select_parent_first" = "Please select a main category first";
-"search_placeholder" = "Search transactions or categories";
-"transaction_detail_title" = "Transaction Details";
+"settings_manage_payers" = "Manage Payers";
+"settings_about" = "About";
+"settings_version" = "Version";
+"settings_settlement_feature" = "Bill Split Feature";
+"settings_standalone_page" = "Standalone Page";
+"settings_title" = "Settings";
 
+/* CategorySettlementView */
+"participants_label" = "Participants";
+"no_participants_or_transactions" = "No participants or transactions";
+"calculation_explanation" = "Calculation Method";
+"calculation_principle" = "Calculation Principle";
+"calculation_point_1" = "Only expense transactions are calculated";
+"calculation_point_2" = "Each transaction is split equally among all participants";
+"calculation_point_3" = "Each person's payable amount = sum of equal splits from all transactions";
+"calculation_point_4" = "Net amount = actually paid - payable amount";
+"example_label" = "Simple Example";
+"example_1" = "A $300 transaction, 3 participants, each should pay $100";
+"example_2" = "A paid $150, net amount = +$50 (to receive)";
+"example_3" = "B paid $100, net amount = $0 (balanced)";
+"example_4" = "C paid $50, net amount = -$50 (to pay)";
+"optimal_settlement_solution" = "Optimal Split Solution";
+"optimal_settlement_description" = "Minimal transfer count for quick splitting";
+"only_transfers_needed" = "Only";
+"transfers_to_clear_debts" = "transfers needed to complete the split";
+"pays_to" = "pays to";
+"transfer_amount" = "Transfer Amount";
+"all_debts_cleared" = "Split completed";
+"detailed_calculation_results" = "Detailed Split Results";
+"actual_paid" = "Actually Paid";
+"net_balance" = "Net Amount";
+"should_pay_to" = "Should pay to";
+"faq_1_question" = "Why only expense transactions?";
+"faq_1_answer" = "Income transactions usually don't involve splitting, calculating only expenses better fits bill splitting scenarios";
+"faq_2_question" = "How is each person's payable amount calculated?";
+"faq_2_answer" = "Each transaction amount is split equally among all participants, then summed up across all transactions";
+"faq_3_question" = "What is optimal split solution?";
+"faq_3_answer" = "Using minimal transfer algorithm, people who need to pay money pay directly to those who should receive money, reducing transfer count";
+"faq_4_question" = "Can I modify participants?";
+"faq_4_answer" = "Yes, assign fixed payers in category management, system will prioritize assigned payers";
+"faq_title" = "FAQ";
+"calculation_details" = "Calculation Details";
+"debt_settlement" = "Bill Split";
+"recalculate_button" = "Recalculate";
+"transaction_records" = "Transaction Records";
+"no_payer_transactions_in_category" = "No transactions for this payer in this category";
+"statistics_label" = "Statistics";
+"total_paid_amount" = "Total Paid Amount";
+"participating_transactions_count" = "Participating Transactions Count";
+"total_transactions" = "Total Transactions";

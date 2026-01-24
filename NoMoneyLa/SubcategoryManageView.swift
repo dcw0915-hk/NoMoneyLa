@@ -22,9 +22,9 @@ struct SubcategoryManagerView: View {
     private var subcategories: [Subcategory] {
         allSubcategories.filter { $0.parentID == parentCategory.id }
                         .sorted(by: {
-                            if $0.name == "未分類" && $1.name != "未分類" {
+                            if $0.name == langManager.localized("uncategorized_label") && $1.name != langManager.localized("uncategorized_label") {
                                 return true
-                            } else if $0.name != "未分類" && $1.name == "未分類" {
+                            } else if $0.name != langManager.localized("uncategorized_label") && $1.name == langManager.localized("uncategorized_label") {
                                 return false
                             } else {
                                 return $0.order < $1.order
@@ -90,7 +90,7 @@ struct SubcategoryManagerView: View {
                                 .disabled(isDefaultCategorySubcategory(sub))
                                 
                                 // 預設分類嘅「未分類」子分類不顯示編輯按鈕
-                                if sub.name != "未分類" && !isDefaultCategorySubcategory(sub) {
+                                if sub.name != langManager.localized("uncategorized_label") && !isDefaultCategorySubcategory(sub) {
                                     Button {
                                         startInlineEdit(for: sub)
                                     } label: {
@@ -110,26 +110,26 @@ struct SubcategoryManagerView: View {
                         .frame(height: 44)
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         // 添加左滑刪除功能（預設分類嘅「未分類」除外）
-                        .swipeActions(edge: .trailing, allowsFullSwipe: sub.name != "未分類" && !isDefaultCategorySubcategory(sub)) {
-                            if sub.name != "未分類" && !isDefaultCategorySubcategory(sub) {
+                        .swipeActions(edge: .trailing, allowsFullSwipe: sub.name != langManager.localized("uncategorized_label") && !isDefaultCategorySubcategory(sub)) {
+                            if sub.name != langManager.localized("uncategorized_label") && !isDefaultCategorySubcategory(sub) {
                                 Button(role: .destructive) {
                                     deleteSubcategory(sub)
                                 } label: {
-                                    Label("刪除", systemImage: "trash")
+                                    Label(langManager.localized("delete_button"), systemImage: "trash")
                                 }
                             }
                         }
-                        .disabled(sub.name == "未分類" && isDefaultCategorySubcategory(sub)) // 預設分類嘅「未分類」不可編輯
+                        .disabled(sub.name == langManager.localized("uncategorized_label") && isDefaultCategorySubcategory(sub)) // 預設分類嘅「未分類」不可編輯
                     }
                     .onMove(perform: moveSubcategory)
                 }
             }
-            .navigationTitle("\(langManager.localized("subcategory_manage_title"))：\(parentCategory.name)")
+            .navigationTitle(String(format: langManager.localized("subcategory_manage_title_format"), parentCategory.name))
             .alert(langManager.localized("subcategory_delete_title"), isPresented: $showDeleteAlert, presenting: subcategoryToDelete) { sub in
                 Button(langManager.localized("subcategory_cancel"), role: .cancel) {}
                 Button(langManager.localized("subcategory_delete"), role: .destructive) { safeDelete(sub) }
             } message: { sub in
-                Text("\(langManager.localized("subcategory_delete_message"))「\(sub.name)」")
+                Text(String(format: langManager.localized("subcategory_delete_message"), sub.name))
             }
             .onAppear {
                 ensureUncategorizedExists()
@@ -184,11 +184,11 @@ struct SubcategoryManagerView: View {
 
     // MARK: - 方法
     private func ensureUncategorizedExists() {
-        let hasUncategorized = subcategories.contains { $0.name == "未分類" }
+        let hasUncategorized = subcategories.contains { $0.name == langManager.localized("uncategorized_label") }
         
         if !hasUncategorized {
             let uncategorized = Subcategory(
-                name: "未分類",
+                name: langManager.localized("uncategorized_label"),
                 parentID: parentCategory.id,
                 order: -1,
                 colorHex: "#A8A8A8"
@@ -200,7 +200,7 @@ struct SubcategoryManagerView: View {
     }
 
     private func startInlineEdit(for sub: Subcategory) {
-        if sub.name == "未分類" && isDefaultCategorySubcategory(sub) { return } // 預設分類嘅「未分類」不可編輯
+        if sub.name == langManager.localized("uncategorized_label") && isDefaultCategorySubcategory(sub) { return } // 預設分類嘅「未分類」不可編輯
         editingSubcategoryID = sub.id
         inlineEditedName = sub.name
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -209,14 +209,14 @@ struct SubcategoryManagerView: View {
     }
 
     private func commitInlineEdit(for sub: Subcategory) {
-        if sub.name == "未分類" && isDefaultCategorySubcategory(sub) {
+        if sub.name == langManager.localized("uncategorized_label") && isDefaultCategorySubcategory(sub) {
             editingSubcategoryID = nil
             return
         }
         let trimmed = inlineEditedName.trimmingCharacters(in: .whitespaces)
         if !trimmed.isEmpty {
             // 防止改名做「未分類」
-            guard trimmed != "未分類" else {
+            guard trimmed != langManager.localized("uncategorized_label") else {
                 editingSubcategoryID = nil
                 return
             }
@@ -243,7 +243,7 @@ struct SubcategoryManagerView: View {
     private func addSubcategory() {
         let trimmed = newName.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        guard trimmed != "未分類" else { return } // 防止建立重複的未分類
+        guard trimmed != langManager.localized("uncategorized_label") else { return } // 防止建立重複的未分類
         
         let maxOrder = subcategories.map { $0.order }.max() ?? 0
         let newSub = Subcategory(name: trimmed,
@@ -269,7 +269,7 @@ struct SubcategoryManagerView: View {
         revised.move(fromOffsets: source, toOffset: destination)
         
         // 確保未分類永遠在第一位
-        if let uncategorizedIndex = revised.firstIndex(where: { $0.name == "未分類" }) {
+        if let uncategorizedIndex = revised.firstIndex(where: { $0.name == langManager.localized("uncategorized_label") }) {
             if uncategorizedIndex != 0 {
                 revised.move(fromOffsets: IndexSet(integer: uncategorizedIndex), toOffset: 0)
             }
@@ -283,14 +283,14 @@ struct SubcategoryManagerView: View {
 
     // 左滑刪除觸發的方法
     private func deleteSubcategory(_ sub: Subcategory) {
-        if sub.name == "未分類" && isDefaultCategorySubcategory(sub) { return } // 預設分類嘅「未分類」不可刪除
+        if sub.name == langManager.localized("uncategorized_label") && isDefaultCategorySubcategory(sub) { return } // 預設分類嘅「未分類」不可刪除
         subcategoryToDelete = sub
         showDeleteAlert = true
     }
 
     // 實際執行刪除的方法
     private func safeDelete(_ sub: Subcategory) {
-        if sub.name == "未分類" && isDefaultCategorySubcategory(sub) { return } // 預設分類嘅「未分類」不可刪除
+        if sub.name == langManager.localized("uncategorized_label") && isDefaultCategorySubcategory(sub) { return } // 預設分類嘅「未分類」不可刪除
         
         for tx in transactions where tx.subcategoryID == sub.id {
             tx.subcategoryID = nil
@@ -303,9 +303,9 @@ struct SubcategoryManagerView: View {
     private func reorderSubcategories() {
         var subs = allSubcategories.filter { $0.parentID == parentCategory.id }
                                    .sorted(by: {
-                                       if $0.name == "未分類" && $1.name != "未分類" {
+                                       if $0.name == langManager.localized("uncategorized_label") && $1.name != langManager.localized("uncategorized_label") {
                                            return true
-                                       } else if $0.name != "未分類" && $1.name == "未分類" {
+                                       } else if $0.name != langManager.localized("uncategorized_label") && $1.name == langManager.localized("uncategorized_label") {
                                            return false
                                        } else {
                                            return $0.order < $1.order
@@ -321,7 +321,7 @@ struct SubcategoryManagerView: View {
     // 檢查是否屬於預設分類嘅「未分類」子分類
     private func isDefaultCategorySubcategory(_ sub: Subcategory) -> Bool {
         if let parentCategory = categories.first(where: { $0.id == sub.parentID }),
-           parentCategory.isDefault && sub.name == "未分類" {
+           parentCategory.isDefault && sub.name == langManager.localized("uncategorized_label") {
             return true
         }
         return false

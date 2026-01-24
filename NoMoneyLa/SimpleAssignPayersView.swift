@@ -1,8 +1,10 @@
-// SimpleAssignPayersView.swift
+// SimpleAssignPayersView.swift 完整更新版本
+
 import SwiftUI
 import SwiftData
 
 struct SimpleAssignPayersView: View {
+    @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     
@@ -13,15 +15,15 @@ struct SimpleAssignPayersView: View {
     var body: some View {
         NavigationView {
             VStack {
-                Text("分配付款人給: \(category.name)")
+                Text(String(format: langManager.localized("assign_payers_to_category"), category.name))
                     .font(.headline)
                     .padding()
                 
-                Text("分類ID: \(category.id.uuidString.prefix(8))")
+                Text("\(langManager.localized("category_id_label")): \(String(category.id.uuidString.prefix(8)))")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                Text("已分配付款人ID: \(category.assignedPayerIDs.count)")
+                Text("\(langManager.localized("assigned_payers_count")): \(category.assignedPayerIDs.count)")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
@@ -51,7 +53,7 @@ struct SimpleAssignPayersView: View {
                     }
                 }
                 
-                Button("儲存") {
+                Button(langManager.localized("save_button")) {
                     category.assignedPayerIDs = Array(selectedPayerIDs)
                     try? context.save()
                     dismiss()

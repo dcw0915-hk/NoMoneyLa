@@ -1,8 +1,11 @@
+// CategoryListView.swift 完整更新版本
+
 import SwiftUI
 import SwiftData
 
 // AssignPayersView.swift
 struct AssignPayersView: View {
+    @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
@@ -17,17 +20,17 @@ struct AssignPayersView: View {
         NavigationStack {
             Group {
                 if isLoading {
-                    ProgressView("載入中...")
+                    ProgressView(langManager.localized("loading_label"))
                         .padding()
                 } else if allPayers.isEmpty {
                     ContentUnavailableView(
-                        "沒有付款人",
+                        langManager.localized("no_payers_title"),
                         systemImage: "person.3",
-                        description: Text("請先在「管理付款人」中建立付款人")
+                        description: Text(langManager.localized("create_payers_first"))
                     )
                 } else {
                     List {
-                        Section("可選付款人") {
+                        Section(langManager.localized("available_payers_section")) {
                             ForEach(allPayers) { payer in
                                 HStack {
                                     Circle()
@@ -58,11 +61,11 @@ struct AssignPayersView: View {
 
                         Section {
                             if selectedPayerIDs.isEmpty {
-                                Text("未選擇任何付款人")
+                                Text(langManager.localized("no_payers_selected"))
                                     .foregroundColor(.secondary)
                                     .italic()
                             } else {
-                                Text("已選擇 \(selectedPayerIDs.count) 位付款人")
+                                Text(String(format: langManager.localized("selected_payers_count"), selectedPayerIDs.count))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -70,14 +73,14 @@ struct AssignPayersView: View {
                     }
                 }
             }
-            .navigationTitle(managedCategory?.name ?? "分配付款人")
+            .navigationTitle(managedCategory?.name ?? langManager.localized("assign_payers_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("取消") { dismiss() }
+                    Button(langManager.localized("cancel_button")) { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("儲存") { saveAssignedPayers() }
+                    Button(langManager.localized("save_button")) { saveAssignedPayers() }
                         .disabled(isLoading)
                 }
             }
@@ -181,6 +184,7 @@ struct AssignPayersView: View {
 
 // CategoryListView.swift
 struct CategoryListView: View {
+    @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
     @Query(sort: \Category.order) private var allCategories: [Category]
     @Query(sort: \Subcategory.order) private var allSubcategories: [Subcategory]
@@ -196,7 +200,7 @@ struct CategoryListView: View {
     @State private var inlineEditedName: String = ""
     @FocusState private var isInlineFocused: Bool
     
-    @State private var showCannotDeleteAlert = false  // 新增：無法刪除提示
+    @State private var showCannotDeleteAlert = false
 
     private var categories: [Category] {
         allCategories.sorted(by: { $0.order < $1.order })
@@ -205,14 +209,14 @@ struct CategoryListView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("新增分類") {
+                Section(langManager.localized("add_category_section")) {
                     HStack {
-                        TextField("輸入名稱", text: $newName)
-                        Button("新增") { addCategory() }
+                        TextField(langManager.localized("enter_name_placeholder"), text: $newName)
+                        Button(langManager.localized("add_button")) { addCategory() }
                     }
                 }
 
-                Section("已建立的分類") {
+                Section(langManager.localized("existing_categories_section")) {
                     ForEach(categories) { category in
                         HStack(spacing: 12) {
                             if editingCategoryID == category.id {
@@ -232,61 +236,29 @@ struct CategoryListView: View {
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         // 添加左滑刪除功能（預設分類除外）
                         .swipeActions(edge: .trailing, allowsFullSwipe: !category.isDefault) {
-                            if !category.isDefault {  // 預設分類唔顯示刪除按鈕
+                            if !category.isDefault {
                                 Button(role: .destructive) {
                                     deleteCategory(category)
                                 } label: {
-                                    Label("刪除", systemImage: "trash")
+                                    Label(langManager.localized("delete_button"), systemImage: "trash")
                                 }
                             }
                         }
                     }
                     .onMove(perform: moveCategory)
                 }
-
-                /*
-                Section("分類債務結算") {
-                    ForEach(categories) { category in
-                        NavigationLink {
-                            CategorySettlementView(category: category)
-                        } label: {
-                            HStack {
-                                if let colorHex = category.colorHex {
-                                    Circle()
-                                        .fill(Color(hex: colorHex))
-                                        .frame(width: 12, height: 12)
-                                }
-
-                                Text(category.name)
-                                    .font(.body)
-
-                                Spacer()
-
-                                // 顯示已分配的付款人數量
-                                let assignedPayers = category.assignedPayers(in: context)
-                                if !assignedPayers.isEmpty {
-                                    Text("\(assignedPayers.count)人已分配")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                        }
-                    }
-                }
-                */
             }
-            .navigationTitle("分類管理")
-            .alert("刪除分類", isPresented: $showDeleteAlert, presenting: categoryToDelete) { category in
-                Button("取消", role: .cancel) {}
-                Button("刪除", role: .destructive) { safeDelete(category) }
+            .navigationTitle(langManager.localized("manage_categories_title"))
+            .alert(langManager.localized("delete_category_title"), isPresented: $showDeleteAlert, presenting: categoryToDelete) { category in
+                Button(langManager.localized("cancel_button"), role: .cancel) {}
+                Button(langManager.localized("delete_button"), role: .destructive) { safeDelete(category) }
             } message: { category in
-                Text("刪除分類「\(category.name)」會同時刪除其子分類，並讓相關交易失去連結，確定要刪除嗎？")
+                Text(String(format: langManager.localized("delete_category_confirmation"), category.name))
             }
-            .alert("無法刪除", isPresented: $showCannotDeleteAlert) {
-                Button("明白", role: .cancel) { }
+            .alert(langManager.localized("cannot_delete_title"), isPresented: $showCannotDeleteAlert) {
+                Button(langManager.localized("understand_button"), role: .cancel) { }
             } message: {
-                Text("「未分類」係系統預設分類，用嚟存放未歸類嘅交易。所有交易都需要有分類，呢個分類唔可以刪除。")
+                Text(langManager.localized("cannot_delete_default_category"))
             }
             .sheet(item: $showingAssignPayersForCategory) { category in
                 AssignPayersView(categoryID: category.id)
@@ -317,7 +289,7 @@ struct CategoryListView: View {
     // MARK: - 子視圖
     private func inlineEditView(for category: Category) -> some View {
         HStack(spacing: 8) {
-            TextField("名稱", text: $inlineEditedName)
+            TextField(langManager.localized("name_label"), text: $inlineEditedName)
                 .focused($isInlineFocused)
                 .submitLabel(.done)
                 .onSubmit { commitInlineEdit(for: category) }
@@ -403,8 +375,6 @@ struct CategoryListView: View {
             .buttonStyle(BorderlessButtonStyle())
             .frame(width: 36, height: 36)
             .contentShape(Rectangle())
-            
-            // 刪除按鈕已移除，改為左滑刪除
         }
     }
 
@@ -448,7 +418,7 @@ struct CategoryListView: View {
         let trimmed = newName.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
         // 防止建立重複嘅「未分類」分類
-        guard trimmed != "未分類" else {
+        guard trimmed != langManager.localized("uncategorized_label") else {
             newName = ""
             return
         }

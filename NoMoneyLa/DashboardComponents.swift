@@ -11,8 +11,8 @@ import SwiftData
 // MARK: - 數據結構
 
 enum TimePeriod: String, CaseIterable {
-    case month = "月"
-    case year = "年"
+    case month = "month"
+    case year = "year"
 }
 
 struct MonthlyStats {
@@ -74,12 +74,13 @@ struct DashboardControlBar: View {
 }
 
 struct PayerSelectionView: View {
+    @EnvironmentObject var langManager: LanguageManager
     @Binding var selectedPayer: Payer?
     let allPayers: [Payer]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("分析對象")
+            Text(langManager.localized("dashboard_analyze_target"))
                 .font(.caption)
                 .foregroundColor(.secondary)
             
@@ -129,15 +130,16 @@ struct PayerChipView: View {
 }
 
 struct PeriodSelectionView: View {
+    @EnvironmentObject var langManager: LanguageManager
     @Binding var selectedPeriod: TimePeriod
     @Binding var selectedDate: Date
     
     var body: some View {
         VStack(spacing: 12) {
             // 月/年切換
-            Picker("週期", selection: $selectedPeriod) {
+            Picker(langManager.localized("dashboard_period"), selection: $selectedPeriod) {
                 ForEach(TimePeriod.allCases, id: \.self) { period in
-                    Text(period.rawValue).tag(period)
+                    Text(langManager.localized(period == .month ? "period_month" : "period_year")).tag(period)
                 }
             }
             .pickerStyle(.segmented)
@@ -189,9 +191,9 @@ struct PeriodSelectionView: View {
         
         switch selectedPeriod {
         case .month:
-            formatter.dateFormat = "yyyy年M月"
+            formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "yyyy年M月" : "MMM yyyy"
         case .year:
-            formatter.dateFormat = "yyyy年"
+            formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "yyyy年" : "yyyy"
         }
         
         return formatter.string(from: selectedDate)
@@ -357,7 +359,7 @@ struct ToolbarMenuView: View {
             
             // 新增付款人篩選菜單
             Menu {
-                Button("所有付款人") {
+                Button(langManager.localized("all_payers")) {
                     onSelectPayer(nil)
                     saveFilterState()
                 }
@@ -375,7 +377,7 @@ struct ToolbarMenuView: View {
                     }
                 }
             } label: {
-                Label(filterPayer?.name ?? "付款人", systemImage: "person.2")
+                Label(filterPayer?.name ?? langManager.localized("payer_label"), systemImage: "person.2")
             }
         }
     }
@@ -384,9 +386,10 @@ struct ToolbarMenuView: View {
 // MARK: - 統計卡片組件
 
 struct TotalSpendingCard: View {
+    @EnvironmentObject var langManager: LanguageManager
     let stats: MonthlyStats?
     let isLoading: Bool
-    let period: TimePeriod  // 新增：知道當前週期
+    let period: TimePeriod
     
     init(stats: MonthlyStats?, isLoading: Bool, period: TimePeriod) {
         self.stats = stats
@@ -395,7 +398,10 @@ struct TotalSpendingCard: View {
     }
     
     var body: some View {
-        DashboardCard(title: period == .month ? "本月消費" : "今年消費", icon: "dollarsign.circle") {
+        DashboardCard(title: period == .month ?
+                     langManager.localized("monthly_total_spending") :
+                     langManager.localized("yearly_total_spending"),
+                     icon: "dollarsign.circle") {
             if isLoading {
                 ProgressView()
                     .scaleEffect(0.8)
@@ -418,7 +424,9 @@ struct TotalSpendingCard: View {
                                 .font(.subheadline)
                                 .bold()
                             
-                            Text(period == .month ? "vs 上月" : "vs 上年")
+                            Text(period == .month ?
+                                 langManager.localized("vs_last_month") :
+                                 langManager.localized("vs_last_year"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -431,13 +439,19 @@ struct TotalSpendingCard: View {
                             .font(.caption2)
                             .foregroundColor(.secondary)
                         
-                        Text("\(stats.transactionCount) 筆交易")
+                        Text("\(stats.transactionCount) \(langManager.localized("transactions_label"))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                    
+                    // 說明文字
+                    Text(langManager.localized("dashboard_include_all_transactions"))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
                 }
             } else {
-                Text("無數據")
+                Text(langManager.localized("no_data"))
                     .foregroundColor(.secondary)
                     .italic()
             }
@@ -456,17 +470,18 @@ struct TotalSpendingCard: View {
 // MARK: - 分類分佈卡片（直向優化版）
 
 struct CategoryBreakdownCard: View {
+    @EnvironmentObject var langManager: LanguageManager
     let categories: [CategoryStat]
     let isLoading: Bool
     
     var body: some View {
-        DashboardCard(title: "分類分佈", icon: "tag") {
+        DashboardCard(title: langManager.localized("category_distribution"), icon: "tag") {
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding()
             } else if categories.isEmpty {
-                Text("無分類數據")
+                Text(langManager.localized("no_category_data"))
                     .foregroundColor(.secondary)
                     .italic()
                     .frame(maxWidth: .infinity)
@@ -514,7 +529,7 @@ struct CategoryBreakdownCard: View {
                                     // 前景條
                                     RoundedRectangle(cornerRadius: 3)
                                         .fill(
-                                            stat.category.name == "無" ?
+                                            stat.category.name == langManager.localized("uncategorized") ?
                                             Color.gray.opacity(0.6) :
                                             Color.blue.opacity(0.8)
                                         )
@@ -530,7 +545,7 @@ struct CategoryBreakdownCard: View {
                     if categories.count > 5 {
                         HStack {
                             Spacer()
-                            Text("查看更多分類 (\(categories.count - 5) 個)")
+                            Text("\(langManager.localized("view_more_categories")) (\(categories.count - 5) \(langManager.localized("categories_label")))")
                                 .font(.caption)
                                 .foregroundColor(.blue)
                                 .padding(.top, 4)
@@ -554,6 +569,7 @@ struct CategoryBreakdownCard: View {
 // MARK: - 日均消費卡片
 
 struct DailyAverageCard: View {
+    @EnvironmentObject var langManager: LanguageManager
     let stats: MonthlyStats?
     let isLoading: Bool
     let period: TimePeriod
@@ -565,8 +581,8 @@ struct DailyAverageCard: View {
     }
     
     var body: some View {
-        let title = period == .month ? "日均消費" : "日均消費"
-        let periodText = period == .month ? "本月" : "今年"
+        let title = langManager.localized("daily_average_spending")
+        let periodText = period == .month ? langManager.localized("this_month") : langManager.localized("this_year")
         
         DashboardCard(title: title, icon: "calendar") {
             if isLoading {
@@ -581,7 +597,7 @@ struct DailyAverageCard: View {
                             .bold()
                             .foregroundColor(.primary)
                         
-                        Text("/日")
+                        Text("/\(langManager.localized("day_unit"))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -593,17 +609,17 @@ struct DailyAverageCard: View {
                                 .font(.caption2)
                                 .foregroundColor(.blue.opacity(0.7))
                             
-                            Text("計算方式：")
+                            Text(langManager.localized("calculation_method"))
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                             
-                            Text("總消費 ÷ \(stats.periodDays)日")
+                            Text("\(langManager.localized("total_spending")) ÷ \(stats.periodDays)\(langManager.localized("days_unit"))")
                                 .font(.caption2)
                                 .bold()
                                 .foregroundColor(.blue)
                         }
                         
-                        Text("(\(periodText)共 \(stats.periodDays) 日)")
+                        Text("(\(periodText) \(langManager.localized("total_days")) \(stats.periodDays) \(langManager.localized("days_unit")))")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -626,7 +642,7 @@ struct DailyAverageCard: View {
                                 .foregroundColor(.purple)
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("月均消費")
+                                Text(langManager.localized("monthly_average"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 
@@ -652,7 +668,9 @@ struct DailyAverageCard: View {
                                 .foregroundColor(.orange)
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(period == .month ? "最高單筆消費" : "年度最高消費")
+                                Text(period == .month ?
+                                     langManager.localized("highest_single_spending") :
+                                     langManager.localized("yearly_highest_spending"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 
@@ -663,7 +681,7 @@ struct DailyAverageCard: View {
                                         .foregroundColor(.orange)
                                     
                                     if period == .month {
-                                        Text("(\(highest.date, format: .dateTime.day())日)")
+                                        Text("(\(highest.date, format: .dateTime.day())\(langManager.localized("day_unit")))")
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
                                     } else {
@@ -681,11 +699,11 @@ struct DailyAverageCard: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("無數據")
+                    Text(langManager.localized("no_data"))
                         .foregroundColor(.secondary)
                         .italic()
                     
-                    Text("在選定的時間範圍內沒有找到消費記錄")
+                    Text(langManager.localized("no_transactions_in_period"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.leading)
@@ -700,7 +718,7 @@ struct DailyAverageCard: View {
         formatter.currencyCode = "HKD"
         formatter.maximumFractionDigits = 0
         formatter.minimumFractionDigits = 0
-        formatter.locale = Locale(identifier: "zh_HK")
+        formatter.locale = Locale(identifier: langManager.selectedLanguage.rawValue)
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 }
@@ -708,6 +726,7 @@ struct DailyAverageCard: View {
 // MARK: - 消費洞察卡片
 
 struct SpendingInsightCard: View {
+    @EnvironmentObject var langManager: LanguageManager
     let insights: SpendingInsights?
     let isLoading: Bool
     let period: TimePeriod
@@ -719,7 +738,7 @@ struct SpendingInsightCard: View {
     }
     
     var body: some View {
-        DashboardCard(title: "消費洞察", icon: "lightbulb") {
+        DashboardCard(title: langManager.localized("spending_insights"), icon: "lightbulb") {
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
@@ -741,12 +760,12 @@ struct SpendingInsightCard: View {
                         .font(.system(size: 40))
                         .foregroundColor(.gray.opacity(0.3))
                     
-                    Text("暫無洞察數據")
+                    Text(langManager.localized("no_insights_data"))
                         .font(.body)
                         .foregroundColor(.secondary)
                         .italic()
                     
-                    Text("記錄更多交易以獲得洞察")
+                    Text(langManager.localized("record_more_transactions_for_insights"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -767,7 +786,7 @@ struct SpendingInsightCard: View {
                 // 洞察1：消費時段
                 insightItem(
                     icon: "clock",
-                    title: "主要時段",
+                    title: langManager.localized("primary_time_period"),
                     value: insights.mostActiveDay,
                     color: .blue
                 )
@@ -776,7 +795,7 @@ struct SpendingInsightCard: View {
                 let weekendRatio = Int(insights.weekendVsWeekdayRatio * 100)
                 insightItem(
                     icon: "calendar",
-                    title: "週末消費",
+                    title: langManager.localized("weekend_spending"),
                     value: "\(weekendRatio)%",
                     color: .orange
                 )
@@ -785,8 +804,8 @@ struct SpendingInsightCard: View {
                 let totalTransactions = insights.weekdayTransactionCount + insights.weekendTransactionCount
                 insightItem(
                     icon: "list.bullet",
-                    title: "總交易",
-                    value: "\(totalTransactions)筆",
+                    title: langManager.localized("total_transactions_label"),
+                    value: "\(totalTransactions)\(langManager.localized("transactions_unit"))",
                     color: .green
                 )
                 
@@ -794,7 +813,7 @@ struct SpendingInsightCard: View {
                 if insights.peakSpendingAmount > 0 {
                     insightItem(
                         icon: "arrow.up.circle",
-                        title: "最高消費",
+                        title: langManager.localized("highest_spending"),
                         value: formatCurrency(insights.peakSpendingAmount),
                         color: .red
                     )
@@ -808,7 +827,7 @@ struct SpendingInsightCard: View {
                         .foregroundColor(.purple)
                         .font(.caption)
                     
-                    Text("最常用分類：")
+                    Text("\(langManager.localized("most_used_category"))：")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
@@ -835,14 +854,14 @@ struct SpendingInsightCard: View {
                 if let peakMonth = insights.peakMonth {
                     insightItem(
                         icon: "chart.bar.fill",
-                        title: "消費最高月",
+                        title: langManager.localized("highest_spending_month"),
                         value: peakMonth,
                         color: .blue
                     )
                     
                     insightItem(
                         icon: "dollarsign.circle.fill",
-                        title: "該月金額",
+                        title: langManager.localized("month_amount"),
                         value: formatCurrency(insights.peakMonthAmount),
                         color: .blue
                     )
@@ -852,7 +871,7 @@ struct SpendingInsightCard: View {
                 let weekendRatio = Int(insights.weekendVsWeekdayRatio * 100)
                 insightItem(
                     icon: "calendar",
-                    title: "週末消費",
+                    title: langManager.localized("weekend_spending"),
                     value: "\(weekendRatio)%",
                     color: .orange
                 )
@@ -861,8 +880,8 @@ struct SpendingInsightCard: View {
                 let totalTransactions = insights.weekdayTransactionCount + insights.weekendTransactionCount
                 insightItem(
                     icon: "list.bullet",
-                    title: "總交易",
-                    value: "\(totalTransactions)筆",
+                    title: langManager.localized("total_transactions_label"),
+                    value: "\(totalTransactions)\(langManager.localized("transactions_unit"))",
                     color: .green
                 )
                 
@@ -870,7 +889,7 @@ struct SpendingInsightCard: View {
                 if insights.peakSpendingAmount > 0 {
                     insightItem(
                         icon: "crown.fill",
-                        title: "年度最高",
+                        title: langManager.localized("yearly_highest_spending"),
                         value: formatCurrency(insights.peakSpendingAmount),
                         color: .red
                     )
@@ -884,7 +903,7 @@ struct SpendingInsightCard: View {
                         .foregroundColor(.purple)
                         .font(.caption)
                     
-                    Text("年度最常用分類：")
+                    Text("\(langManager.localized("yearly_most_used_category"))：")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
@@ -903,25 +922,25 @@ struct SpendingInsightCard: View {
             
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("消費時間分布")
+                    Text(langManager.localized("spending_time_distribution"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
                     HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("平日")
+                            Text(langManager.localized("weekday"))
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
-                            Text("\(insights.weekdayTransactionCount)筆")
+                            Text("\(insights.weekdayTransactionCount)\(langManager.localized("transactions_unit"))")
                                 .font(.body)
                                 .bold()
                         }
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("週末")
+                            Text(langManager.localized("weekend"))
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
-                            Text("\(insights.weekendTransactionCount)筆")
+                            Text("\(insights.weekendTransactionCount)\(langManager.localized("transactions_unit"))")
                                 .font(.body)
                                 .bold()
                         }

@@ -30,13 +30,30 @@ struct SettingsView: View {
                     }
                 }
                 
-                Section {
+                Section(langManager.localized("settings_data_management")) {
                     NavigationLink(destination: CategoryListView()) {
                         Label(langManager.localized("settings_manage_categories"), systemImage: "folder")
                     }
                     
                     NavigationLink(destination: PayerListView()) {
-                        Label("管理付款人", systemImage: "person.2")
+                        Label(langManager.localized("settings_manage_payers"), systemImage: "person.2")
+                    }
+                }
+                
+                Section(langManager.localized("settings_about")) {
+                    HStack {
+                        Text(langManager.localized("settings_version"))
+                        Spacer()
+                        Text("1.0.0")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Text(langManager.localized("settings_settlement_feature"))
+                        Spacer()
+                        Text(langManager.localized("settings_standalone_page"))
+                            .font(.caption)
+                            .foregroundColor(.blue)
                     }
                 }
             }

@@ -85,7 +85,7 @@ struct DashboardView: View {
                     dashboardVM.refreshData()
                 }
             }
-            .navigationTitle("消費分析")
+            .navigationTitle(langManager.localized("dashboard_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -114,18 +114,18 @@ struct DashboardView: View {
                 .foregroundColor(.gray.opacity(0.3))
             
             VStack(spacing: 8) {
-                Text("暫無消費數據")
+                Text(langManager.localized("no_spending_data"))
                     .font(.headline)
                     .foregroundColor(.primary)
                 
-                Text("在選定的時間範圍內沒有找到交易記錄")
+                Text(langManager.localized("no_transactions_in_selected_period"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
             
-            Button("查看所有交易") {
+            Button(langManager.localized("view_all_transactions")) {
                 // 可以導航到交易列表
             }
             .padding(.horizontal, 20)
@@ -141,6 +141,7 @@ struct DashboardView: View {
 // MARK: - 最近交易組件
 
 struct RecentTransactionsSection: View {
+    @EnvironmentObject var langManager: LanguageManager
     @EnvironmentObject var dashboardVM: DashboardViewModel
     @Environment(\.modelContext) private var context
     
@@ -150,7 +151,7 @@ struct RecentTransactionsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("最近交易", systemImage: "clock.arrow.circlepath")
+                Label(langManager.localized("recent_transactions"), systemImage: "clock.arrow.circlepath")
                     .font(.headline)
                     .foregroundColor(.primary)
                 
@@ -158,7 +159,7 @@ struct RecentTransactionsSection: View {
                 
                 // 只顯示有交易時才顯示查看全部
                 if totalFilteredTransactions > 0 {
-                    NavigationLink("查看全部") {
+                    NavigationLink(langManager.localized("view_all")) {
                         TransactionListView(
                             filterPayer: dashboardVM.selectedPayer,
                             filterPeriod: dashboardVM.selectedPeriod,
@@ -172,7 +173,7 @@ struct RecentTransactionsSection: View {
             .padding(.horizontal, 16)
             
             if recentTransactions.isEmpty {
-                Text("此期間無交易記錄")
+                Text(langManager.localized("no_transactions_in_period"))
                     .foregroundColor(.secondary)
                     .italic()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -183,11 +184,13 @@ struct RecentTransactionsSection: View {
                 }
                 
                 // 顯示篩選條件信息
-                Text("篩選：\(dashboardVM.selectedPayer?.name ?? "")｜\(formatPeriod())")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 4)
+                if let payerName = dashboardVM.selectedPayer?.name {
+                    Text("\(langManager.localized("filter_label"))：\(payerName)｜\(formatPeriod())")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 4)
+                }
             }
         }
         .onAppear {
@@ -248,15 +251,16 @@ struct RecentTransactionsSection: View {
         let formatter = DateFormatter()
         switch dashboardVM.selectedPeriod {
         case .month:
-            formatter.dateFormat = "yyyy年M月"
+            formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "yyyy年M月" : "MMM yyyy"
         case .year:
-            formatter.dateFormat = "yyyy年"
+            formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "yyyy年" : "yyyy"
         }
         return formatter.string(from: dashboardVM.selectedDate)
     }
 }
 
 struct TransactionRow: View {
+    @EnvironmentObject var langManager: LanguageManager
     let transaction: Transaction
     
     var body: some View {
@@ -273,7 +277,7 @@ struct TransactionRow: View {
                         .font(.subheadline)
                         .lineLimit(1)
                 } else {
-                    Text("交易")
+                    Text(langManager.localized("transaction_default_name"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }

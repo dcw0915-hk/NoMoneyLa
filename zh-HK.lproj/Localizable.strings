@@ -1,88 +1,254 @@
-/*
-  Localizable.strings
-  NoMoneyLa (HK Localization)
-
-  Created by Ricky Ding on 16/1/2026.
-  
-*/
-"transactions_title" = "交易記錄";
-"new_transaction_title" = "新增交易";
-"amount_label" = "金額";
-"date_label" = "日期";
-"note_label" = "備註";
+/* Common */
+"loading_label" = "載入中...";
+"no_payers_title" = "沒有付款人";
+"create_payers_first" = "請先在「管理付款人」中建立付款人";
+"available_payers_section" = "可選付款人";
+"no_payers_selected" = "未選擇任何付款人";
+"selected_payers_count" = "已選擇 %d 位付款人";
+"cancel_button" = "取消";
 "save_button" = "儲存";
+"assign_payers_title" = "分配付款人";
+"add_category_section" = "新增分類";
+"enter_name_placeholder" = "輸入名稱";
+"add_button" = "新增";
+"existing_categories_section" = "已建立的分類";
 "delete_button" = "刪除";
-"dashboard_title" = "總覽";
-"expense_label" = "支出";
-"income_label" = "收入";
-"net_label" = "淨額";
-"categories_title" = "分類";
-"add_category_title" = "新增主要分類";
-"subcategory_label" = "次要分類";
-"is_expense_label" = "是否支出";
-"goals_title" = "目標";
-"add_goal_title" = "新增目標";
-"monthly_limit_label" = "每月上限";
-"progress_label" = "進度";
-"settings_title" = "設定";
-"language_label" = "語言";
-"theme_label" = "主題";
-"dark_mode_label" = "深色模式";
+"manage_categories_title" = "分類管理";
+"delete_category_title" = "刪除分類";
+"delete_category_confirmation" = "刪除分類「%@」會同時刪除其子分類，並讓相關交易失去連結，確定要刪除嗎？";
+"cannot_delete_title" = "無法刪除";
+"understand_button" = "明白";
+"cannot_delete_default_category" = "「未分類」係系統預設分類，用嚟存放未歸類嘅交易。所有交易都需要有分類，呢個分類唔可以刪除。";
+"name_label" = "名稱";
+"uncategorized_label" = "未分類";
+"add_payer_section" = "新增付款人";
+"existing_payers_section" = "已建立的付款人";
+"manage_payers_title" = "管理付款人";
+"delete_payer_title" = "刪除付款人";
+"delete_payer_confirmation" = "刪除付款人「%@」會同時刪除其在所有交易中的分攤記錄，確定要刪除嗎？";
+"enable_contribution_toggle" = "啟用分攤";
+"contribution_label" = "分攤";
+"contribution_enabled" = "已啟用";
+"contribution_disabled" = "未啟用";
+"contribution_enabled_description" = "分攤已啟用，您可以為此交易分配多個付款人";
+"contribution_disabled_description" = "分攤未啟用，將使用預設付款人";
+"select_payer_prompt" = "選擇付款人";
+"add_new_payer" = "新增付款人";
+"contribution_total" = "分攤總計";
+"contribution_amount_mismatch" = "分攤總金額與交易總金額不一致";
+"no_payers" = "無付款人";
+"total_label" = "總計";
+"payers_split_format" = "%d位付款人分攤";
+"filter_label" = "篩選條件";
+"done_button" = "完成";
+"view_all" = "查看全部";
+"no_transactions_in_period" = "此期間無交易";
+"no_contribution" = "無分攤";
+"insufficient" = "分攤不足";
+"excess" = "分攤過多";
+"contribution_insufficient" = "分攤不足";
+"contribution_excess" = "分攤過多";
+
+/* SubcategoryManageView */
+"subcategory_manage_title_format" = "管理子分類：%@";
+"subcategory_delete_message" = "刪除子分類「%@」會讓相關交易失去子分類連結，確定要刪除嗎？";
+
+/* TransactionFormView */
+"contribution_header" = "付款人分攤";
+"distribute_equally_button" = "平均分攤";
+"amount_label" = "金額";
+"select_payer" = "選擇付款人";
+"select_parent_first" = "請先選擇主分類";
+"category_section_header" = "分類";
+
+/* TransactionFormView - Section Headers */
 "form_amount" = "金額";
+"form_type" = "類型";
+"form_note" = "備註";
+"form_date" = "日期";
+"form_cancel" = "取消";
+"form_save" = "儲存";
+"form_delete" = "刪除";
+
+/* TransactionFormView - Labels and Placeholders */
+"form_type_label" = "交易類型";
 "form_amount_placeholder" = "輸入金額";
-"form_type" = "交易類型";
+"form_note_placeholder" = "輸入備註";
+
+/* TransactionFormView - Date Picker */
+"form_date_picker" = "選擇日期";
+
+/* TransactionFormView - Currency Menu */
+"currency_HKD" = "港幣";
+"currency_USD" = "美元";
+"currency_JPY" = "日圓";
+
+/* TransactionFormView - Picker Options */
 "form_income" = "收入";
 "form_expense" = "支出";
-"form_category" = "分類";
-"form_parent_category" = "主要分類";
-"form_subcategory" = "次要分類";
-"form_note" = "備註";
-"form_note_placeholder" = "輸入備註";
-"form_date" = "日期";
-"form_date_picker" = "選擇日期";
+"form_none" = "無";
+
+/* TransactionFormView - Navigation Titles */
 "form_add_title" = "新增交易";
 "form_edit_title" = "編輯交易";
-"form_save" = "儲存";
-"form_cancel" = "取消";
-"form_delete" = "刪除";
+"transaction_detail_title" = "交易詳情";
+
+/* TransactionFormView - Alert Titles */
 "form_delete_title" = "刪除交易";
-"form_delete_message" = "確定要刪除此交易？此操作無法復原。";
-"form_none" = "無";
-"settings_language_section" = "語言";
-"settings_language_label" = "選擇語言";
+"form_delete_message" = "確定要刪除此交易嗎？此操作無法還原。";
+
+/* TransactionFormView - Validation Messages */
+"form_amount_required" = "金額為必填項目";
+"form_amount_invalid" = "請輸入有效金額";
+"category_required" = "必須選擇分類";
+
+/* TransactionListView */
+"search_placeholder" = "搜尋交易...";
+"transactions_title" = "交易記錄";
+
+/* DashboardComponents */
+"categories_label" = "個分類";
+"filter_current" = "當前篩選";
+"clear_button" = "清除";
+"dashboard_analyze_target" = "分析對象";
+"dashboard_period" = "統計期間";
+"period_month" = "月";
+"period_year" = "年";
+"all_label" = "全部";
+"type_label" = "類型";
+"all_parent_category" = "所有主分類";
+"form_parent_category" = "主分類";
+"all_subcategory" = "所有子分類";
+"form_subcategory" = "子分類";
+"all_payers" = "所有付款人";
+"payer_label" = "付款人";
+"monthly_total_spending" = "本月總消費";
+"yearly_total_spending" = "本年總消費";
+"no_data" = "暫無數據";
+"vs_last_month" = "與上月比較";
+"vs_last_year" = "與上年比較";
+"dashboard_include_all_transactions" = "包含所有交易";
+"category_distribution" = "分類分佈";
+"no_category_data" = "暫無分類數據";
+"view_more_categories" = "查看更多分類";
+"daily_average_spending" = "日均消費";
+"day_unit" = "天";
+"calculation_method" = "計算方式";
+"total_spending" = "總消費額";
+"days_unit" = "天";
+"total_days" = "共";
+"monthly_average" = "月均消費";
+"highest_single_spending" = "單筆最高消費";
+"yearly_highest_spending" = "本年單筆最高消費";
+"spending_insights" = "消費洞察";
+"primary_time_period" = "主要消費時段";
+"weekend_spending" = "週末消費比例";
+"total_transactions_label" = "總交易筆數";
+"transactions_unit" = "筆";
+"highest_spending" = "單筆最高消費";
+"most_used_category" = "最常用分類";
+"yearly_most_used_category" = "本年最常用分類";
+"highest_spending_month" = "消費最高月份";
+"month_amount" = "該月金額";
+"spending_time_distribution" = "消費時段分佈";
+"weekday" = "平日";
+"weekend" = "週末";
+"no_insights_data" = "暫無消費洞察";
+"record_more_transactions_for_insights" = "記錄更多交易以獲取消費洞察";
+"transactions_label" = "筆交易";
+
+/* DashboardView */
+"dashboard_title" = "儀表板";
+"no_spending_data" = "暫無消費數據";
+"no_transactions_in_selected_period" = "在選擇的時間段內沒有交易記錄";
+"view_all_transactions" = "查看所有交易";
+"recent_transactions" = "最近交易";
+"transaction_default_name" = "交易";
+
+/* MainTabView */
+"transactions_tab" = "交易";
+"analysis_tab" = "分析";
+"settings_tab" = "設定";
+"settlement_tab" = "分單結算";
+"settlement_select_category" = "選擇分單分類";
+"search_categories" = "搜尋分類";
+"no_category_selected" = "未選擇分類";
+"select_category_for_settlement" = "請選擇一個分類進行分單結算";
+"select_category" = "選擇分類";
+"start_settlement" = "開始分單結算";
+"settlement_description" = "選擇一個分類，查看參與者之間嘅分單結算方案";
+"settlement_how_it_works" = "系統會自動計算每人應付金額，並提供最少轉帳次數嘅結算方案";
+"no_categories" = "沒有分類";
+"create_categories_first" = "請先建立分類";
+"change_button" = "更換";
+"default_label" = "預設";
+"assigned_payers" = "已分配付款人";
+"transactions" = "筆交易";
+"total_amount" = "總金額";
+"settlement_title" = "分單結算";
+
+/* SimpleAssignPayersView */
+"assign_payers_to_category" = "分配付款人給：%@";
+"category_id_label" = "分類ID";
+"assigned_payers_count" = "已分配付款人數量";
+
+/* SettingsView */
 "settings_appearance_section" = "外觀";
 "settings_appearance_label" = "主題模式";
 "settings_appearance_system" = "跟隨系統";
-"settings_appearance_light" = "淺色模式";
-"settings_appearance_dark" = "深色模式";
-"settings_manage_categories" = "分類管理";
-"settings_reset_button" = "重設";
-"subcategory_add_section" = "新增次要分類";
-"subcategory_color_picker" = "選擇顏色";
-"subcategory_name_placeholder" = "輸入名稱";
-"subcategory_add_button" = "新增";
-"subcategory_list_section" = "已建立的次要分類";
-"subcategory_name_label" = "名稱";
-"subcategory_manage_title" = "管理次要分類";
-"subcategory_delete_title" = "刪除次要分類";
-"subcategory_cancel" = "取消";
-"subcategory_delete" = "刪除";
-"subcategory_delete_message" = "刪除次要分類會令相關交易失去連結，確定要刪除嗎？";
-"search_placeholder" = "搜尋交易或分類";
-"transaction_detail_title" = "交易詳情";
-"filter_current" = "目前篩選：";
-"search_label" = "搜尋";
-"clear_button" = "清除";
-"no_transactions" = "沒有符合條件的交易";
-"no_transactions_description" = "請調整搜尋條件或新增交易";
-"uncategorized" = "未分類";
-"all_label" = "全部";
-"type_label" = "類型";
-"all_parent_category" = "全部主要分類";
-"all_subcategory" = "全部子分類";
-"all_supercategory" = "全部活動／旅程";
-"delete_failed" = "刪除失敗";
-"category_section_header" = "主要分類 / 子分類";
-"select_parent_first" = "請先選擇主要分類";
-"search_placeholder" = "搜尋交易或分類";
-"transaction_detail_title" = "交易詳情";
+"settings_appearance_light" = "淺色";
+"settings_appearance_dark" = "深色";
+"settings_language_section" = "語言";
+"settings_language_label" = "應用程式語言";
+"settings_data_management" = "數據管理";
+"settings_manage_categories" = "管理分類";
+"settings_manage_payers" = "管理付款人";
+"settings_about" = "關於";
+"settings_version" = "版本";
+"settings_settlement_feature" = "分單結算功能";
+"settings_standalone_page" = "獨立頁面";
+"settings_title" = "設定";
+
+/* CategorySettlementView */
+"participants_label" = "參與者";
+"no_participants_or_transactions" = "無參與者或交易記錄";
+"calculation_explanation" = "計算方法說明";
+"calculation_principle" = "計算原理";
+"calculation_point_1" = "只計算支出類交易";
+"calculation_point_2" = "每筆交易平均分攤給所有參與者";
+"calculation_point_3" = "每人應付金額 = 所有交易平均分攤的總和";
+"calculation_point_4" = "淨金額 = 實際已付 - 應付金額";
+"example_label" = "簡單示例";
+"example_1" = "一筆$300交易，3人參與，每人應付$100";
+"example_2" = "A已付$150，淨金額=+$50 (應收錢)";
+"example_3" = "B已付$100，淨金額=$0 (平衡)";
+"example_4" = "C已付$50，淨金額=-$50 (應付錢)";
+"optimal_settlement_solution" = "最優分單方案";
+"optimal_settlement_description" = "最少轉帳次數，快速完成分單";
+"only_transfers_needed" = "只需";
+"transfers_to_clear_debts" = "筆轉帳即可完成分單";
+"pays_to" = "付款給";
+"transfer_amount" = "轉帳金額";
+"all_debts_cleared" = "分單已完成";
+"detailed_calculation_results" = "詳細分單結果";
+"actual_paid" = "實際已付";
+"net_balance" = "淨金額";
+"should_pay_to" = "應付錢俾";
+"faq_1_question" = "為什麼只計算支出類交易？";
+"faq_1_answer" = "收入類交易通常不涉及分攤，只計算支出更符合分單使用場景";
+"faq_2_question" = "如何計算每人應付金額？";
+"faq_2_answer" = "每筆交易金額平均分攤給所有參與者，然後累計所有交易的應付金額";
+"faq_3_question" = "什麼是最優分單方案？";
+"faq_3_answer" = "使用最小轉帳次數算法，讓需要付錢嘅人直接付款給應收錢嘅人，減少轉帳次數";
+"faq_4_question" = "可以修改參與者嗎？";
+"faq_4_answer" = "可以，在分類管理中分配固定的付款人，系統會優先使用已分配的付款人";
+"faq_title" = "常見問題";
+"calculation_details" = "計算詳情";
+"debt_settlement" = "分單結算";
+"recalculate_button" = "重新計算";
+"transaction_records" = "交易記錄";
+"no_payer_transactions_in_category" = "此分類中無此付款人的交易記錄";
+"statistics_label" = "統計";
+"total_paid_amount" = "總已付金額";
+"participating_transactions_count" = "參與交易筆數";
+"total_transactions" = "總交易筆數";

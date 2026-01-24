@@ -11,6 +11,7 @@ struct SettlementResult {
 
 // MARK: - 付款人交易行視圖
 struct PayerTransactionRowView: View {
+    @EnvironmentObject var langManager: LanguageManager
     let transaction: Transaction
     let payer: Payer
     
@@ -39,7 +40,7 @@ struct PayerTransactionRowView: View {
             // 顯示此付款人在此交易中的分攤
             if let contribution = transaction.contributions.first(where: { $0.payer.id == payer.id }) {
                 HStack {
-                    Text("分攤：")
+                    Text("\(langManager.localized("contribution_label"))：")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     
@@ -47,7 +48,7 @@ struct PayerTransactionRowView: View {
                         .font(.caption2)
                         .bold()
                     
-                    Text("(總額\(formatCurrency(transaction.totalAmount)))")
+                    Text("(\(langManager.localized("total_amount_label"))\(formatCurrency(transaction.totalAmount)))")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -55,17 +56,26 @@ struct PayerTransactionRowView: View {
         }
         .padding(.vertical, 4)
     }
+    
+    private func formatCurrency(_ amount: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "HKD"
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+    }
 }
 
 // MARK: - 統計行視圖
 struct PayerStatsRowView: View {
+    @EnvironmentObject var langManager: LanguageManager
     let title: String
     let value: String
     let valueColor: Color
     
     init(title: String, value: Decimal, valueColor: Color = .primary) {
         self.title = title
-        self.value = formatCurrency(value)
+        self.value = PayerStatsRowView.formatCurrency(value)
         self.valueColor = valueColor
     }
     
@@ -87,10 +97,19 @@ struct PayerStatsRowView: View {
                 .foregroundColor(valueColor)
         }
     }
+    
+    private static func formatCurrency(_ amount: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "HKD"
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+    }
 }
 
 // MARK: - 付款人標題視圖
 struct PayerHeaderView: View {
+    @EnvironmentObject var langManager: LanguageManager
     let payer: Payer
     let transactionCount: Int
     
@@ -106,7 +125,7 @@ struct PayerHeaderView: View {
             
             Spacer()
             
-            Text("\(transactionCount) 筆交易")
+            Text("\(transactionCount) \(langManager.localized("transactions_label"))")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -116,6 +135,7 @@ struct PayerHeaderView: View {
 
 // MARK: - 付款人交易詳細視圖
 struct PayerTransactionsView: View {
+    @EnvironmentObject var langManager: LanguageManager
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     
@@ -162,9 +182,9 @@ struct PayerTransactionsView: View {
                     )
                 }
                 
-                Section("交易記錄") {
+                Section(langManager.localized("transaction_records")) {
                     if payerTransactions.isEmpty {
-                        Text("此分類中無此付款人的交易記錄")
+                        Text(langManager.localized("no_payer_transactions_in_category"))
                             .foregroundColor(.secondary)
                             .italic()
                     } else {
@@ -177,25 +197,25 @@ struct PayerTransactionsView: View {
                     }
                 }
                 
-                Section("統計") {
+                Section(langManager.localized("statistics_label")) {
                     PayerStatsRowView(
-                        title: "實付總額",
+                        title: langManager.localized("total_paid_amount"),
                         value: totalPaid,
                         valueColor: .blue
                     )
                     
                     PayerStatsRowView(
-                        title: "參與交易數",
+                        title: langManager.localized("participating_transactions_count"),
                         value: payerTransactions.count,
                         valueColor: .secondary
                     )
                 }
             }
-            .navigationTitle("交易詳情")
+            .navigationTitle(langManager.localized("transaction_details"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") {
+                    Button(langManager.localized("done_button")) {
                         dismiss()
                     }
                 }
@@ -206,6 +226,7 @@ struct PayerTransactionsView: View {
 
 // MARK: - 主要視圖
 struct CategorySettlementView: View {
+    @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     
@@ -241,75 +262,6 @@ struct CategorySettlementView: View {
         }.filter { $0.type == .expense } // 只計算支出類交易
     }
     
-    // MARK: - 正確的計算函數
-    
-    // 計算某付款人的總實付金額
-    private func totalPaidByPayer(_ payer: Payer) -> Decimal {
-        return categoryTransactions.reduce(Decimal(0)) { total, transaction in
-            // 找出此付款人在此交易中的貢獻
-            if let contribution = transaction.contributions.first(where: { $0.payer.id == payer.id }) {
-                return total + contribution.amount
-            }
-            return total
-        }
-    }
-    
-    // 獲取此分類的所有參與者（優先使用已分配的付款人）
-    private func getAllParticipants() -> [Payer] {
-        // 先從已分配的付款人中獲取
-        let assignedPayers = category.assignedPayers(in: context)
-        if !assignedPayers.isEmpty {
-            addDebugInfo("使用已分配的付款人: \(assignedPayers.map { $0.name }.joined(separator: ", "))")
-            return assignedPayers
-        }
-        
-        // 如果沒有已分配的付款人，則從交易中動態計算
-        var participantIDs = Set<UUID>()
-        for transaction in categoryTransactions {
-            for contribution in transaction.contributions {
-                participantIDs.insert(contribution.payer.id)
-            }
-        }
-        
-        let dynamicParticipants = allPayers.filter { participantIDs.contains($0.id) }
-        addDebugInfo("使用動態參與者: \(dynamicParticipants.map { $0.name }.joined(separator: ", "))")
-        return dynamicParticipants
-    }
-    
-    // 計算每人應付金額（每筆交易平均分攤法）
-    private func calculateAveragePerTransaction() -> [Payer: Decimal] {
-        var shouldPayAmounts: [Payer: Decimal] = [:]
-        
-        // 初始化每人應付總額為 0
-        for payer in participants {
-            shouldPayAmounts[payer] = 0
-        }
-        
-        // 逐筆交易計算平均分攤
-        for transaction in categoryTransactions {
-            let participantCount = Decimal(participants.count)
-            if participantCount == 0 { continue }
-            
-            let perPersonAmount = transaction.totalAmount / participantCount
-            
-            addDebugInfo("交易 \(transaction.date.formatted(date: .abbreviated, time: .omitted)): \(formatCurrency(transaction.totalAmount))")
-            addDebugInfo("  每人應付: \(formatCurrency(perPersonAmount))")
-            
-            // 每人都應付平均金額
-            for payer in participants {
-                shouldPayAmounts[payer] = (shouldPayAmounts[payer] ?? 0) + perPersonAmount
-            }
-        }
-        
-        // 打印每人應付總額
-        for payer in participants {
-            let shouldPay = shouldPayAmounts[payer] ?? 0
-            addDebugInfo("\(payer.name) 應付總額: \(formatCurrency(shouldPay))")
-        }
-        
-        return shouldPayAmounts
-    }
-    
     var body: some View {
         List {
             // 分類摘要
@@ -320,20 +272,20 @@ struct CategorySettlementView: View {
                             .font(.title2)
                             .bold()
                         
-                        Text("總交易數：\(categoryTransactions.count)")
+                        Text("\(langManager.localized("total_transactions"))：\(categoryTransactions.count)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
                         // 計算總金額
                         let totalAmount = categoryTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
-                        Text("總金額：\(formatCurrency(totalAmount))")
+                        Text("\(langManager.localized("total_amount"))：\(formatCurrency(totalAmount))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
                         // 顯示分配狀態
                         let assignedPayers = category.assignedPayers(in: context)
                         if !assignedPayers.isEmpty {
-                            Text("已分配付款人：\(assignedPayers.map { $0.name }.joined(separator: ", "))")
+                            Text("\(langManager.localized("assigned_payers"))：\(assignedPayers.map { $0.name }.joined(separator: ", "))")
                                 .font(.caption)
                                 .foregroundColor(.blue)
                         }
@@ -351,9 +303,9 @@ struct CategorySettlementView: View {
             }
             
             // 參與者列表
-            Section("參與者") {
+            Section(langManager.localized("participants_label")) {
                 if participants.isEmpty {
-                    Text("此分類暫無交易記錄或未分配付款人")
+                    Text(langManager.localized("no_participants_or_transactions"))
                         .foregroundColor(.secondary)
                         .italic()
                 } else {
@@ -390,53 +342,120 @@ struct CategorySettlementView: View {
                 }
             }
             
+            // 計算方法說明
+            Section(langManager.localized("calculation_explanation")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "lightbulb")
+                            .foregroundColor(.orange)
+                        Text(langManager.localized("calculation_principle"))
+                            .font(.headline)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("• \(langManager.localized("calculation_point_1"))")
+                        Text("• \(langManager.localized("calculation_point_2"))")
+                        Text("• \(langManager.localized("calculation_point_3"))")
+                        Text("• \(langManager.localized("calculation_point_4"))")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    
+                    // 簡單示例
+                    Divider()
+                        .padding(.vertical, 4)
+                    
+                    Text(langManager.localized("example_label"))
+                        .font(.caption)
+                        .bold()
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(langManager.localized("example_1"))
+                        Text(langManager.localized("example_2"))
+                        Text(langManager.localized("example_3"))
+                        Text(langManager.localized("example_4"))
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 8)
+            }
+            
             // 結算方案
             if !settlementSteps.isEmpty {
-                Section("最優結算方案") {
+                Section(langManager.localized("optimal_settlement_solution")) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("只需 \(settlementSteps.count) 筆轉帳即可清零所有債務")
-                            .font(.headline)
-                            .foregroundColor(.green)
-                        
-                        ForEach(settlementSteps.indices, id: \.self) { index in
-                            let step = settlementSteps[index]
-                            HStack {
-                                Text("\(index + 1).")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Circle()
-                                    .fill(Color(hex: step.from.colorHex ?? "#A8A8A8"))
-                                    .frame(width: 12, height: 12)
-                                
-                                Text(step.from.name)
-                                    .font(.body)
-                                
-                                Text("付款")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Circle()
-                                    .fill(Color(hex: step.to.colorHex ?? "#A8A8A8"))
-                                    .frame(width: 12, height: 12)
-                                
-                                Text(step.to.name)
-                                    .font(.body)
-                                
-                                Spacer()
-                                
-                                Text(formatCurrency(step.amount))
-                                    .font(.body)
-                                    .bold()
-                                    .foregroundColor(.blue)
-                            }
-                            .padding(.vertical, 2)
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(.yellow)
+                            Text(langManager.localized("optimal_settlement_solution"))
+                                .font(.headline)
+                                .foregroundColor(.primary)
                         }
                         
-                        Text("完成後所有人債務清零 ✅")
+                        Text(langManager.localized("optimal_settlement_description"))
                             .font(.caption)
                             .foregroundColor(.secondary)
-                            .padding(.top, 4)
+                            .padding(.bottom, 4)
+                        
+                        // 方案細節
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("\(langManager.localized("only_transfers_needed")) \(settlementSteps.count) \(langManager.localized("transfers_to_clear_debts"))")
+                                .font(.headline)
+                                .foregroundColor(.green)
+                            
+                            ForEach(settlementSteps.indices, id: \.self) { index in
+                                let step = settlementSteps[index]
+                                HStack {
+                                    Text("\(index + 1).")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Circle()
+                                        .fill(Color(hex: step.from.colorHex ?? "#A8A8A8"))
+                                        .frame(width: 12, height: 12)
+                                    
+                                    Text(step.from.name)
+                                        .font(.body)
+                                    
+                                    Text(langManager.localized("pays_to"))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Circle()
+                                        .fill(Color(hex: step.to.colorHex ?? "#A8A8A8"))
+                                        .frame(width: 12, height: 12)
+                                    
+                                    Text(step.to.name)
+                                        .font(.body)
+                                    
+                                    Spacer()
+                                    
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text(formatCurrency(step.amount))
+                                            .font(.body)
+                                            .bold()
+                                            .foregroundColor(.blue)
+                                        Text(langManager.localized("transfer_amount"))
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                        
+                        Divider()
+                            .padding(.vertical, 4)
+                        
+                        // 完成後狀態
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text(langManager.localized("all_debts_cleared"))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .padding(.vertical, 8)
                 }
@@ -444,7 +463,7 @@ struct CategorySettlementView: View {
             
             // 詳細計算結果
             if !settlementResults.isEmpty {
-                Section("詳細計算結果") {
+                Section(langManager.localized("detailed_calculation_results")) {
                     ForEach(settlementResults, id: \.payer.id) { result in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -458,13 +477,13 @@ struct CategorySettlementView: View {
                                 Spacer()
                                 
                                 let paid = totalPaidByPayer(result.payer)
-                                Text("實付：\(formatCurrency(paid))")
+                                Text("\(langManager.localized("actual_paid"))：\(formatCurrency(paid))")
                                     .font(.caption)
                                     .foregroundColor(.blue)
                             }
                             
                             HStack {
-                                Text("淨結餘：")
+                                Text("\(langManager.localized("net_balance"))：")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 
@@ -475,7 +494,7 @@ struct CategorySettlementView: View {
                                 Spacer()
                                 
                                 if let toPayer = result.shouldPayTo {
-                                    Text("應付款給 \(toPayer.name)")
+                                    Text("\(langManager.localized("should_pay_to")) \(toPayer.name)")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -486,9 +505,45 @@ struct CategorySettlementView: View {
                 }
             }
             
+            // 常見問題
+            Section {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 12) {
+                        FAQItem(
+                            question: langManager.localized("faq_1_question"),
+                            answer: langManager.localized("faq_1_answer")
+                        )
+                        
+                        FAQItem(
+                            question: langManager.localized("faq_2_question"),
+                            answer: langManager.localized("faq_2_answer")
+                        )
+                        
+                        FAQItem(
+                            question: langManager.localized("faq_3_question"),
+                            answer: langManager.localized("faq_3_answer")
+                        )
+                        
+                        FAQItem(
+                            question: langManager.localized("faq_4_question"),
+                            answer: langManager.localized("faq_4_answer")
+                        )
+                    }
+                    .padding(.vertical, 8)
+                } label: {
+                    HStack {
+                        Image(systemName: "questionmark.circle")
+                            .foregroundColor(.blue)
+                        Text(langManager.localized("faq_title"))
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                    }
+                }
+            }
+            
             // 除錯信息區塊
             if !debugInfo.isEmpty {
-                Section("計算詳情") {
+                Section(langManager.localized("calculation_details")) {
                     ForEach(debugInfo.indices, id: \.self) { index in
                         Text(debugInfo[index])
                             .font(.caption)
@@ -498,11 +553,11 @@ struct CategorySettlementView: View {
                 }
             }
         }
-        .navigationTitle("債務結算")
+        .navigationTitle(langManager.localized("debt_settlement"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("重新計算") {
+                Button(langManager.localized("recalculate_button")) {
                     calculateSettlement()
                 }
             }
@@ -510,10 +565,36 @@ struct CategorySettlementView: View {
         .onAppear {
             calculateSettlement()
         }
+        // 關鍵修改：加呢段，監聽分類ID變化
+        .onChange(of: category.id) { oldID, newID in
+            if oldID != newID {
+                calculateSettlement()
+            }
+        }
         .sheet(isPresented: $showPayerTransactions) {
             if let payer = selectedPayer {
                 PayerTransactionsView(payer: payer, category: category)
             }
+        }
+    }
+    
+    // MARK: - 輔助組件
+    struct FAQItem: View {
+        let question: String
+        let answer: String
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Q: \(question)")
+                    .font(.subheadline)
+                    .bold()
+                    .foregroundColor(.primary)
+                
+                Text("A: \(answer)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.vertical, 4)
         }
     }
     
@@ -626,6 +707,40 @@ struct CategorySettlementView: View {
         addDebugInfo("=== 計算完成 ===")
     }
     
+    // 計算每人應付金額（每筆交易平均分攤法）
+    private func calculateAveragePerTransaction() -> [Payer: Decimal] {
+        var shouldPayAmounts: [Payer: Decimal] = [:]
+        
+        // 初始化每人應付總額為 0
+        for payer in participants {
+            shouldPayAmounts[payer] = 0
+        }
+        
+        // 逐筆交易計算平均分攤
+        for transaction in categoryTransactions {
+            let participantCount = Decimal(participants.count)
+            if participantCount == 0 { continue }
+            
+            let perPersonAmount = transaction.totalAmount / participantCount
+            
+            addDebugInfo("交易 \(transaction.date.formatted(date: .abbreviated, time: .omitted)): \(formatCurrency(transaction.totalAmount))")
+            addDebugInfo("  每人應付: \(formatCurrency(perPersonAmount))")
+            
+            // 每人都應付平均金額
+            for payer in participants {
+                shouldPayAmounts[payer] = (shouldPayAmounts[payer] ?? 0) + perPersonAmount
+            }
+        }
+        
+        // 打印每人應付總額
+        for payer in participants {
+            let shouldPay = shouldPayAmounts[payer] ?? 0
+            addDebugInfo("\(payer.name) 應付總額: \(formatCurrency(shouldPay))")
+        }
+        
+        return shouldPayAmounts
+    }
+    
     // 計算最優結算方案（最少轉帳次數）
     private func calculateOptimalSettlement(balances: [Payer: Decimal]) -> [(from: Payer, to: Payer, amount: Decimal)] {
         var creditors: [(payer: Payer, amount: Decimal)] = [] // 應收款人（正數）
@@ -671,5 +786,46 @@ struct CategorySettlementView: View {
         
         addDebugInfo("總共需要 \(steps.count) 筆轉帳")
         return steps
+    }
+    
+    // 計算某付款人的總實付金額
+    private func totalPaidByPayer(_ payer: Payer) -> Decimal {
+        return categoryTransactions.reduce(Decimal(0)) { total, transaction in
+            // 找出此付款人在此交易中的貢獻
+            if let contribution = transaction.contributions.first(where: { $0.payer.id == payer.id }) {
+                return total + contribution.amount
+            }
+            return total
+        }
+    }
+    
+    // 獲取此分類的所有參與者（優先使用已分配的付款人）
+    private func getAllParticipants() -> [Payer] {
+        // 先從已分配的付款人中獲取
+        let assignedPayers = category.assignedPayers(in: context)
+        if !assignedPayers.isEmpty {
+            addDebugInfo("使用已分配的付款人: \(assignedPayers.map { $0.name }.joined(separator: ", "))")
+            return assignedPayers
+        }
+        
+        // 如果沒有已分配的付款人，則從交易中動態計算
+        var participantIDs = Set<UUID>()
+        for transaction in categoryTransactions {
+            for contribution in transaction.contributions {
+                participantIDs.insert(contribution.payer.id)
+            }
+        }
+        
+        let dynamicParticipants = allPayers.filter { participantIDs.contains($0.id) }
+        addDebugInfo("使用動態參與者: \(dynamicParticipants.map { $0.name }.joined(separator: ", "))")
+        return dynamicParticipants
+    }
+    
+    private func formatCurrency(_ amount: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "HKD"
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 }
