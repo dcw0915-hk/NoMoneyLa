@@ -244,6 +244,7 @@ struct CategoryListView: View {
                     .onMove(perform: moveCategory)
                 }
 
+                /*
                 Section("分類債務結算") {
                     ForEach(categories) { category in
                         NavigationLink {
@@ -273,6 +274,7 @@ struct CategoryListView: View {
                         }
                     }
                 }
+                */
             }
             .navigationTitle("分類管理")
             .alert("刪除分類", isPresented: $showDeleteAlert, presenting: categoryToDelete) { category in
