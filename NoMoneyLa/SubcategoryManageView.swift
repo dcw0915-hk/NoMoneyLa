@@ -78,6 +78,8 @@ struct SubcategoryManagerView: View {
                                 ColorPicker("", selection: Binding(
                                     get: { Color(hex: sub.colorHex ?? "#A8A8A8") },
                                     set: { newColor in
+                                        // 預設分類嘅「未分類」子分類唔可以改顏色
+                                        if isDefaultCategorySubcategory(sub) { return }
                                         sub.colorHex = newColor.toHex() ?? "#A8A8A8"
                                         try? context.save()
                                     }
@@ -85,9 +87,10 @@ struct SubcategoryManagerView: View {
                                 .labelsHidden()
                                 .frame(width: 30, height: 30)
                                 .clipShape(Circle())
+                                .disabled(isDefaultCategorySubcategory(sub))
                                 
-                                // 未分類子分類不顯示編輯按鈕
-                                if sub.name != "未分類" {
+                                // 預設分類嘅「未分類」子分類不顯示編輯按鈕
+                                if sub.name != "未分類" && !isDefaultCategorySubcategory(sub) {
                                     Button {
                                         startInlineEdit(for: sub)
                                     } label: {
@@ -106,9 +109,9 @@ struct SubcategoryManagerView: View {
                         }
                         .frame(height: 44)
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        // 添加左滑刪除功能（未分類除外）
-                        .swipeActions(edge: .trailing, allowsFullSwipe: sub.name != "未分類") {
-                            if sub.name != "未分類" {
+                        // 添加左滑刪除功能（預設分類嘅「未分類」除外）
+                        .swipeActions(edge: .trailing, allowsFullSwipe: sub.name != "未分類" && !isDefaultCategorySubcategory(sub)) {
+                            if sub.name != "未分類" && !isDefaultCategorySubcategory(sub) {
                                 Button(role: .destructive) {
                                     deleteSubcategory(sub)
                                 } label: {
@@ -116,7 +119,7 @@ struct SubcategoryManagerView: View {
                                 }
                             }
                         }
-                        .disabled(sub.name == "未分類") // 未分類不可編輯
+                        .disabled(sub.name == "未分類" && isDefaultCategorySubcategory(sub)) // 預設分類嘅「未分類」不可編輯
                     }
                     .onMove(perform: moveSubcategory)
                 }
@@ -197,7 +200,7 @@ struct SubcategoryManagerView: View {
     }
 
     private func startInlineEdit(for sub: Subcategory) {
-        if sub.name == "未分類" { return } // 未分類不可編輯
+        if sub.name == "未分類" && isDefaultCategorySubcategory(sub) { return } // 預設分類嘅「未分類」不可編輯
         editingSubcategoryID = sub.id
         inlineEditedName = sub.name
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -206,9 +209,18 @@ struct SubcategoryManagerView: View {
     }
 
     private func commitInlineEdit(for sub: Subcategory) {
-        if sub.name == "未分類" { return } // 未分類不可編輯
+        if sub.name == "未分類" && isDefaultCategorySubcategory(sub) {
+            editingSubcategoryID = nil
+            return
+        }
         let trimmed = inlineEditedName.trimmingCharacters(in: .whitespaces)
         if !trimmed.isEmpty {
+            // 防止改名做「未分類」
+            guard trimmed != "未分類" else {
+                editingSubcategoryID = nil
+                return
+            }
+            
             sub.name = trimmed
             do {
                 try context.save()
@@ -246,6 +258,14 @@ struct SubcategoryManagerView: View {
 
     private func moveSubcategory(from source: IndexSet, to destination: Int) {
         var revised = subcategories
+        
+        // 確保預設分類嘅「未分類」子分類唔可以移動
+        if let defaultSubIndex = revised.firstIndex(where: { isDefaultCategorySubcategory($0) }) {
+            if source.contains(defaultSubIndex) {
+                return
+            }
+        }
+        
         revised.move(fromOffsets: source, toOffset: destination)
         
         // 確保未分類永遠在第一位
@@ -263,14 +283,14 @@ struct SubcategoryManagerView: View {
 
     // 左滑刪除觸發的方法
     private func deleteSubcategory(_ sub: Subcategory) {
-        if sub.name == "未分類" { return } // 未分類不可刪除
+        if sub.name == "未分類" && isDefaultCategorySubcategory(sub) { return } // 預設分類嘅「未分類」不可刪除
         subcategoryToDelete = sub
         showDeleteAlert = true
     }
 
     // 實際執行刪除的方法
     private func safeDelete(_ sub: Subcategory) {
-        if sub.name == "未分類" { return } // 未分類不可刪除
+        if sub.name == "未分類" && isDefaultCategorySubcategory(sub) { return } // 預設分類嘅「未分類」不可刪除
         
         for tx in transactions where tx.subcategoryID == sub.id {
             tx.subcategoryID = nil
@@ -296,5 +316,14 @@ struct SubcategoryManagerView: View {
             sub.order = index
         }
         try? context.save()
+    }
+    
+    // 檢查是否屬於預設分類嘅「未分類」子分類
+    private func isDefaultCategorySubcategory(_ sub: Subcategory) -> Bool {
+        if let parentCategory = categories.first(where: { $0.id == sub.parentID }),
+           parentCategory.isDefault && sub.name == "未分類" {
+            return true
+        }
+        return false
     }
 }

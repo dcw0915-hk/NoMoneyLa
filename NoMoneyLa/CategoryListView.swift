@@ -195,6 +195,8 @@ struct CategoryListView: View {
     @State private var editingCategoryID: UUID?
     @State private var inlineEditedName: String = ""
     @FocusState private var isInlineFocused: Bool
+    
+    @State private var showCannotDeleteAlert = false  // 新增：無法刪除提示
 
     private var categories: [Category] {
         allCategories.sorted(by: { $0.order < $1.order })
@@ -228,12 +230,14 @@ struct CategoryListView: View {
                         }
                         .padding(.vertical, 4)
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        // 添加左滑刪除功能
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                deleteCategory(category)
-                            } label: {
-                                Label("刪除", systemImage: "trash")
+                        // 添加左滑刪除功能（預設分類除外）
+                        .swipeActions(edge: .trailing, allowsFullSwipe: !category.isDefault) {
+                            if !category.isDefault {  // 預設分類唔顯示刪除按鈕
+                                Button(role: .destructive) {
+                                    deleteCategory(category)
+                                } label: {
+                                    Label("刪除", systemImage: "trash")
+                                }
                             }
                         }
                     }
@@ -276,6 +280,11 @@ struct CategoryListView: View {
                 Button("刪除", role: .destructive) { safeDelete(category) }
             } message: { category in
                 Text("刪除分類「\(category.name)」會同時刪除其子分類，並讓相關交易失去連結，確定要刪除嗎？")
+            }
+            .alert("無法刪除", isPresented: $showCannotDeleteAlert) {
+                Button("明白", role: .cancel) { }
+            } message: {
+                Text("「未分類」係系統預設分類，用嚟存放未歸類嘅交易。所有交易都需要有分類，呢個分類唔可以刪除。")
             }
             .sheet(item: $showingAssignPayersForCategory) { category in
                 AssignPayersView(categoryID: category.id)
@@ -399,11 +408,19 @@ struct CategoryListView: View {
 
     // MARK: - 方法
     private func startInlineEdit(for category: Category) {
+        // 預設分類唔可以改名
+        if category.isDefault { return }
         editingCategoryID = category.id
         inlineEditedName = category.name
     }
 
     private func commitInlineEdit(for category: Category) {
+        // 預設分類唔可以改名
+        if category.isDefault {
+            editingCategoryID = nil
+            return
+        }
+        
         let trimmed = inlineEditedName.trimmingCharacters(in: .whitespaces)
         if !trimmed.isEmpty {
             category.name = trimmed
@@ -428,6 +445,12 @@ struct CategoryListView: View {
     private func addCategory() {
         let trimmed = newName.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
+        // 防止建立重複嘅「未分類」分類
+        guard trimmed != "未分類" else {
+            newName = ""
+            return
+        }
+        
         let maxOrder = categories.map { $0.order }.max() ?? 0
         let newCategory = Category(name: trimmed, order: maxOrder + 1)
         context.insert(newCategory)
@@ -442,6 +465,16 @@ struct CategoryListView: View {
 
     private func moveCategory(from source: IndexSet, to destination: Int) {
         var revised = categories
+        
+        // 確保預設分類唔可以移動
+        let defaultCategoryIndex = revised.firstIndex(where: { $0.isDefault })
+        if let defaultIndex = defaultCategoryIndex {
+            // 如果嘗試移動預設分類，直接返回
+            if source.contains(defaultIndex) {
+                return
+            }
+        }
+        
         revised.move(fromOffsets: source, toOffset: destination)
         for (index, cat) in revised.enumerated() { cat.order = index }
         try? context.save()
@@ -449,12 +482,21 @@ struct CategoryListView: View {
 
     // 左滑刪除觸發的方法
     private func deleteCategory(_ category: Category) {
+        // 檢查是否為預設分類
+        if category.isDefault {
+            // 顯示提示，唔准刪除
+            showCannotDeleteAlert = true
+            return
+        }
         categoryToDelete = category
         showDeleteAlert = true
     }
 
     // 實際執行刪除的方法
     private func safeDelete(_ category: Category) {
+        // 再次檢查是否為預設分類
+        guard !category.isDefault else { return }
+        
         let subs = allSubcategories.filter { $0.parentID == category.id }
         for sub in subs {
             for tx in transactions where tx.subcategoryID == sub.id {

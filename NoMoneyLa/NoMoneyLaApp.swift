@@ -25,6 +25,7 @@ struct NoMoneyLaApp: App {
         _dashboardVM = StateObject(wrappedValue: DashboardViewModel(context: ctx))
         
         performOneTimeMigrationIfNeeded(ctx)
+        createDefaultCategoryIfNeeded(in: ctx)  // 新增：建立預設分類
         initializeOrders(in: ctx)
         createDefaultPayerIfNeeded(in: ctx)
         createUncategorizedSubcategoriesIfNeeded(in: ctx)
@@ -48,10 +49,55 @@ struct NoMoneyLaApp: App {
         }
     }
 
+    private func createDefaultCategoryIfNeeded(in context: ModelContext) {
+        do {
+            let categoryFetch = FetchDescriptor<Category>()
+            let existingCategories = try context.fetch(categoryFetch)
+            
+            // 檢查係咪已經有預設「未分類」分類
+            let hasDefault = existingCategories.contains { $0.name == "未分類" && $0.isDefault }
+            
+            if !hasDefault {
+                // 建立預設「未分類」主分類
+                let defaultCategory = Category(
+                    name: "未分類",
+                    order: -1,  // 排最前
+                    colorHex: "#A8A8A8",
+                    isDefault: true  // 標記為預設
+                )
+                context.insert(defaultCategory)
+                
+                // 建立對應嘅「未分類」子分類
+                let defaultSubcategory = Subcategory(
+                    name: "未分類",
+                    parentID: defaultCategory.id,
+                    order: -1,
+                    colorHex: "#A8A8A8"
+                )
+                context.insert(defaultSubcategory)
+                
+                try context.save()
+                print("已建立預設未分類分類")
+            }
+        } catch {
+            print("建立預設分類時出錯：\(error)")
+        }
+    }
+
     private func initializeOrders(in context: ModelContext) {
         do {
             let allCategories = try context.fetch(FetchDescriptor<Category>())
-            let sortedParents = allCategories.sorted(by: { $0.order < $1.order })
+            
+            // 確保預設分類 order = -1（排最前）
+            if let defaultCat = allCategories.first(where: { $0.isDefault }) {
+                defaultCat.order = -1
+            }
+            
+            // 其他分類重新排序
+            let sortedParents = allCategories
+                .filter { !$0.isDefault }
+                .sorted(by: { $0.order < $1.order })
+            
             for (idx, cat) in sortedParents.enumerated() {
                 cat.order = idx
             }
@@ -144,6 +190,9 @@ struct NoMoneyLaApp: App {
             let allSubcategories = try context.fetch(FetchDescriptor<Subcategory>())
             
             for category in categories {
+                // 跳過預設分類，因為已經建立咗
+                if category.isDefault { continue }
+                
                 let hasUncategorized = allSubcategories.contains {
                     $0.parentID == category.id && $0.name == "未分類"
                 }

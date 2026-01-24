@@ -8,14 +8,15 @@ final class Category {
     var name: String
     var order: Int = 0
     var colorHex: String?
-
+    var isDefault: Bool = false  // 新增：標記是否為預設分類
     var assignedPayerIDs: [UUID] = []
 
-    init(id: UUID = UUID(), name: String, order: Int = 0, colorHex: String? = nil, assignedPayerIDs: [UUID] = []) {
+    init(id: UUID = UUID(), name: String, order: Int = 0, colorHex: String? = nil, isDefault: Bool = false, assignedPayerIDs: [UUID] = []) {
         self.id = id
         self.name = name
         self.order = order
         self.colorHex = colorHex
+        self.isDefault = isDefault
         self.assignedPayerIDs = assignedPayerIDs
     }
 }

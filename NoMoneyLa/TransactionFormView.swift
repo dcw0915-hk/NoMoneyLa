@@ -736,11 +736,19 @@ struct TransactionFormView: View {
                 contributions = []
             }
         } else {
+            // 新增交易時，自動選擇預設「未分類」分類
+            if let defaultCategory = categories.first(where: { $0.isDefault }),
+               let defaultSubcategory = subcategories.first(where: {
+                   $0.parentID == defaultCategory.id && $0.name == "未分類"
+               }) {
+                selectedParentID = defaultCategory.id
+                selectedSubcategoryID = defaultSubcategory.id
+            }
+            
             showContributionSection = false
             contributions = []
         }
     }
-    
     // MARK: - Actions & Helpers
     
     private func handleTypeChange(_ newType: TransactionType) {
