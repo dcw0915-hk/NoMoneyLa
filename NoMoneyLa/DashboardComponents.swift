@@ -668,9 +668,8 @@ struct DailyAverageCard: View {
                                 .foregroundColor(.orange)
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(period == .month ?
-                                     langManager.localized("highest_single_spending") :
-                                     langManager.localized("yearly_highest_spending"))
+                                // ✅ 修改這裡：使用更清晰的標題
+                                Text(getHighestTransactionTitle())
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 
@@ -680,15 +679,10 @@ struct DailyAverageCard: View {
                                         .bold()
                                         .foregroundColor(.orange)
                                     
-                                    if period == .month {
-                                        Text("(\(highest.date, format: .dateTime.day())\(langManager.localized("day_unit")))")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    } else {
-                                        Text("(\(highest.date, format: .dateTime.month().day()))")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
+                                    // ✅ 修改這裡：使用更清晰的日期格式
+                                    Text("(\(formatTransactionDate(highest.date)))")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
                                 }
                             }
                             
@@ -712,6 +706,54 @@ struct DailyAverageCard: View {
         }
     }
     
+    // ✅ 新增：獲取最高交易標題
+    private func getHighestTransactionTitle() -> String {
+        switch period {
+        case .month:
+            return langManager.localized("highest_spending_day")
+        case .year:
+            return langManager.localized("highest_spending_date")
+        }
+    }
+    
+    // ✅ 新增：格式化交易日期
+    private func formatTransactionDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        
+        switch period {
+        case .month:
+            // 月視圖：顯示日期，如 "25號" 或 "25th"
+            formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "d號" : "d'日'"
+            
+            // 英文環境下添加序數後綴
+            if langManager.selectedLanguage == .english {
+                let day = Calendar.current.component(.day, from: date)
+                let suffix = daySuffix(for: day)
+                return "\(day)\(suffix)"
+            }
+            return formatter.string(from: date)
+            
+        case .year:
+            // 年視圖：顯示月份和日期
+            formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "M月d日" : "MMM d"
+            return formatter.string(from: date)
+        }
+    }
+    
+    // ✅ 新增：英文日期序數後綴
+    private func daySuffix(for day: Int) -> String {
+        switch day {
+        case 1, 21, 31:
+            return "st"
+        case 2, 22:
+            return "nd"
+        case 3, 23:
+            return "rd"
+        default:
+            return "th"
+        }
+    }
+    
     private func formatCurrency(_ amount: Decimal) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -722,7 +764,6 @@ struct DailyAverageCard: View {
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 }
-
 // MARK: - 消費洞察卡片
 
 struct SpendingInsightCard: View {

@@ -293,6 +293,7 @@ class DashboardViewModel: ObservableObject {
         }
     }
     
+    // ✅ 更新：簡化統計邏輯，不再處理 nil 分類
     private func calculateCategoryStats(
         transactions: [Transaction],
         context: ModelContext
@@ -309,13 +310,61 @@ class DashboardViewModel: ObservableObject {
             return []
         }
         
+        // ✅ 先獲取預設未分類分類
+        let defaultCategory = allCategories.first(where: { $0.isDefault })
+        var defaultUncategorizedSubcategory: Subcategory?
+        if let defaultCategory = defaultCategory {
+            defaultUncategorizedSubcategory = allSubcategories.first(where: {
+                $0.parentID == defaultCategory.id && $0.name == "未分類"
+            })
+        }
+        
         // 按分類統計
         var categoryTotals: [UUID: (amount: Decimal, count: Int)] = [:]
         var totalAmount: Decimal = 0
         
         for transaction in transactions {
-            guard let subcategoryID = transaction.subcategoryID,
-                  let subcategory = allSubcategories.first(where: { $0.id == subcategoryID }) else {
+            guard let subcategoryID = transaction.subcategoryID else {
+                // ✅ 理論上唔應該出現，但如果出現就計入預設未分類
+                if let defaultUncategorizedSubcategory = defaultUncategorizedSubcategory {
+                    let transactionAmount = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
+                    
+                    if let existing = categoryTotals[defaultUncategorizedSubcategory.parentID] {
+                        categoryTotals[defaultUncategorizedSubcategory.parentID] = (
+                            amount: existing.amount + transactionAmount,
+                            count: existing.count + 1
+                        )
+                    } else {
+                        categoryTotals[defaultUncategorizedSubcategory.parentID] = (
+                            amount: transactionAmount,
+                            count: 1
+                        )
+                    }
+                    
+                    totalAmount += transactionAmount
+                }
+                continue
+            }
+            
+            guard let subcategory = allSubcategories.first(where: { $0.id == subcategoryID }) else {
+                // 如果找不到對應子分類，也計入預設未分類
+                if let defaultUncategorizedSubcategory = defaultUncategorizedSubcategory {
+                    let transactionAmount = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
+                    
+                    if let existing = categoryTotals[defaultUncategorizedSubcategory.parentID] {
+                        categoryTotals[defaultUncategorizedSubcategory.parentID] = (
+                            amount: existing.amount + transactionAmount,
+                            count: existing.count + 1
+                        )
+                    } else {
+                        categoryTotals[defaultUncategorizedSubcategory.parentID] = (
+                            amount: transactionAmount,
+                            count: 1
+                        )
+                    }
+                    
+                    totalAmount += transactionAmount
+                }
                 continue
             }
             

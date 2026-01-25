@@ -113,6 +113,11 @@ struct TransactionFormView: View {
     @State private var amountFieldIsFirstResponder: Bool = false
     @FocusState private var focusedField: Field?
 
+    // ✅ 新增：用於顯示分攤警告的狀態
+    @State private var showContributionMismatchAlert = false
+    @State private var contributionDifference: Decimal = 0
+    @State private var allowSaveAnyway = false
+    
     private let currencies = ["HKD", "USD", "JPY"]
     
     enum Field {
@@ -220,27 +225,13 @@ struct TransactionFormView: View {
 
                         HStack(spacing: 12) {
                             Menu {
-                                Button(action: {
-                                    hideKeyboard()
-                                    selectedParentID = nil
-                                    selectedSubcategoryID = nil
-                                }) {
-                                    HStack {
-                                        Text(langManager.localized("form_none"))
-                                        if selectedParentID == nil {
-                                            Spacer()
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-
                                 ForEach(categories) { cat in
                                     Button(action: {
                                         hideKeyboard()
                                         selectedParentID = cat.id
                                         // 自動選擇該分類下的「未分類」子分類
                                         if let uncategorizedSub = subcategories.first(where: {
-                                            $0.parentID == cat.id && $0.name == "未分類"
+                                            $0.parentID == cat.id && $0.name == langManager.localized("uncategorized_label")
                                         }) {
                                             selectedSubcategoryID = uncategorizedSub.id
                                         }
@@ -261,7 +252,7 @@ struct TransactionFormView: View {
                                     Text(selectedParentName)
                                         .lineLimit(1)
                                         .truncationMode(.tail)
-                                        .foregroundColor(selectedParentID == nil ? .secondary : .primary)
+                                        .foregroundColor(.primary)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     Image(systemName: "chevron.down")
                                         .font(.system(size: 12, weight: .semibold))
@@ -318,7 +309,7 @@ struct TransactionFormView: View {
                                 if let newParent = newParent {
                                     // 當選擇父分類時，自動選擇「未分類」子分類
                                     if let uncategorizedSub = subcategories.first(where: {
-                                        $0.parentID == newParent && $0.name == "未分類"
+                                        $0.parentID == newParent && $0.name == langManager.localized("uncategorized_label")
                                     }) {
                                         selectedSubcategoryID = uncategorizedSub.id
                                     }
@@ -510,9 +501,20 @@ struct TransactionFormView: View {
                                     Text(langManager.localized("contribution_total"))
                                         .font(.caption)
                                     Spacer()
+                                    
+                                    // ✅ 改進：根據差異顯示不同顏色
+                                    let totalColor = getTotalColor()
+                                    let diffText = getDifferenceText()
+                                    
                                     Text("\(formatCurrency(amount: distributedTotal, code: currencyCode)) / \(formatCurrency(amount: totalAmountDecimal, code: currencyCode))")
                                         .font(.caption)
-                                        .foregroundColor(distributedTotal == totalAmountDecimal ? .green : .red)
+                                        .foregroundColor(totalColor)
+                                    
+                                    if !diffText.isEmpty {
+                                        Text("(\(diffText))")
+                                            .font(.caption2)
+                                            .foregroundColor(totalColor)
+                                    }
                                 }
                                 .padding(.top, 8)
                             }
@@ -577,7 +579,7 @@ struct TransactionFormView: View {
                         }
                         Button(langManager.localized("form_save")) {
                             hideKeyboard()
-                            save()
+                            saveWithValidation()
                         }
                         .disabled(!isValid)
                     }
@@ -602,6 +604,20 @@ struct TransactionFormView: View {
             } message: {
                 Text(langManager.localized("form_delete_message"))
             }
+            .alert("分攤金額不匹配", isPresented: $showContributionMismatchAlert) {
+                Button("取消", role: .cancel) {
+                    allowSaveAnyway = false
+                }
+                Button("修復並保存") {
+                    fixContributionAmountsAndSave()
+                }
+                Button("仍然保存", role: .destructive) {
+                    allowSaveAnyway = true
+                    saveTransaction()
+                }
+            } message: {
+                Text(getContributionMismatchMessage())
+            }
         }
     }
     
@@ -622,18 +638,20 @@ struct TransactionFormView: View {
            let parent = categories.first(where: { $0.id == parentID }) {
             return parent.name
         } else {
-            return langManager.localized("form_none")
+            // ✅ 如果冇選擇分類，顯示「未分類」而非「無」
+            return langManager.localized("uncategorized_label")
         }
     }
     
     private var selectedSubcategoryName: String {
         if selectedParentID == nil {
-            return langManager.localized("select_parent_first")
+            // ✅ 如果冇選擇父分類，顯示「未分類」而非「請先選擇父分類」
+            return langManager.localized("uncategorized_label")
         } else if let subID = selectedSubcategoryID,
                   let sub = subcategories.first(where: { $0.id == subID }) {
             return sub.name
         } else {
-            return langManager.localized("form_none")
+            return langManager.localized("uncategorized_label")
         }
     }
     
@@ -642,7 +660,7 @@ struct TransactionFormView: View {
     }
     
     private var distributedTotal: Decimal {
-        contributions.reduce(0) { total, contribution in
+        contributions.reduce(Decimal(0)) { total, contribution in
             total + (decimalFromString(contribution.amountText) ?? 0)
         }
     }
@@ -650,11 +668,7 @@ struct TransactionFormView: View {
     private var isValid: Bool {
         guard let total = decimalFromString(totalAmountText), total > 0 else { return false }
         
-        // 檢查分類選擇
-        if selectedParentID != nil && selectedSubcategoryID == nil {
-            return false // 有父分類但沒有子分類
-        }
-        
+        // ✅ 移除分類檢查，因為現在總會有分類（預設未分類）
         if selectedType == .income {
             return true
         }
@@ -707,6 +721,34 @@ struct TransactionFormView: View {
         payers.first { $0.isDefault } ?? payers.first
     }
     
+    // ✅ 新增：獲取總額顏色
+    private func getTotalColor() -> Color {
+        let difference = abs(distributedTotal - totalAmountDecimal)
+        
+        if difference <= Decimal(0.01) {
+            return .green
+        } else if difference <= Decimal(1.00) {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+    
+    // ✅ 新增：獲取差異文字
+    private func getDifferenceText() -> String {
+        let difference = distributedTotal - totalAmountDecimal
+        
+        if abs(difference) <= Decimal(0.01) {
+            return ""
+        } else if difference > 0 {
+            let diffStr = formatCurrency(amount: difference, code: currencyCode)
+            return "+\(diffStr)"
+        } else {
+            let diffStr = formatCurrency(amount: abs(difference), code: currencyCode)
+            return "-\(diffStr)"
+        }
+    }
+    
     // MARK: - Setup Methods
     
     private func setupInitialData() {
@@ -722,6 +764,9 @@ struct TransactionFormView: View {
                let sub = subcategories.first(where: { $0.id == subID }) {
                 selectedSubcategoryID = sub.id
                 selectedParentID = sub.parentID
+            } else {
+                // ✅ 如果交易原本 subcategoryID 為 nil，設置為預設未分類
+                setDefaultUncategorized()
             }
             
             if tx.type == .expense && !tx.contributions.isEmpty {
@@ -738,17 +783,28 @@ struct TransactionFormView: View {
                 contributions = []
             }
         } else {
-            // 新增交易時，自動選擇預設「未分類」分類
-            if let defaultCategory = categories.first(where: { $0.isDefault }),
-               let defaultSubcategory = subcategories.first(where: {
-                   $0.parentID == defaultCategory.id && $0.name == "未分類"
-               }) {
-                selectedParentID = defaultCategory.id
-                selectedSubcategoryID = defaultSubcategory.id
-            }
+            // ✅ 新增交易時，自動選擇預設「未分類」分類
+            setDefaultUncategorized()
             
             showContributionSection = false
             contributions = []
+        }
+    }
+    
+    // ✅ 新方法：設置預設未分類分類
+    private func setDefaultUncategorized() {
+        if let defaultCategory = categories.first(where: { $0.isDefault }),
+           let defaultSubcategory = subcategories.first(where: {
+               $0.parentID == defaultCategory.id && $0.name == langManager.localized("uncategorized_label")
+           }) {
+            selectedParentID = defaultCategory.id
+            selectedSubcategoryID = defaultSubcategory.id
+        } else if let firstCategory = categories.first {
+            // 如果沒有預設分類，使用第一個分類
+            selectedParentID = firstCategory.id
+            if let firstSubcategory = subcategories.first(where: { $0.parentID == firstCategory.id }) {
+                selectedSubcategoryID = firstSubcategory.id
+            }
         }
     }
     
@@ -778,15 +834,65 @@ struct TransactionFormView: View {
     }
     
     private func validateAmounts() {
-        showAmountError = (distributedTotal != totalAmountDecimal)
+        let difference = abs(distributedTotal - totalAmountDecimal)
+        showAmountError = difference > Decimal(0.01)
     }
     
-    private func save() {
+    // ✅ 改進：保存前驗證
+    private func saveWithValidation() {
         guard let totalAmount = decimalFromString(totalAmountText), totalAmount > 0 else {
             return
         }
         
         hideKeyboard()
+        
+        // 確保總會有分類（如果未選擇，使用預設未分類）
+        if selectedSubcategoryID == nil {
+            setDefaultUncategorized()
+        }
+        
+        // ✅ 檢查分攤金額是否匹配
+        if selectedType == .expense && showContributionSection && !contributions.isEmpty {
+            let difference = abs(distributedTotal - totalAmount)
+            
+            if difference > Decimal(0.01) {
+                // 顯示警告，讓用戶選擇
+                contributionDifference = distributedTotal - totalAmount
+                showContributionMismatchAlert = true
+                return
+            }
+        }
+        
+        // 如果沒有分攤問題，直接保存
+        saveTransaction()
+    }
+    
+    // ✅ 新增：修復分攤金額並保存
+    private func fixContributionAmountsAndSave() {
+        guard let totalAmount = decimalFromString(totalAmountText) else { return }
+        
+        if showContributionSection && !contributions.isEmpty {
+            let difference = totalAmount - distributedTotal
+            
+            // 平均分配差異
+            let perPersonAdjustment = difference / Decimal(contributions.count)
+            let adjustmentString = decimalToString(perPersonAdjustment)
+            
+            for i in contributions.indices {
+                if let currentAmount = decimalFromString(contributions[i].amountText) {
+                    let newAmount = currentAmount + perPersonAdjustment
+                    contributions[i].amountText = decimalToString(newAmount)
+                }
+            }
+        }
+        
+        saveTransaction()
+    }
+    
+    private func saveTransaction() {
+        guard let totalAmount = decimalFromString(totalAmountText), totalAmount > 0 else {
+            return
+        }
         
         let transactionToSave: Transaction
         
@@ -807,7 +913,7 @@ struct TransactionFormView: View {
         transactionToSave.note = note.isEmpty ? nil : note
         transactionToSave.type = selectedType
         transactionToSave.currencyCode = currencyCode
-        transactionToSave.subcategoryID = selectedSubcategoryID
+        transactionToSave.subcategoryID = selectedSubcategoryID // ✅ 總會有值
         
         for contribution in transactionToSave.contributions {
             context.delete(contribution)
@@ -816,6 +922,7 @@ struct TransactionFormView: View {
         
         if selectedType == .expense {
             if showContributionSection && !contributions.isEmpty {
+                // ✅ 修改：啟用分攤時，只保存用戶輸入嘅分攤，唔好自動補足差額
                 for contribution in contributions {
                     if let payerID = contribution.payerID,
                        let payer = payers.first(where: { $0.id == payerID }),
@@ -829,17 +936,11 @@ struct TransactionFormView: View {
                     }
                 }
                 
-                let distributedTotal = transactionToSave.contributions.reduce(0) { $0 + $1.amount }
-                if distributedTotal < totalAmount, let defaultPayer = defaultPayer {
-                    let remainingAmount = totalAmount - distributedTotal
-                    let remainingContribution = PaymentContribution(
-                        amount: remainingAmount,
-                        payer: defaultPayer,
-                        transaction: transactionToSave
-                    )
-                    transactionToSave.contributions.append(remainingContribution)
-                }
+                // ❌ 移除：唔好自動添加預設付款人補足差額
+                // 用戶可以之後再編輯交易補充分攤
+                
             } else {
+                // ✅ 修改：冇啟用分攤時，自動添加預設付款人（100%）
                 if let defaultPayer = defaultPayer {
                     let paymentContribution = PaymentContribution(
                         amount: totalAmount,
@@ -883,7 +984,7 @@ struct TransactionFormView: View {
                 return parent.name
             }
         } else {
-            return langManager.localized("form_none")
+            return langManager.localized("uncategorized_label") // ✅ 顯示「未分類」而非「無」
         }
     }
     
@@ -918,5 +1019,17 @@ struct TransactionFormView: View {
             .map { Locale(identifier: $0) }
             .first { $0.currencyCode == code } ?? Locale.current
         return locale.currencySymbol ?? code
+    }
+    
+    // ✅ 新增：獲取分攤不匹配的警告信息
+    private func getContributionMismatchMessage() -> String {
+        let difference = abs(contributionDifference)
+        let amountStr = formatCurrency(amount: difference, code: currencyCode)
+        
+        if contributionDifference > 0 {
+            return "分攤總額比交易金額多 \(amountStr)。\n\n建議修復分攤金額以確保計算準確。"
+        } else {
+            return "分攤總額比交易金額少 \(amountStr)。\n\n建議修復分攤金額以確保計算準確。"
+        }
     }
 }

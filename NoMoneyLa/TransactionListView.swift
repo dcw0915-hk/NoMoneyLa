@@ -32,7 +32,6 @@ struct TransactionCardView: View {
     let formatPayerText: (Transaction) -> String
     let formatCurrency: (Decimal, String) -> String
     let format: (Decimal, String) -> String
-    let getContributionStatus: (Transaction) -> (message: String, icon: String, color: Color)
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -69,17 +68,18 @@ struct TransactionCardView: View {
                         .bold()
                         .foregroundColor(transaction.type == .expense ? .red : .green)
                     
-                    // 顯示分攤狀態警告
+                    // ✅ 新增：使用 Transaction 的 contributionStatusDescription
                     if transaction.type == .expense {
-                        let contributionStatus = getContributionStatus(transaction)
-                        if !contributionStatus.message.isEmpty {
+                        let statusText = transaction.contributionStatusDescription
+                        if !statusText.isEmpty {
                             HStack(spacing: 2) {
-                                Image(systemName: contributionStatus.icon)
+                                // 根據狀態顯示不同圖標
+                                Image(systemName: getContributionIcon(for: transaction))
                                     .font(.caption2)
-                                    .foregroundColor(contributionStatus.color)
-                                Text(contributionStatus.message)
+                                    .foregroundColor(getContributionColor(for: transaction))
+                                Text(statusText)
                                     .font(.caption2)
-                                    .foregroundColor(contributionStatus.color)
+                                    .foregroundColor(getContributionColor(for: transaction))
                             }
                             .padding(.top, 2)
                         }
@@ -87,39 +87,81 @@ struct TransactionCardView: View {
                 }
             }
             
-            // 如果有分攤問題，顯示詳細訊息
-            if transaction.type == .expense && !transaction.isAmountValid && !transaction.contributions.isEmpty {
-                let totalContributed = transaction.contributions.reduce(0) { $0 + $1.amount }
-                let difference = transaction.totalAmount - totalContributed
-                
-                if difference > 0 {
-                    // 分攤不足
+            // ✅ 改進：顯示更詳細的分攤問題信息
+            if transaction.type == .expense {
+                let contributionStatus = getDetailedContributionStatus(for: transaction)
+                if !contributionStatus.message.isEmpty {
                     HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.circle.fill")
+                        Image(systemName: contributionStatus.icon)
                             .font(.caption2)
-                            .foregroundColor(.orange)
-                        Text("\(langManager.localized("contribution_insufficient"))：\(formatCurrency(difference, transaction.currencyCode))")
+                            .foregroundColor(contributionStatus.color)
+                        Text(contributionStatus.message)
                             .font(.caption2)
-                            .foregroundColor(.orange)
-                    }
-                    .padding(.top, 2)
-                } else if difference < 0 {
-                    // 分攤過多
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.caption2)
-                            .foregroundColor(.red)
-                        Text("\(langManager.localized("contribution_excess"))：\(formatCurrency(abs(difference), transaction.currencyCode))")
-                            .font(.caption2)
-                            .foregroundColor(.red)
+                            .foregroundColor(contributionStatus.color)
                     }
                     .padding(.top, 2)
                 }
             }
         }
     }
+    
+    // ✅ 新增：獲取詳細的分攤狀態
+    private func getDetailedContributionStatus(for transaction: Transaction) -> (message: String, icon: String, color: Color) {
+        guard transaction.type == .expense else {
+            return ("", "", .clear)
+        }
+        
+        if transaction.contributions.isEmpty {
+            return (langManager.localized("no_contribution"), "exclamationmark.circle", .orange)
+        }
+        
+        let sum = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
+        let difference = transaction.totalAmount - sum
+        
+        if abs(difference) <= Decimal(0.01) {
+            return ("", "", .clear)
+        } else if difference > 0 {
+            // 分攤不足
+            let amount = formatCurrency(difference, transaction.currencyCode)
+            return ("\(langManager.localized("contribution_insufficient"))：\(amount)", "exclamationmark.triangle", .orange)
+        } else {
+            // 分攤過多
+            let amount = formatCurrency(abs(difference), transaction.currencyCode)
+            return ("\(langManager.localized("contribution_excess"))：\(amount)", "exclamationmark.triangle.fill", .red)
+        }
+    }
+    
+    // ✅ 新增：根據分攤狀態獲取圖標
+    // 在 TransactionListView.swift 的 TransactionCardView 中更新：
+    
+    private func getContributionIcon(for transaction: Transaction) -> String {
+        guard transaction.type == .expense else { return "" }
+        
+        switch transaction.contributionStatusCode {
+        case .noContributions:
+            return "exclamationmark.circle"
+        case .balanced:
+            return "checkmark.circle"
+        case .insufficient:
+            return "exclamationmark.triangle"
+        case .excess:
+            return "exclamationmark.triangle.fill"
+        }
+    }
+    
+    private func getContributionColor(for transaction: Transaction) -> Color {
+        guard transaction.type == .expense else { return .clear }
+        
+        switch transaction.validationSeverity {
+        case .valid:
+            return .green
+        case .warning:
+            return .orange
+        case .error:
+            return .red
+        }
+    }
 }
-
 // MARK: - TransactionListView
 struct TransactionListView: View {
     @EnvironmentObject var langManager: LanguageManager
@@ -149,6 +191,11 @@ struct TransactionListView: View {
     @State private var filterPayer: Payer? = nil
     @State private var filterStartDate: Date? = nil
     @State private var filterEndDate: Date? = nil
+    
+    // ✅ 新增：用於顯示分攤警告的狀態
+    @State private var showContributionAlert = false
+    @State private var alertTransaction: Transaction?
+    @State private var alertMessage = ""
 
     // 初始化函數
     init(
@@ -189,8 +236,7 @@ struct TransactionListView: View {
                                     categoryName: categoryName(for: tx.subcategoryID),
                                     formatPayerText: formatPayerText,
                                     formatCurrency: formatCurrency,
-                                    format: format,
-                                    getContributionStatus: getContributionStatus
+                                    format: format
                                 )
                                 .cardStyle()
                             }
@@ -200,6 +246,17 @@ struct TransactionListView: View {
                                     delete(tx: tx)
                                 } label: {
                                     Label(langManager.localized("delete_button"), systemImage: "trash")
+                                }
+                            }
+                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                // ✅ 新增：左滑快速修復分攤問題
+                                if tx.type == .expense && !tx.isAmountValid {
+                                    Button {
+                                        showFixContributionAlert(for: tx)
+                                    } label: {
+                                        Label("修復分攤", systemImage: "wrench.adjustable")
+                                    }
+                                    .tint(.blue)
                                 }
                             }
                         }
@@ -253,6 +310,14 @@ struct TransactionListView: View {
             .onAppear {
                 restoreFilterState()
                 applyInitialFilters()
+            }
+            .alert("分攤問題", isPresented: $showContributionAlert, presenting: alertTransaction) { tx in
+                Button("取消", role: .cancel) { }
+                Button("修復") {
+                    fixContribution(for: tx)
+                }
+            } message: { tx in
+                Text(alertMessage)
             }
         }
     }
@@ -347,28 +412,6 @@ struct TransactionListView: View {
             let payerCount = transaction.contributions.count
             let totalAmount = transaction.contributions.reduce(0) { $0 + $1.amount }
             return String(format: langManager.localized("payers_split_format"), payerCount) + ", \(langManager.localized("total_label"))\(formatCurrency(totalAmount, transaction.currencyCode))"
-        }
-    }
-    
-    // 獲取分攤狀態
-    private func getContributionStatus(for transaction: Transaction) -> (message: String, icon: String, color: Color) {
-        if transaction.contributions.isEmpty {
-            return (langManager.localized("no_contribution"), "exclamationmark.circle", .orange)
-        }
-        
-        let totalContributed = transaction.contributions.reduce(0) { $0 + $1.amount }
-        let difference = transaction.totalAmount - totalContributed
-        
-        if difference == 0 {
-            return ("", "", .clear)
-        } else if difference > 0 {
-            // 分攤不足
-            let amount = formatCurrency(difference, transaction.currencyCode)
-            return ("\(langManager.localized("insufficient")) \(amount)", "exclamationmark.triangle", .orange)
-        } else {
-            // 分攤過多
-            let amount = formatCurrency(abs(difference), transaction.currencyCode)
-            return ("\(langManager.localized("excess")) \(amount)", "exclamationmark.triangle.fill", .red)
         }
     }
     
@@ -499,12 +542,18 @@ struct TransactionListView: View {
     }
 
     private func categoryName(for subID: UUID?) -> String {
-        guard let subID = subID else { return langManager.localized("form_none") }
+        guard let subID = subID else {
+            // ✅ 理論上唔應該出現，但如果出現就顯示「未分類」
+            return langManager.localized("uncategorized_label")
+        }
+        
         if let sub = subcategories.first(where: { $0.id == subID }),
            let parent = categories.first(where: { $0.id == sub.parentID }) {
             return "\(parent.name) / \(sub.name)"
         }
-        return subcategories.first(where: { $0.id == subID })?.name ?? langManager.localized("form_none")
+        
+        // ✅ 如果找不到對應分類，也顯示「未分類」
+        return langManager.localized("uncategorized_label")
     }
 
     private func format(_ amount: Decimal, _ code: String = "HKD") -> String {
@@ -514,5 +563,65 @@ struct TransactionListView: View {
         formatter.currencyCode = code
         formatter.locale = Locale.current
         return formatter.string(from: ns) ?? "\(amount)"
+    }
+    
+    // ✅ 新增：顯示修復分攤的警告
+    private func showFixContributionAlert(for transaction: Transaction) {
+        alertTransaction = transaction
+        
+        if transaction.contributions.isEmpty {
+            alertMessage = "此交易沒有分攤記錄。請在編輯交易中添加付款人分攤。"
+        } else {
+            let sum = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
+            let difference = transaction.totalAmount - sum
+            
+            if difference > 0 {
+                let amountStr = formatCurrency(difference, transaction.currencyCode)
+                alertMessage = "分攤不足 \(amountStr)。是否要平均分配剩餘金額？"
+            } else {
+                let amountStr = formatCurrency(abs(difference), transaction.currencyCode)
+                alertMessage = "分攤過多 \(amountStr)。是否要按比例減少各人分攤金額？"
+            }
+        }
+        
+        showContributionAlert = true
+    }
+    
+    // ✅ 新增：修復分攤金額
+    private func fixContribution(for transaction: Transaction) {
+        guard transaction.type == .expense else { return }
+        
+        if transaction.contributions.isEmpty {
+            // 如果沒有分攤，使用預設付款人
+            if let defaultPayer = payers.first(where: { $0.isDefault }) ?? payers.first {
+                let contribution = PaymentContribution(
+                    amount: transaction.totalAmount,
+                    payer: defaultPayer,
+                    transaction: transaction
+                )
+                context.insert(contribution)
+                transaction.contributions.append(contribution)
+            }
+        } else {
+            // 如果有分攤但金額不匹配，嘗試平均分配
+            let sum = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
+            let difference = transaction.totalAmount - sum
+            
+            if abs(difference) > Decimal(0.01) {
+                // 平均分配差異
+                let perPersonAdjustment = difference / Decimal(transaction.contributions.count)
+                
+                for contribution in transaction.contributions {
+                    contribution.amount += perPersonAdjustment
+                }
+            }
+        }
+        
+        do {
+            try context.save()
+            print("成功修復交易 \(transaction.id) 的分攤問題")
+        } catch {
+            print("修復分攤時保存失敗：\(error)")
+        }
     }
 }

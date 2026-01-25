@@ -106,7 +106,7 @@
 "search_placeholder" = "搜尋交易...";
 "transactions_title" = "交易記錄";
 
-/* DashboardComponents */
+/* DashboardComponents - 新增/修改部分 */
 "categories_label" = "個分類";
 "filter_current" = "當前篩選";
 "clear_button" = "清除";
@@ -138,14 +138,20 @@
 "days_unit" = "天";
 "total_days" = "共";
 "monthly_average" = "月均消費";
-"highest_single_spending" = "單筆最高消費";
-"yearly_highest_spending" = "本年單筆最高消費";
+/* 修改以下兩個字符串以更清晰 */
+"highest_single_spending" = "最高單筆消費：";
+"yearly_highest_spending" = "本年最高單筆消費：";
+/* 新增字符串用於日期顯示 */
+"highest_spending_day" = "最高消費日";
+"highest_spending_date" = "最高消費日期";
+"month_highest_transaction" = "本月最高交易";
+"year_highest_transaction" = "本年最高交易";
 "spending_insights" = "消費洞察";
 "primary_time_period" = "主要消費時段";
 "weekend_spending" = "週末消費比例";
 "total_transactions_label" = "總交易筆數";
 "transactions_unit" = "筆";
-"highest_spending" = "單筆最高消費";
+/* 修改：移除重複的"highest_spending" */
 "most_used_category" = "最常用分類";
 "yearly_most_used_category" = "本年最常用分類";
 "highest_spending_month" = "消費最高月份";

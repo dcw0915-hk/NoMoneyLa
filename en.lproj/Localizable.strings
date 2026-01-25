@@ -15,27 +15,27 @@
 "delete_button" = "Delete";
 "manage_categories_title" = "Manage Categories";
 "delete_category_title" = "Delete Category";
-"delete_category_confirmation" = "Deleting category '%@' will also delete its subcategories and unlink related transactions. Are you sure?";
+"delete_category_confirmation" = "Deleting category \"%@\" will also delete its subcategories and unlink related transactions. Are you sure?";
 "cannot_delete_title" = "Cannot Delete";
 "understand_button" = "Understand";
-"cannot_delete_default_category" = "'Uncategorized' is a system default category for unclassified transactions. All transactions need a category, and this one cannot be deleted.";
+"cannot_delete_default_category" = "\"Uncategorized\" is a default system category used to store unclassified transactions. All transactions must have a category, so this category cannot be deleted.";
 "name_label" = "Name";
 "uncategorized_label" = "Uncategorized";
 "add_payer_section" = "Add Payer";
 "existing_payers_section" = "Existing Payers";
 "manage_payers_title" = "Manage Payers";
 "delete_payer_title" = "Delete Payer";
-"delete_payer_confirmation" = "Deleting payer '%@' will remove their contribution records from all transactions. Are you sure?";
+"delete_payer_confirmation" = "Deleting payer \"%@\" will also remove their contribution records from all transactions. Are you sure?";
 "enable_contribution_toggle" = "Enable Contribution";
 "contribution_label" = "Contribution";
 "contribution_enabled" = "Enabled";
 "contribution_disabled" = "Disabled";
-"contribution_enabled_description" = "Contribution enabled, you can assign multiple payers for this transaction";
-"contribution_disabled_description" = "Contribution disabled, will use default payer";
+"contribution_enabled_description" = "Contribution enabled, you can assign multiple payers to this transaction";
+"contribution_disabled_description" = "Contribution disabled, default payer will be used";
 "select_payer_prompt" = "Select Payer";
 "add_new_payer" = "Add New Payer";
 "contribution_total" = "Contribution Total";
-"contribution_amount_mismatch" = "Contribution total doesn't match transaction amount";
+"contribution_amount_mismatch" = "Contribution total does not match transaction total amount";
 "no_payers" = "No payers";
 "total_label" = "Total";
 "payers_split_format" = "%d payer(s) split";
@@ -46,12 +46,12 @@
 "no_contribution" = "No contribution";
 "insufficient" = "Insufficient";
 "excess" = "Excess";
-"contribution_insufficient" = "Contribution insufficient";
-"contribution_excess" = "Contribution excess";
+"contribution_insufficient" = "Insufficient contribution";
+"contribution_excess" = "Excess contribution";
 
 /* SubcategoryManageView */
 "subcategory_manage_title_format" = "Manage Subcategories: %@";
-"subcategory_delete_message" = "Deleting subcategory '%@' will unlink related transactions from this subcategory. Are you sure?";
+"subcategory_delete_message" = "Deleting subcategory \"%@\" will unlink it from related transactions. Are you sure?";
 
 /* TransactionFormView */
 "contribution_header" = "Payer Contributions";
@@ -76,12 +76,12 @@
 "form_note_placeholder" = "Enter note";
 
 /* TransactionFormView - Date Picker */
-"form_date_picker" = "Select date";
+"form_date_picker" = "Select Date";
 
 /* TransactionFormView - Currency Menu */
-"currency_HKD" = "Hong Kong Dollar";
-"currency_USD" = "US Dollar";
-"currency_JPY" = "Japanese Yen";
+"currency_HKD" = "HKD";
+"currency_USD" = "USD";
+"currency_JPY" = "JPY";
 
 /* TransactionFormView - Picker Options */
 "form_income" = "Income";
@@ -91,7 +91,7 @@
 /* TransactionFormView - Navigation Titles */
 "form_add_title" = "Add Transaction";
 "form_edit_title" = "Edit Transaction";
-"transaction_detail_title" = "Transaction Details";
+"transaction_detail_title" = "Transaction Detail";
 
 /* TransactionFormView - Alert Titles */
 "form_delete_title" = "Delete Transaction";
@@ -106,9 +106,9 @@
 "search_placeholder" = "Search transactions...";
 "transactions_title" = "Transactions";
 
-/* DashboardComponents */
+/* DashboardComponents - 新增/修改部分 */
 "categories_label" = "categories";
-"filter_current" = "Current Filters";
+"filter_current" = "Current Filter";
 "clear_button" = "Clear";
 "dashboard_analyze_target" = "Analyze Target";
 "dashboard_period" = "Period";
@@ -138,18 +138,24 @@
 "days_unit" = "days";
 "total_days" = "Total";
 "monthly_average" = "Monthly Average";
-"highest_single_spending" = "Highest Single Spending";
-"yearly_highest_spending" = "Yearly Highest Spending";
+/* 修改以下兩個字符串以更清晰 */
+"highest_single_spending" = "Highest Single Transaction: ";
+"yearly_highest_spending" = "Yearly Highest Transaction: ";
+/* 新增字符串用於日期顯示 */
+"highest_spending_day" = "Highest Spending Day";
+"highest_spending_date" = "Highest Spending Date";
+"month_highest_transaction" = "This Month's Highest Transaction";
+"year_highest_transaction" = "This Year's Highest Transaction";
 "spending_insights" = "Spending Insights";
-"primary_time_period" = "Primary Spending Time";
+"primary_time_period" = "Primary Time Period";
 "weekend_spending" = "Weekend Spending Ratio";
 "total_transactions_label" = "Total Transactions";
 "transactions_unit" = "transactions";
-"highest_spending" = "Highest Spending";
+/* 修改：移除重複的"highest_spending" */
 "most_used_category" = "Most Used Category";
 "yearly_most_used_category" = "Yearly Most Used Category";
 "highest_spending_month" = "Highest Spending Month";
-"month_amount" = "Month Amount";
+"month_amount" = "Monthly Amount";
 "spending_time_distribution" = "Spending Time Distribution";
 "weekday" = "Weekday";
 "weekend" = "Weekend";
@@ -160,7 +166,7 @@
 /* DashboardView */
 "dashboard_title" = "Dashboard";
 "no_spending_data" = "No Spending Data";
-"no_transactions_in_selected_period" = "No transactions in selected period";
+"no_transactions_in_selected_period" = "No transactions in the selected period";
 "view_all_transactions" = "View All Transactions";
 "recent_transactions" = "Recent Transactions";
 "transaction_default_name" = "Transaction";
@@ -169,15 +175,15 @@
 "transactions_tab" = "Transactions";
 "analysis_tab" = "Analysis";
 "settings_tab" = "Settings";
-"settlement_tab" = "Bill Split";
-"settlement_select_category" = "Select Category for Split";
-"search_categories" = "Search categories";
+"settlement_tab" = "Settlement";
+"settlement_select_category" = "Select Settlement Category";
+"search_categories" = "Search Categories";
 "no_category_selected" = "No Category Selected";
-"select_category_for_settlement" = "Select a category for bill splitting";
+"select_category_for_settlement" = "Please select a category for settlement";
 "select_category" = "Select Category";
-"start_settlement" = "Start Bill Split";
-"settlement_description" = "Select a category to view bill splitting between participants";
-"settlement_how_it_works" = "System automatically calculates each person's share and provides minimal transfer solution";
+"start_settlement" = "Start Settlement";
+"settlement_description" = "Select a category to view settlement solutions between participants";
+"settlement_how_it_works" = "The system will automatically calculate each person's payable amount and provide a settlement solution with minimal transfers";
 "no_categories" = "No Categories";
 "create_categories_first" = "Please create categories first";
 "change_button" = "Change";
@@ -185,7 +191,7 @@
 "assigned_payers" = "Assigned Payers";
 "transactions" = "transactions";
 "total_amount" = "Total Amount";
-"settlement_title" = "Bill Split";
+"settlement_title" = "Settlement";
 
 /* SimpleAssignPayersView */
 "assign_payers_to_category" = "Assign Payers to: %@";
@@ -205,49 +211,49 @@
 "settings_manage_payers" = "Manage Payers";
 "settings_about" = "About";
 "settings_version" = "Version";
-"settings_settlement_feature" = "Bill Split Feature";
+"settings_settlement_feature" = "Settlement Feature";
 "settings_standalone_page" = "Standalone Page";
 "settings_title" = "Settings";
 
 /* CategorySettlementView */
 "participants_label" = "Participants";
 "no_participants_or_transactions" = "No participants or transactions";
-"calculation_explanation" = "Calculation Method";
+"calculation_explanation" = "Calculation Explanation";
 "calculation_principle" = "Calculation Principle";
 "calculation_point_1" = "Only expense transactions are calculated";
-"calculation_point_2" = "Each transaction is split equally among all participants";
-"calculation_point_3" = "Each person's payable amount = sum of equal splits from all transactions";
-"calculation_point_4" = "Net amount = actually paid - payable amount";
+"calculation_point_2" = "Each transaction is equally split among all participants";
+"calculation_point_3" = "Each person's payable amount = sum of all transaction averages";
+"calculation_point_4" = "Net balance = actual paid - payable amount";
 "example_label" = "Simple Example";
-"example_1" = "A $300 transaction, 3 participants, each should pay $100";
-"example_2" = "A paid $150, net amount = +$50 (to receive)";
-"example_3" = "B paid $100, net amount = $0 (balanced)";
-"example_4" = "C paid $50, net amount = -$50 (to pay)";
-"optimal_settlement_solution" = "Optimal Split Solution";
-"optimal_settlement_description" = "Minimal transfer count for quick splitting";
+"example_1" = "A $300 transaction with 3 participants, each should pay $100";
+"example_2" = "A paid $150, net balance = +$50 (should receive money)";
+"example_3" = "B paid $100, net balance = $0 (balanced)";
+"example_4" = "C paid $50, net balance = -$50 (should pay money)";
+"optimal_settlement_solution" = "Optimal Settlement Solution";
+"optimal_settlement_description" = "Minimal transfers for quick settlement";
 "only_transfers_needed" = "Only";
-"transfers_to_clear_debts" = "transfers needed to complete the split";
+"transfers_to_clear_debts" = "transfer(s) needed to clear debts";
 "pays_to" = "pays to";
 "transfer_amount" = "Transfer Amount";
-"all_debts_cleared" = "Split completed";
-"detailed_calculation_results" = "Detailed Split Results";
-"actual_paid" = "Actually Paid";
-"net_balance" = "Net Amount";
+"all_debts_cleared" = "All debts cleared";
+"detailed_calculation_results" = "Detailed Calculation Results";
+"actual_paid" = "Actual Paid";
+"net_balance" = "Net Balance";
 "should_pay_to" = "Should pay to";
-"faq_1_question" = "Why only expense transactions?";
-"faq_1_answer" = "Income transactions usually don't involve splitting, calculating only expenses better fits bill splitting scenarios";
+"faq_1_question" = "Why only calculate expense transactions?";
+"faq_1_answer" = "Income transactions usually don't involve splitting, calculating only expenses better fits settlement scenarios";
 "faq_2_question" = "How is each person's payable amount calculated?";
-"faq_2_answer" = "Each transaction amount is split equally among all participants, then summed up across all transactions";
-"faq_3_question" = "What is optimal split solution?";
-"faq_3_answer" = "Using minimal transfer algorithm, people who need to pay money pay directly to those who should receive money, reducing transfer count";
-"faq_4_question" = "Can I modify participants?";
+"faq_2_answer" = "Each transaction amount is equally split among all participants, then sum up payable amounts from all transactions";
+"faq_3_question" = "What is the optimal settlement solution?";
+"faq_3_answer" = "Using minimal transfers algorithm, let those who need to pay directly pay to those who should receive, reducing transfer count";
+"faq_4_question" = "Can participants be modified?";
 "faq_4_answer" = "Yes, assign fixed payers in category management, system will prioritize assigned payers";
-"faq_title" = "FAQ";
+"faq_title" = "Frequently Asked Questions";
 "calculation_details" = "Calculation Details";
-"debt_settlement" = "Bill Split";
+"debt_settlement" = "Debt Settlement";
 "recalculate_button" = "Recalculate";
 "transaction_records" = "Transaction Records";
-"no_payer_transactions_in_category" = "No transactions for this payer in this category";
+"no_payer_transactions_in_category" = "No transaction records for this payer in this category";
 "statistics_label" = "Statistics";
 "total_paid_amount" = "Total Paid Amount";
 "participating_transactions_count" = "Participating Transactions Count";

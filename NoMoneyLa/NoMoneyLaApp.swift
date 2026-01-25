@@ -25,10 +25,13 @@ struct NoMoneyLaApp: App {
         _dashboardVM = StateObject(wrappedValue: DashboardViewModel(context: ctx))
         
         performOneTimeMigrationIfNeeded(ctx)
-        createDefaultCategoryIfNeeded(in: ctx)  // 新增：建立預設分類
+        createDefaultCategoryIfNeeded(in: ctx)
         initializeOrders(in: ctx)
         createDefaultPayerIfNeeded(in: ctx)
         createUncategorizedSubcategoriesIfNeeded(in: ctx)
+        
+        // ✅ 新增：遷移 subcategoryID 為 nil 的交易到預設未分類
+        migrateNilSubcategoriesToUncategorized(in: ctx)
     }
 
     var body: some Scene {
@@ -211,6 +214,54 @@ struct NoMoneyLaApp: App {
             try context.save()
         } catch {
             print("建立未分類子分類時發生錯誤：", error)
+        }
+    }
+    
+    // ✅ 新增：遷移 subcategoryID 為 nil 的交易到預設未分類
+    private func migrateNilSubcategoriesToUncategorized(in context: ModelContext) {
+        let migratedKey = "didMigrateNilSubcategoriesToUncategorized"
+        guard !UserDefaults.standard.bool(forKey: migratedKey) else { return }
+        
+        do {
+            // 1. 獲取預設分類
+            let defaultCategoryFetch = FetchDescriptor<Category>(
+                predicate: #Predicate { $0.isDefault == true }
+            )
+            guard let defaultCategory = try context.fetch(defaultCategoryFetch).first else {
+                print("找不到預設分類")
+                return
+            }
+            
+            // 2. 獲取預設分類嘅「未分類」子分類
+            let subcategoryFetch = FetchDescriptor<Subcategory>()
+            let allSubcategories = try context.fetch(subcategoryFetch)
+            guard let defaultUncategorizedSub = allSubcategories.first(where: {
+                $0.parentID == defaultCategory.id && $0.name == "未分類"
+            }) else {
+                print("找不到預設未分類子分類")
+                return
+            }
+            
+            // 3. 獲取所有 subcategoryID 為 nil 嘅交易
+            let transactionFetch = FetchDescriptor<Transaction>()
+            let allTransactions = try context.fetch(transactionFetch)
+            let nilSubcategoryTransactions = allTransactions.filter { $0.subcategoryID == nil }
+            
+            // 4. 更新為預設「未分類」子分類
+            for transaction in nilSubcategoryTransactions {
+                transaction.subcategoryID = defaultUncategorizedSub.id
+            }
+            
+            // 5. 保存並標記已遷移
+            if !nilSubcategoryTransactions.isEmpty {
+                try context.save()
+                print("已遷移 \(nilSubcategoryTransactions.count) 筆交易到預設未分類")
+            }
+            
+            UserDefaults.standard.set(true, forKey: migratedKey)
+            
+        } catch {
+            print("遷移 subcategoryID 為 nil 的交易時出錯：\(error)")
         }
     }
 }
