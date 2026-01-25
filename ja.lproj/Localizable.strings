@@ -48,6 +48,12 @@
 "excess" = "超過";
 "contribution_insufficient" = "貢献不足";
 "contribution_excess" = "貢献超過";
+"income_recipient_section" = "入金先";
+"select_income_recipient" = "入金先を選択";
+"income_recipient_label" = "入金先";
+"expense_label" = "支出";
+"income_label" = "収入";
+"this_month" = "今月";
 
 /* SubcategoryManageView */
 "subcategory_manage_title_format" = "サブカテゴリの管理：%@";

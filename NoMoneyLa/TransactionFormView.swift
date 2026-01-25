@@ -10,6 +10,13 @@ struct ContributionEntry: Identifiable {
     var isRemovable: Bool = true
 }
 
+// MARK: - ParticipantEntry (參與者選擇暫存用)
+struct ParticipantEntry: Identifiable {
+    let id = UUID()
+    let payer: Payer
+    var isParticipating: Bool
+}
+
 // MARK: - SelectAllTextField
 struct SelectAllTextField: UIViewRepresentable {
     @Binding var text: String
@@ -112,16 +119,32 @@ struct TransactionFormView: View {
 
     @State private var amountFieldIsFirstResponder: Bool = false
     @FocusState private var focusedField: Field?
-
+    
+    // ✅ 新增：參與者選擇相關狀態
+    @State private var participantEntries: [ParticipantEntry] = []
+    @State private var showParticipantSelection = false
+    @State private var assignedPayersForCategory: [Payer] = []
+    
     // ✅ 新增：用於顯示分攤警告的狀態
     @State private var showContributionMismatchAlert = false
     @State private var contributionDifference: Decimal = 0
     @State private var allowSaveAnyway = false
     
+    // ✅ 新增：收入交易收款人ID
+    @State private var selectedIncomePayerID: UUID? = nil
+    
+    // ✅ 修改：分攤模式狀態 - 默認為 .simple（一人支付全部）
+    @State private var contributionMode: ContributionMode = .simple  // 默認一人支付全部
+    
     private let currencies = ["HKD", "USD", "JPY"]
     
     enum Field {
         case totalAmount, note
+    }
+    
+    enum ContributionMode {
+        case simple      // 一人支付全額（默認）
+        case detailed    // 多人分攤支付
     }
 
     init(transaction: Transaction? = nil, isEditing: Bool = true) {
@@ -235,6 +258,14 @@ struct TransactionFormView: View {
                                         }) {
                                             selectedSubcategoryID = uncategorizedSub.id
                                         }
+                                        
+                                        // ✅ 更新：當選擇分類時，更新該分類的已分配付款人及參與者
+                                        updateAssignedPayersForCategory(cat)
+                                        
+                                        // ✅ 更新：重置收入收款人選擇（如果切換分類）
+                                        if selectedType == .income {
+                                            selectedIncomePayerID = nil
+                                        }
                                     }) {
                                         HStack {
                                             Text(cat.name)
@@ -304,25 +335,467 @@ struct TransactionFormView: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        .onChange(of: selectedParentID) { newParent in
-                            DispatchQueue.main.async {
-                                if let newParent = newParent {
-                                    // 當選擇父分類時，自動選擇「未分類」子分類
-                                    if let uncategorizedSub = subcategories.first(where: {
-                                        $0.parentID == newParent && $0.name == langManager.localized("uncategorized_label")
-                                    }) {
-                                        selectedSubcategoryID = uncategorizedSub.id
-                                    }
-                                } else {
-                                    selectedSubcategoryID = nil
-                                }
-                            }
+                        .onChange(of: selectedParentID) { oldValue, newParent in
+                            handleParentCategoryChange(oldValue: oldValue, newParent: newParent)
                         }
                     } else {
                         HStack {
                             Text(categoryPath(parentID: selectedParentID, subID: selectedSubcategoryID))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
+                        }
+                    }
+                }
+                
+                // ✅ 新增：參與者選擇區域
+                if selectedType == .expense {
+                    Section(header: Text(langManager.localized("participants_section"))) {
+                        if isEditing {
+                            Button {
+                                showParticipantSelection = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "person.2")
+                                        .foregroundColor(.blue)
+                                    Text(langManager.localized("select_participants"))
+                                    Spacer()
+                                    Text("\(selectedParticipantCount)人")
+                                        .foregroundColor(.secondary)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            // 顯示已選擇的參與者預覽
+                            if !selectedParticipantIDs.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(participantEntries.filter { $0.isParticipating }) { entry in
+                                            ParticipantChip(payer: entry.payer)
+                                        }
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            }
+                        } else {
+                            // 查看模式：顯示參與者
+                            if !participantEntries.isEmpty {
+                                let participating = participantEntries.filter { $0.isParticipating }
+                                if participating.isEmpty {
+                                    Text(langManager.localized("no_participants"))
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            ForEach(participating) { entry in
+                                                ParticipantChip(payer: entry.payer)
+                                            }
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // ✅ 修改：支付方式選擇
+                    Section(header: Text("支付方式")) {
+                        if isEditing {
+                            VStack(alignment: .leading, spacing: 12) {
+                                // 支付方式選擇
+                                Picker("", selection: $contributionMode) {
+                                    Text("一人支付全額（默認）").tag(ContributionMode.simple)
+                                    Text("多人分攤支付").tag(ContributionMode.detailed)
+                                }
+                                .pickerStyle(.segmented)
+                                .onChange(of: contributionMode) { newMode in
+                                    handleContributionModeChange(newMode)
+                                }
+                                
+                                // 說明文字
+                                Text(getContributionModeDescription())
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.top, 4)
+                            }
+                            .padding(.vertical, 4)
+                        } else {
+                            // 查看模式
+                            HStack {
+                                Text("支付方式")
+                                Spacer()
+                                Text(contributionMode == .simple ? "一人支付全額" : "多人分攤支付")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    
+                    // ✅ 修改：支付詳情（根據模式顯示）
+                    if contributionMode == .simple {
+                        Section(header: Text("支付詳情")) {
+                            if isEditing {
+                                // 簡化模式：選擇誰支付了全額
+                                Menu {
+                                    ForEach(getAvailablePayersForPayment()) { payer in
+                                        Button(action: {
+                                            hideKeyboard()
+                                            setSinglePayerPayment(payer)
+                                        }) {
+                                            HStack {
+                                                Circle()
+                                                    .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                                    .frame(width: 8, height: 8)
+                                                Text(payer.name)
+                                                if contributions.count == 1 && contributions.first?.payerID == payer.id {
+                                                    Spacer()
+                                                    Image(systemName: "checkmark")
+                                                }
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        if let payerID = contributions.first?.payerID,
+                                           let payer = payers.first(where: { $0.id == payerID }) {
+                                            Circle()
+                                                .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                                .frame(width: 12, height: 12)
+                                            Text(payer.name)
+                                                .foregroundColor(.primary)
+                                        } else {
+                                            Text("選擇支付人")
+                                                .foregroundColor(.secondary)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.down")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .onTapGesture {
+                                    hideKeyboard()
+                                }
+                                
+                                // 顯示支付金額（自動設置為交易全額）
+                                if let contribution = contributions.first,
+                                   let amount = decimalFromString(contribution.amountText),
+                                   amount > 0 {
+                                    HStack {
+                                        Text("支付金額")
+                                        Spacer()
+                                        Text(formatCurrency(amount: amount, code: currencyCode))
+                                            .foregroundColor(.blue)
+                                            .bold()
+                                    }
+                                    .padding(.top, 8)
+                                }
+                            } else {
+                                // 查看模式
+                                if let contribution = contributions.first,
+                                   let payerID = contribution.payerID,
+                                   let payer = payers.first(where: { $0.id == payerID }),
+                                   let amount = decimalFromString(contribution.amountText) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            Circle()
+                                                .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                                .frame(width: 12, height: 12)
+                                            Text(payer.name)
+                                                .font(.body)
+                                            Spacer()
+                                            Text("支付全額")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        HStack {
+                                            Text("支付金額")
+                                            Spacer()
+                                            Text(formatCurrency(amount: amount, code: currencyCode))
+                                                .font(.headline)
+                                                .foregroundColor(.blue)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // 詳細模式：多人分攤支付
+                        Section(header: HStack {
+                            Text("分攤支付詳情")
+                            Spacer()
+                            if isEditing && !contributions.isEmpty {
+                                Button(action: {
+                                    hideKeyboard()
+                                    calculateRemainingDistribution()
+                                }) {
+                                    Text("自動分配剩餘金額")
+                                        .font(.caption)
+                                }
+                            }
+                        }) {
+                            if isEditing {
+                                ForEach(0..<contributions.count, id: \.self) { index in
+                                    HStack(spacing: 12) {
+                                        Menu {
+                                            ForEach(getAvailablePayers(for: index)) { payer in
+                                                Button(action: {
+                                                    hideKeyboard()
+                                                    contributions[index].payerID = payer.id
+                                                    updateContributionAmounts()
+                                                }) {
+                                                    HStack {
+                                                        Circle()
+                                                            .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                                            .frame(width: 8, height: 8)
+                                                        Text(payer.name)
+                                                        if contributions[index].payerID == payer.id {
+                                                            Spacer()
+                                                            Image(systemName: "checkmark")
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } label: {
+                                            HStack(spacing: 6) {
+                                                Circle()
+                                                    .fill(Color(hex: getPayerColor(for: index) ?? "#A8A8A8"))
+                                                    .frame(width: 12, height: 12)
+                                                
+                                                Text(getPayerName(for: index))
+                                                    .foregroundColor(contributions[index].payerID == nil ? .secondary : .primary)
+                                                    .frame(width: 100)
+                                            }
+                                        }
+                                        .frame(width: 140)
+                                        .onTapGesture {
+                                            hideKeyboard()
+                                        }
+                                        
+                                        TextField("金額", text: Binding(
+                                            get: { contributions[index].amountText },
+                                            set: { newValue in
+                                                contributions[index].amountText = newValue
+                                                validateAmounts()
+                                            }
+                                        ))
+                                        .keyboardType(.decimalPad)
+                                        .multilineTextAlignment(.trailing)
+                                        .frame(width: 80)
+                                        .onTapGesture {
+                                            hideKeyboard()
+                                        }
+                                        
+                                        Text(currencyCode)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        
+                                        if contributions[index].isRemovable {
+                                            Button(action: {
+                                                hideKeyboard()
+                                                contributions.remove(at: index)
+                                                validateAmounts()
+                                            }) {
+                                                Image(systemName: "minus.circle")
+                                                    .foregroundColor(.red)
+                                            }
+                                            .buttonStyle(BorderlessButtonStyle())
+                                            .onTapGesture {
+                                                hideKeyboard()
+                                            }
+                                        }
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                                
+                                Button(action: {
+                                    hideKeyboard()
+                                    if canAddNewContribution() {
+                                        contributions.append(ContributionEntry(
+                                            payerID: nil,
+                                            amountText: "",
+                                            isRemovable: true
+                                        ))
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: "plus.circle.fill")
+                                            .foregroundColor(canAddNewContribution() ? .accentColor : .gray)
+                                        Text("添加付款人")
+                                            .foregroundColor(canAddNewContribution() ? .primary : .gray)
+                                    }
+                                }
+                                .disabled(!canAddNewContribution())
+                                .padding(.top, 4)
+                                
+                                if !contributions.isEmpty {
+                                    HStack {
+                                        Text("支付總額")
+                                            .font(.caption)
+                                        Spacer()
+                                        
+                                        // 改進：根據差異顯示不同顏色
+                                        let totalColor = getTotalColor()
+                                        let diffText = getDifferenceText()
+                                        
+                                        Text("\(formatCurrency(amount: distributedTotal, code: currencyCode)) / \(formatCurrency(amount: totalAmountDecimal, code: currencyCode))")
+                                            .font(.caption)
+                                            .foregroundColor(totalColor)
+                                        
+                                        if !diffText.isEmpty {
+                                            Text("(\(diffText))")
+                                                .font(.caption2)
+                                                .foregroundColor(totalColor)
+                                        }
+                                    }
+                                    .padding(.top, 8)
+                                }
+                                
+                                if showAmountError {
+                                    HStack {
+                                        Image(systemName: "exclamationmark.triangle")
+                                            .foregroundColor(.orange)
+                                        Text("支付金額不匹配")
+                                            .font(.caption)
+                                            .foregroundColor(.orange)
+                                    }
+                                    .padding(.top, 4)
+                                }
+                            } else {
+                                // 查看模式
+                                if contributions.isEmpty {
+                                    Text("無支付記錄")
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    ForEach(contributions, id: \.id) { contribution in
+                                        if let payerID = contribution.payerID,
+                                           let payer = payers.first(where: { $0.id == payerID }),
+                                           let amount = decimalFromString(contribution.amountText) {
+                                            HStack {
+                                                Circle()
+                                                    .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                                    .frame(width: 12, height: 12)
+                                                
+                                                Text(payer.name)
+                                                    .font(.body)
+                                                Spacer()
+                                                Text(formatCurrency(amount: amount, code: currencyCode))
+                                                    .font(.body)
+                                            }
+                                            .padding(.vertical, 2)
+                                        }
+                                    }
+                                    HStack {
+                                        Text("支付總額")
+                                            .font(.headline)
+                                        Spacer()
+                                        Text(formatCurrency(amount: totalAmountDecimal, code: currencyCode))
+                                            .font(.headline)
+                                    }
+                                    .padding(.top, 8)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ✅ 新增：收入交易收款人選擇
+                if selectedType == .income {
+                    Section(header: Text(langManager.localized("income_recipient_section"))) {
+                        if isEditing {
+                            Menu {
+                                // ✅ 收入交易只能選擇已分配給當前分類的付款人
+                                let availablePayersForIncome = getAvailablePayersForIncome()
+                                
+                                if availablePayersForIncome.isEmpty {
+                                    Text("當前分類未分配付款人")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("選擇收款人（只能選擇已分配給此分類的付款人）")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    ForEach(availablePayersForIncome) { payer in
+                                        Button(action: {
+                                            hideKeyboard()
+                                            selectedIncomePayerID = payer.id
+                                        }) {
+                                            HStack {
+                                                Circle()
+                                                    .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                                    .frame(width: 8, height: 8)
+                                                Text(payer.name)
+                                                if selectedIncomePayerID == payer.id {
+                                                    Spacer()
+                                                    Image(systemName: "checkmark")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    if let payerID = selectedIncomePayerID,
+                                       let payer = payers.first(where: { $0.id == payerID }) {
+                                        Circle()
+                                            .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                            .frame(width: 12, height: 12)
+                                        Text(payer.name)
+                                            .foregroundColor(.primary)
+                                    } else {
+                                        Text(langManager.localized("select_income_recipient"))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .onTapGesture {
+                                hideKeyboard()
+                            }
+                            
+                            // ✅ 顯示付款人限制提示
+                            if let parentID = selectedParentID,
+                               let category = categories.first(where: { $0.id == parentID }) {
+                                let assignedPayers = category.assignedPayers(in: context)
+                                if !assignedPayers.isEmpty {
+                                    Text("只能選擇已分配給「\(category.name)」的付款人")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                        .padding(.top, 4)
+                                }
+                            }
+                        } else {
+                            // 查看模式
+                            if let payerID = selectedIncomePayerID,
+                               let payer = payers.first(where: { $0.id == payerID }) {
+                                HStack {
+                                    Circle()
+                                        .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                        .frame(width: 12, height: 12)
+                                    Text(payer.name)
+                                    Spacer()
+                                    Text(langManager.localized("income_recipient_label"))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            } else if let defaultPayer = getDefaultIncomePayer() {
+                                HStack {
+                                    Circle()
+                                        .fill(Color(hex: defaultPayer.colorHex ?? "#A8A8A8"))
+                                        .frame(width: 12, height: 12)
+                                    Text(defaultPayer.name)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text("\(langManager.localized("income_recipient_label"))（預設）")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
                         }
                     }
                 }
@@ -350,218 +823,6 @@ struct TransactionFormView: View {
                         Text(date, format: .dateTime.year().month().day())
                             .lineLimit(1)
                             .truncationMode(.tail)
-                    }
-                }
-                
-                if selectedType == .expense {
-                    Section {
-                        if isEditing {
-                            Toggle(langManager.localized("enable_contribution_toggle"), isOn: $showContributionSection)
-                                .onChange(of: showContributionSection) { show in
-                                    hideKeyboard()
-                                    if show {
-                                        if contributions.isEmpty {
-                                            let firstPayer = payers.first ?? defaultPayer
-                                            contributions.append(ContributionEntry(
-                                                payerID: firstPayer?.id,
-                                                amountText: totalAmountText,
-                                                isRemovable: true
-                                            ))
-                                        }
-                                    } else {
-                                        contributions.removeAll()
-                                    }
-                                }
-                                .onTapGesture {
-                                    hideKeyboard()
-                                }
-                        } else {
-                            HStack {
-                                Text(langManager.localized("contribution_label"))
-                                Spacer()
-                                Text(showContributionSection ? langManager.localized("contribution_enabled") : langManager.localized("contribution_disabled"))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    } footer: {
-                        Text(showContributionSection ?
-                             langManager.localized("contribution_enabled_description") :
-                             langManager.localized("contribution_disabled_description"))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                if selectedType == .expense && showContributionSection {
-                    Section(header: HStack {
-                        Text(langManager.localized("contribution_header"))
-                        Spacer()
-                        if isEditing && !contributions.isEmpty {
-                            Button(action: {
-                                hideKeyboard()
-                                distributeEqually()
-                            }) {
-                                Text(langManager.localized("distribute_equally_button"))
-                                    .font(.caption)
-                            }
-                        }
-                    }) {
-                        if isEditing {
-                            ForEach(0..<contributions.count, id: \.self) { index in
-                                HStack(spacing: 12) {
-                                    Menu {
-                                        Text(langManager.localized("select_payer_prompt"))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        
-                                        ForEach(getAvailablePayers(for: index)) { payer in
-                                            Button(action: {
-                                                hideKeyboard()
-                                                contributions[index].payerID = payer.id
-                                            }) {
-                                                HStack {
-                                                    Text(payer.name)
-                                                    if contributions[index].payerID == payer.id {
-                                                        Spacer()
-                                                        Image(systemName: "checkmark")
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    } label: {
-                                        HStack(spacing: 6) {
-                                            Circle()
-                                                .fill(Color(hex: getPayerColor(for: index) ?? "#A8A8A8"))
-                                                .frame(width: 12, height: 12)
-                                            
-                                            Text(getPayerName(for: index))
-                                                .foregroundColor(contributions[index].payerID == nil ? .secondary : .primary)
-                                                .frame(width: 100)
-                                        }
-                                    }
-                                    .frame(width: 140)
-                                    .onTapGesture {
-                                        hideKeyboard()
-                                    }
-                                    
-                                    TextField(langManager.localized("amount_label"), text: Binding(
-                                        get: { contributions[index].amountText },
-                                        set: { newValue in
-                                            contributions[index].amountText = newValue
-                                            validateAmounts()
-                                        }
-                                    ))
-                                    .keyboardType(.decimalPad)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(width: 80)
-                                    .onTapGesture {
-                                        hideKeyboard()
-                                    }
-                                    
-                                    Text(currencyCode)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    if contributions[index].isRemovable {
-                                        Button(action: {
-                                            hideKeyboard()
-                                            contributions.remove(at: index)
-                                            validateAmounts()
-                                        }) {
-                                            Image(systemName: "minus.circle")
-                                                .foregroundColor(.red)
-                                        }
-                                        .buttonStyle(BorderlessButtonStyle())
-                                        .onTapGesture {
-                                            hideKeyboard()
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            
-                            Button(action: {
-                                hideKeyboard()
-                                contributions.append(ContributionEntry(
-                                    payerID: nil,
-                                    amountText: "",
-                                    isRemovable: true
-                                ))
-                            }) {
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundColor(.accentColor)
-                                    Text(langManager.localized("add_new_payer"))
-                                }
-                            }
-                            .padding(.top, 4)
-                            
-                            if !contributions.isEmpty {
-                                HStack {
-                                    Text(langManager.localized("contribution_total"))
-                                        .font(.caption)
-                                    Spacer()
-                                    
-                                    // ✅ 改進：根據差異顯示不同顏色
-                                    let totalColor = getTotalColor()
-                                    let diffText = getDifferenceText()
-                                    
-                                    Text("\(formatCurrency(amount: distributedTotal, code: currencyCode)) / \(formatCurrency(amount: totalAmountDecimal, code: currencyCode))")
-                                        .font(.caption)
-                                        .foregroundColor(totalColor)
-                                    
-                                    if !diffText.isEmpty {
-                                        Text("(\(diffText))")
-                                            .font(.caption2)
-                                            .foregroundColor(totalColor)
-                                    }
-                                }
-                                .padding(.top, 8)
-                            }
-                            
-                            if showAmountError {
-                                HStack {
-                                    Image(systemName: "exclamationmark.triangle")
-                                        .foregroundColor(.orange)
-                                    Text(langManager.localized("contribution_amount_mismatch"))
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                }
-                                .padding(.top, 4)
-                            }
-                        } else {
-                            if contributions.isEmpty {
-                                Text(langManager.localized("no_payers"))
-                                    .foregroundColor(.secondary)
-                            } else {
-                                ForEach(contributions, id: \.id) { contribution in
-                                    if let payerID = contribution.payerID,
-                                       let payer = payers.first(where: { $0.id == payerID }),
-                                       let amount = decimalFromString(contribution.amountText) {
-                                        HStack {
-                                            Circle()
-                                                .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
-                                                .frame(width: 12, height: 12)
-                                            
-                                            Text(payer.name)
-                                                .font(.body)
-                                            Spacer()
-                                            Text(formatCurrency(amount: amount, code: currencyCode))
-                                                .font(.body)
-                                        }
-                                        .padding(.vertical, 2)
-                                    }
-                                }
-                                HStack {
-                                    Text(langManager.localized("total_label"))
-                                        .font(.headline)
-                                    Spacer()
-                                    Text(formatCurrency(amount: totalAmountDecimal, code: currencyCode))
-                                        .font(.headline)
-                                }
-                                .padding(.top, 8)
-                            }
-                        }
                     }
                 }
             }
@@ -598,13 +859,26 @@ struct TransactionFormView: View {
                 }
             }
             .onAppear { setupInitialData() }
+            .sheet(isPresented: $showParticipantSelection) {
+                ParticipantSelectionSheet(
+                    assignedPayers: assignedPayersForCategory,
+                    allPayers: payers,
+                    selectedParticipantIDs: selectedParticipantIDs,
+                    onSave: { selectedIDs in
+                        updateParticipantEntries(selectedIDs: selectedIDs)
+                        // 更新支付設置
+                        updatePaymentSetup()
+                    }
+                )
+                .environment(\.modelContext, context)
+            }
             .alert(langManager.localized("form_delete_title"), isPresented: $showDeleteAlert) {
                 Button(langManager.localized("form_cancel"), role: .cancel) {}
                 Button(langManager.localized("form_delete"), role: .destructive) { deleteConfirmed() }
             } message: {
                 Text(langManager.localized("form_delete_message"))
             }
-            .alert("分攤金額不匹配", isPresented: $showContributionMismatchAlert) {
+            .alert("支付金額不匹配", isPresented: $showContributionMismatchAlert) {
                 Button("取消", role: .cancel) {
                     allowSaveAnyway = false
                 }
@@ -665,15 +939,39 @@ struct TransactionFormView: View {
         }
     }
     
+    // ✅ 新增：已選擇的參與者ID集合
+    private var selectedParticipantIDs: Set<UUID> {
+        Set(participantEntries.filter { $0.isParticipating }.map { $0.payer.id })
+    }
+    
+    // ✅ 新增：已選擇的參與者數量
+    private var selectedParticipantCount: Int {
+        selectedParticipantIDs.count
+    }
+    
     private var isValid: Bool {
         guard let total = decimalFromString(totalAmountText), total > 0 else { return false }
         
         // ✅ 移除分類檢查，因為現在總會有分類（預設未分類）
         if selectedType == .income {
+            // ✅ 收入交易：必須有收款人
+            return true // 允許保存，即使未選擇收款人（會使用默認收款人）
+        }
+        
+        // ✅ 支出交易：必須至少有一個參與者
+        if selectedParticipantIDs.isEmpty {
+            return false
+        }
+        
+        // ✅ 簡化模式：必須有一個付款人
+        if contributionMode == .simple {
+            guard !contributions.isEmpty else { return false }
+            guard contributions.first?.payerID != nil else { return false }
             return true
         }
         
-        if showContributionSection {
+        // ✅ 詳細模式：檢查每個分攤項
+        if contributionMode == .detailed {
             guard !contributions.isEmpty else { return false }
             
             for contribution in contributions {
@@ -682,9 +980,9 @@ struct TransactionFormView: View {
             }
             
             return true
-        } else {
-            return defaultPayer != nil
         }
+        
+        return false
     }
     
     private func getPayerName(for index: Int) -> String {
@@ -692,7 +990,7 @@ struct TransactionFormView: View {
            let payer = payers.first(where: { $0.id == payerID }) {
             return payer.name
         } else {
-            return langManager.localized("select_payer")
+            return "選擇付款人"
         }
     }
     
@@ -704,21 +1002,376 @@ struct TransactionFormView: View {
         return nil
     }
     
+    // ✅ 修改：只顯示當前分類已分配的付款人
     private func getAvailablePayers(for index: Int) -> [Payer] {
+        // 1. 優先使用已選擇的參與者（按 order 排序）
+        let participatingPayers = participantEntries
+            .filter { $0.isParticipating }
+            .map { $0.payer }
+            .sorted { $0.order < $1.order }  // ✅ 確保排序
+        
+        if !participatingPayers.isEmpty {
+            // 只顯示參與者中的付款人
+            var availableFromParticipants = participatingPayers
+            
+            // 排除已被其他分攤項選中的付款人
+            let selectedPayerIDs = contributions
+                .enumerated()
+                .filter { $0.offset != index }
+                .compactMap { $0.element.payerID }
+            
+            let selectedIDsSet = Set(selectedPayerIDs)
+            
+            return availableFromParticipants.filter { !selectedIDsSet.contains($0.id) }
+        }
+        
+        // 2. 如果沒有參與者，使用分類的已分配付款人（按 order 排序）
+        var availablePayers: [Payer]
+        
+        if !assignedPayersForCategory.isEmpty {
+            availablePayers = assignedPayersForCategory.sorted { $0.order < $1.order }
+        } else if let parentID = selectedParentID,
+                  let category = categories.first(where: { $0.id == parentID }) {
+            let assignedPayers = category.assignedPayers(in: context)
+            if !assignedPayers.isEmpty {
+                availablePayers = assignedPayers.sorted { $0.order < $1.order }
+            } else {
+                // 3. 如果分類沒有分配付款人，使用所有付款人（按 order 排序）
+                availablePayers = payers.sorted { $0.order < $1.order }
+            }
+        } else {
+            // 4. 沒有選擇分類，使用所有付款人（按 order 排序）
+            availablePayers = payers.sorted { $0.order < $1.order }
+        }
+        
+        // 排除已被其他分攤項選中的付款人
         let selectedPayerIDs = contributions
             .enumerated()
             .filter { $0.offset != index }
             .compactMap { $0.element.payerID }
         
-        let allSelectedIDs = Set(selectedPayerIDs)
+        let selectedIDsSet = Set(selectedPayerIDs)
         
-        return payers.filter { payer in
-            !allSelectedIDs.contains(payer.id)
+        return availablePayers.filter { !selectedIDsSet.contains($0.id) }
+    }
+    
+    // ✅ 新增：獲取可用的支付人（用於簡化模式）
+    private func getAvailablePayersForPayment() -> [Payer] {
+        // 簡化模式：只能選擇參與者
+        let participatingPayers = participantEntries
+            .filter { $0.isParticipating }
+            .map { $0.payer }
+            .sorted { $0.order < $1.order }  // ✅ 確保排序
+        
+        if !participatingPayers.isEmpty {
+            return participatingPayers
+        }
+        
+        // 如果沒有參與者，使用已分配付款人
+        if !assignedPayersForCategory.isEmpty {
+            return assignedPayersForCategory.sorted { $0.order < $1.order }  // ✅ 確保排序
+        }
+        
+        // 最後備選：所有付款人
+        return payers
+    }
+    
+    // ✅ 新增：獲取收入交易可用的付款人
+    private func getAvailablePayersForIncome() -> [Payer] {
+        // 收入交易只能選擇已分配給當前分類的付款人
+        if !assignedPayersForCategory.isEmpty {
+            return assignedPayersForCategory.sorted { $0.order < $1.order }  // ✅ 確保排序
+        } else if let parentID = selectedParentID,
+                  let category = categories.first(where: { $0.id == parentID }) {
+            let assignedPayers = category.assignedPayers(in: context)
+            return assignedPayers.sorted { $0.order < $1.order }  // ✅ 確保排序
+        } else {
+            // 沒有選擇分類，顯示所有付款人
+            return payers.sorted { $0.order < $1.order }  // ✅ 確保排序
         }
     }
     
     private var defaultPayer: Payer? {
-        payers.first { $0.isDefault } ?? payers.first
+        // ✅ 修改：優先使用當前分類已分配付款人中的第一個
+        if !assignedPayersForCategory.isEmpty {
+            return assignedPayersForCategory.first
+        } else if let parentID = selectedParentID,
+                  let category = categories.first(where: { $0.id == parentID }) {
+            let assignedPayers = category.assignedPayers(in: context)
+            if !assignedPayers.isEmpty {
+                return assignedPayers.first
+            }
+        }
+        
+        // 如果沒有已分配的付款人，使用預設付款人或第一個付款人
+        return payers.first { $0.isDefault } ?? payers.first
+    }
+    
+    // ✅ 新增：獲取收入交易的默認收款人
+    private func getDefaultIncomePayer() -> Payer? {
+        // 優先使用已分配付款人中的第一個
+        if !assignedPayersForCategory.isEmpty {
+            return assignedPayersForCategory.first
+        } else if let parentID = selectedParentID,
+                  let category = categories.first(where: { $0.id == parentID }) {
+            let assignedPayers = category.assignedPayers(in: context)
+            if !assignedPayers.isEmpty {
+                return assignedPayers.first
+            }
+        }
+        
+        // 如果沒有已分配的付款人，使用預設付款人
+        return payers.first { $0.isDefault } ?? payers.first
+    }
+    
+    // ✅ 新增：檢查是否可以添加新的分攤項
+    private func canAddNewContribution() -> Bool {
+        // 詳細模式才需要檢查
+        guard contributionMode == .detailed else { return false }
+        
+        // 獲取當前分類的付款人限制
+        let allowedPayers: [Payer]
+        if !assignedPayersForCategory.isEmpty {
+            allowedPayers = assignedPayersForCategory
+        } else if let parentID = selectedParentID,
+                  let category = categories.first(where: { $0.id == parentID }) {
+            let assignedPayers = category.assignedPayers(in: context)
+            allowedPayers = assignedPayers.isEmpty ? payers : assignedPayers
+        } else {
+            allowedPayers = payers
+        }
+        
+        // 檢查是否還有未選中的允許付款人
+        let selectedPayerIDs = contributions.compactMap { $0.payerID }
+        let selectedIDsSet = Set(selectedPayerIDs)
+        
+        return allowedPayers.contains { !selectedIDsSet.contains($0.id) }
+    }
+    
+    // ✅ 新增：獲取支付模式描述
+    private func getContributionModeDescription() -> String {
+        switch contributionMode {
+        case .simple:
+            return "通常情況下，由一個人先墊付全額，其他人之後還錢。（默認模式）"
+        case .detailed:
+            return "多人即時分攤支付，每人支付自己部分。"
+        }
+    }
+    
+    // ✅ 新增：更新當前分類的已分配付款人
+    private func updateAssignedPayersForCategory(_ category: Category) {
+        let assignedPayers = category.assignedPayers(in: context)
+        
+        // ✅ 修改：按 order 排序
+        assignedPayersForCategory = assignedPayers.sorted { $0.order < $1.order }
+        
+        // ✅ 修改：更新參與者條目
+        updateParticipantEntriesForNewCategory(assignedPayersForCategory)
+    }
+    
+    // ✅ 新增：從已分配付款人更新參與者條目
+    private func updateParticipantEntriesFromAssignedPayers() {
+        // ✅ 修改：按 order 排序後再創建條目
+        participantEntries = assignedPayersForCategory
+            .sorted { $0.order < $1.order }
+            .map { payer in
+                ParticipantEntry(payer: payer, isParticipating: true)
+            }
+        updatePaymentSetup()
+    }
+    
+    // ✅ 新增：為新分類更新參與者條目
+    private func updateParticipantEntriesForNewCategory(_ newAssignedPayers: [Payer]) {
+        // 創建新嘅參與者條目
+        var newParticipantEntries: [ParticipantEntry] = []
+        
+        // 遍歷新分類嘅付款人
+        for payer in newAssignedPayers {
+            // 檢查呢個付款人是否已經喺舊嘅參與者列表中
+            if let existingEntry = participantEntries.first(where: { $0.payer.id == payer.id }) {
+                // 保留原有嘅參與狀態
+                newParticipantEntries.append(existingEntry)
+            } else {
+                // 新付款人，默認參與
+                newParticipantEntries.append(ParticipantEntry(payer: payer, isParticipating: true))
+            }
+        }
+        
+        // 設置新嘅參與者條目
+        participantEntries = newParticipantEntries
+        
+        // ✅ 新增：重置支付詳情
+        resetPaymentDetailsForNewCategory()
+    }
+    
+    // ✅ 新增：更新參與者條目（根據選擇的ID）
+    private func updateParticipantEntries(selectedIDs: Set<UUID>) {
+        for i in participantEntries.indices {
+            participantEntries[i].isParticipating = selectedIDs.contains(participantEntries[i].payer.id)
+        }
+        // 更新支付設置
+        updatePaymentSetup()
+    }
+    
+    // ✅ 修改：更新支付設置 - 默認使用簡化模式
+    private func updatePaymentSetup() {
+        // ✅ 新增：檢查當前支付記錄中嘅付款人是否屬於當前分類
+        cleanupInvalidContributions()
+        
+        let participatingCount = selectedParticipantCount
+        
+        // ✅ 修改：默認使用簡化模式（一人支付全部）
+        if participatingCount == 0 {
+            // 沒有人參與：清空支付記錄
+            contributionMode = .simple
+            contributions = []
+        } else {
+            // ✅ 修改：保持當前模式，但默認為簡化模式
+            // 唔會自動跳去詳細模式，俾用戶自己選擇
+            if contributionMode == .simple {
+                setupSinglePayerPayment()
+            } else if contributionMode == .detailed {
+                setupDetailedPayments()
+            }
+        }
+    }
+    
+    // ✅ 修改：設置單人支付 - 改進邏輯
+    private func setupSinglePayerPayment() {
+        // 獲取當前分類嘅參與者
+        let participatingPayers = participantEntries
+            .filter { $0.isParticipating }
+            .map { $0.payer }
+            .sorted { $0.order < $1.order }
+        
+        if let firstParticipant = participatingPayers.first {
+            // 設置第一個參與者支付全額
+            contributions = [
+                ContributionEntry(
+                    payerID: firstParticipant.id,
+                    amountText: totalAmountText,
+                    isRemovable: false
+                )
+            ]
+        } else {
+            // 冇參與者，使用默認付款人
+            if let defaultPayer = defaultPayer {
+                contributions = [
+                    ContributionEntry(
+                        payerID: defaultPayer.id,
+                        amountText: totalAmountText,
+                        isRemovable: false
+                    )
+                ]
+            } else {
+                // 冇默認付款人，清空支付記錄
+                contributions = []
+            }
+        }
+    }
+    
+    // ✅ 新增：設置詳細支付
+    private func setupDetailedPayments() {
+        // 清空現有支付記錄
+        contributions = []
+        
+        // 為每個參與者創建支付記錄
+        for entry in participantEntries.filter({ $0.isParticipating }) {
+            contributions.append(ContributionEntry(
+                payerID: entry.payer.id,
+                amountText: "",
+                isRemovable: true
+            ))
+        }
+        
+        // 自動平均分配
+        calculateEqualDistribution()
+    }
+    
+    // ✅ 新增：處理支付模式變化
+    private func handleContributionModeChange(_ newMode: ContributionMode) {
+        hideKeyboard()
+        
+        if newMode == .simple {
+            // 轉為簡化模式
+            setupSinglePayerPayment()
+        } else {
+            // 轉為詳細模式
+            setupDetailedPayments()
+        }
+    }
+    
+    // ✅ 新增：設置單人支付
+    private func setSinglePayerPayment(_ payer: Payer) {
+        contributions = [
+            ContributionEntry(
+                payerID: payer.id,
+                amountText: totalAmountText,
+                isRemovable: false
+            )
+        ]
+    }
+    
+    // ✅ 新增：計算平均分配
+    private func calculateEqualDistribution() {
+        let participatingCount = selectedParticipantCount
+        guard participatingCount > 0 else { return }
+        
+        let total = totalAmountDecimal
+        let share = total / Decimal(participatingCount)
+        let shareString = decimalToString(share)
+        
+        for i in contributions.indices {
+            contributions[i].amountText = shareString
+        }
+        
+        validateAmounts()
+    }
+    
+    // ✅ 新增：計算剩餘金額分配
+    private func calculateRemainingDistribution() {
+        let total = totalAmountDecimal
+        let currentTotal = distributedTotal
+        let remaining = total - currentTotal
+        
+        guard remaining != 0 else { return }
+        
+        // 計算有設置金額的支付項數量
+        let validContributions = contributions.filter { entry in
+            guard let amount = decimalFromString(entry.amountText) else { return false }
+            return amount > 0
+        }
+        
+        let count = validContributions.count
+        guard count > 0 else { return }
+        
+        // 平均分配剩餘金額
+        let adjustment = remaining / Decimal(count)
+        let adjustmentString = decimalToString(adjustment)
+        
+        for i in contributions.indices {
+            if let currentAmount = decimalFromString(contributions[i].amountText),
+               currentAmount > 0 {
+                let newAmount = currentAmount + adjustment
+                contributions[i].amountText = decimalToString(newAmount)
+            }
+        }
+        
+        validateAmounts()
+    }
+    
+    // ✅ 新增：更新分攤金額
+    private func updateContributionAmounts() {
+        // 確保每個分攤項都有合理的金額
+        for i in contributions.indices {
+            if contributions[i].amountText.isEmpty || decimalFromString(contributions[i].amountText) == 0 {
+                // 如果金額為空或0，設置為平均份額
+                let participatingCount = max(selectedParticipantCount, 1)
+                let share = totalAmountDecimal / Decimal(participatingCount)
+                contributions[i].amountText = decimalToString(share)
+            }
+        }
+        validateAmounts()
     }
     
     // ✅ 新增：獲取總額顏色
@@ -749,6 +1402,115 @@ struct TransactionFormView: View {
         }
     }
     
+    // ✅ 新增：清理無效嘅支付記錄（付款人不屬於當前分類）
+    private func cleanupInvalidContributions() {
+        guard !contributions.isEmpty else { return }
+        
+        // 獲取當前分類嘅付款人ID集合
+        let validPayerIDs = Set(assignedPayersForCategory.map { $0.id })
+        
+        // 如果冇已分配付款人，使用所有付款人
+        let allPayerIDs = validPayerIDs.isEmpty ? Set(payers.map { $0.id }) : validPayerIDs
+        
+        // 過濾無效嘅支付記錄
+        contributions = contributions.filter { entry in
+            if let payerID = entry.payerID {
+                return allPayerIDs.contains(payerID)
+            }
+            return true // 冇選擇付款人嘅記錄保留
+        }
+        
+        // 如果支付記錄被清空，重新設置
+        if contributions.isEmpty {
+            setupPaymentBasedOnParticipants()
+        }
+    }
+    
+    // ✅ 修改：根據參與者設置支付 - 默認使用簡化模式
+    private func setupPaymentBasedOnParticipants() {
+        let participatingPayers = participantEntries
+            .filter { $0.isParticipating }
+            .map { $0.payer }
+            .sorted { $0.order < $1.order }
+        
+        if participatingPayers.isEmpty {
+            contributions = []
+            return
+        }
+        
+        // ✅ 修改：無論參與人數多少，默認使用簡化模式
+        contributionMode = .simple
+        contributions = [
+            ContributionEntry(
+                payerID: participatingPayers[0].id,  // 選擇第一個參與者
+                amountText: totalAmountText,
+                isRemovable: false
+            )
+        ]
+    }
+    
+    // ✅ 修改：重置支付詳情（當分類變更時） - 默認使用簡化模式
+    private func resetPaymentDetailsForNewCategory() {
+        // 1. 清除所有現有支付記錄
+        contributions.removeAll()
+        
+        // 2. 重置參與者選擇（如果已有選擇）
+        if !participantEntries.isEmpty {
+            // 只保留仍然在 assignedPayersForCategory 中嘅付款人
+            for i in participantEntries.indices {
+                let payerID = participantEntries[i].payer.id
+                if assignedPayersForCategory.contains(where: { $0.id == payerID }) {
+                    participantEntries[i].isParticipating = true
+                } else {
+                    participantEntries[i].isParticipating = false
+                }
+            }
+        }
+        
+        // 3. 根據新分類重新設置支付
+        // ✅ 修改：默認使用簡化模式
+        contributionMode = .simple
+        setupSinglePayerPayment()
+    }
+    
+    // ✅ 新增：處理父分類變化
+    private func handleParentCategoryChange(oldValue: UUID?, newParent: UUID?) {
+        hideKeyboard()
+        
+        // 如果分類冇變，唔使做任何嘢
+        guard oldValue != newParent else { return }
+        
+        DispatchQueue.main.async {
+            if let newParent = newParent {
+                // 當選擇父分類時，自動選擇「未分類」子分類
+                if let uncategorizedSub = subcategories.first(where: {
+                    $0.parentID == newParent && $0.name == langManager.localized("uncategorized_label")
+                }) {
+                    selectedSubcategoryID = uncategorizedSub.id
+                }
+                
+                // ✅ 重要修改：更新已分配付款人及參與者
+                if let category = categories.first(where: { $0.id == newParent }) {
+                    updateAssignedPayersForCategory(category)
+                }
+                
+                // ✅ 更新：重置收入收款人選擇
+                if selectedType == .income {
+                    selectedIncomePayerID = nil
+                }
+            } else {
+                selectedSubcategoryID = nil
+                assignedPayersForCategory = []
+                participantEntries = []
+                selectedIncomePayerID = nil
+                
+                // ✅ 新增：重置支付詳情
+                contributions.removeAll()
+                contributionMode = .simple
+            }
+        }
+    }
+    
     // MARK: - Setup Methods
     
     private func setupInitialData() {
@@ -762,15 +1524,38 @@ struct TransactionFormView: View {
             
             if let subID = tx.subcategoryID,
                let sub = subcategories.first(where: { $0.id == subID }) {
-                selectedSubcategoryID = sub.id
                 selectedParentID = sub.parentID
+                selectedSubcategoryID = sub.id
+                
+                // ✅ 更新：設置當前分類的已分配付款人
+                if let category = categories.first(where: { $0.id == sub.parentID }) {
+                    updateAssignedPayersForCategory(category)
+                    
+                    // ✅ 設置參與者選擇（優先使用交易記錄的參與者）
+                    if !tx.participatingPayerIDs.isEmpty {
+                        // 使用交易記錄的參與者
+                        let selectedIDs = Set(tx.participatingPayerIDs)
+                        updateParticipantEntries(selectedIDs: selectedIDs)
+                    } else {
+                        // 舊交易沒有參與者記錄，默認所有已分配付款人都參與
+                        updateParticipantEntriesFromAssignedPayers()
+                    }
+                }
+                
+                // ✅ 新增：設置收入交易的收款人
+                if tx.type == .income && !tx.contributions.isEmpty {
+                    // 收入交易應該只有一個分攤（收款人）
+                    if let contribution = tx.contributions.first {
+                        selectedIncomePayerID = contribution.payer.id
+                    }
+                }
             } else {
                 // ✅ 如果交易原本 subcategoryID 為 nil，設置為預設未分類
                 setDefaultUncategorized()
             }
             
+            // ✅ 修改：設置支付記錄
             if tx.type == .expense && !tx.contributions.isEmpty {
-                showContributionSection = true
                 contributions = tx.contributions.map { contribution in
                     ContributionEntry(
                         payerID: contribution.payer.id,
@@ -778,16 +1563,28 @@ struct TransactionFormView: View {
                         isRemovable: true
                     )
                 }
+                
+                // ✅ 修改：簡化模式只檢查是否是單人支付
+                if tx.contributions.count == 1 {
+                    contributionMode = .simple
+                } else {
+                    contributionMode = .detailed
+                }
             } else {
-                showContributionSection = false
-                contributions = []
+                // 新交易或沒有支付記錄
+                // ✅ 修改：默認使用簡化模式
+                contributionMode = .simple
+                updatePaymentSetup()
             }
         } else {
             // ✅ 新增交易時，自動選擇預設「未分類」分類
             setDefaultUncategorized()
             
-            showContributionSection = false
-            contributions = []
+            selectedIncomePayerID = nil
+            
+            // ✅ 修改：設置默認支付模式為簡化模式
+            contributionMode = .simple
+            updatePaymentSetup()
         }
     }
     
@@ -799,12 +1596,18 @@ struct TransactionFormView: View {
            }) {
             selectedParentID = defaultCategory.id
             selectedSubcategoryID = defaultSubcategory.id
+            
+            // ✅ 更新：設置預設分類的已分配付款人
+            updateAssignedPayersForCategory(defaultCategory)
         } else if let firstCategory = categories.first {
             // 如果沒有預設分類，使用第一個分類
             selectedParentID = firstCategory.id
             if let firstSubcategory = subcategories.first(where: { $0.parentID == firstCategory.id }) {
                 selectedSubcategoryID = firstSubcategory.id
             }
+            
+            // ✅ 更新：設置第一個分類的已分配付款人
+            updateAssignedPayersForCategory(firstCategory)
         }
     }
     
@@ -813,24 +1616,12 @@ struct TransactionFormView: View {
     private func handleTypeChange(_ newType: TransactionType) {
         selectedType = newType
         if newType == .income {
-            showContributionSection = false
+            // 收入交易：清空支付記錄
             contributions.removeAll()
         } else {
-            showContributionSection = false
-            contributions.removeAll()
+            // 支出交易：重新設置支付
+            updatePaymentSetup()
         }
-    }
-    
-    private func distributeEqually() {
-        guard !contributions.isEmpty else { return }
-        let total = totalAmountDecimal
-        let count = Decimal(contributions.count)
-        let share = (count > 0) ? (total / count) : 0
-        let shareString = decimalToString(share)
-        for i in contributions.indices {
-            contributions[i].amountText = shareString
-        }
-        validateAmounts()
     }
     
     private func validateAmounts() {
@@ -851,37 +1642,42 @@ struct TransactionFormView: View {
             setDefaultUncategorized()
         }
         
-        // ✅ 檢查分攤金額是否匹配
-        if selectedType == .expense && showContributionSection && !contributions.isEmpty {
-            let difference = abs(distributedTotal - totalAmount)
-            
-            if difference > Decimal(0.01) {
-                // 顯示警告，讓用戶選擇
-                contributionDifference = distributedTotal - totalAmount
-                showContributionMismatchAlert = true
-                return
-            }
+        // ✅ 檢查支付金額是否匹配
+        let difference = abs(distributedTotal - totalAmount)
+        
+        if difference > Decimal(0.01) {
+            // 顯示警告，讓用戶選擇
+            contributionDifference = distributedTotal - totalAmount
+            showContributionMismatchAlert = true
+            return
         }
         
-        // 如果沒有分攤問題，直接保存
+        // 如果沒有支付問題，直接保存
         saveTransaction()
     }
     
-    // ✅ 新增：修復分攤金額並保存
+    // ✅ 新增：修復支付金額並保存
     private func fixContributionAmountsAndSave() {
         guard let totalAmount = decimalFromString(totalAmountText) else { return }
         
-        if showContributionSection && !contributions.isEmpty {
+        if !contributions.isEmpty {
             let difference = totalAmount - distributedTotal
             
-            // 平均分配差異
-            let perPersonAdjustment = difference / Decimal(contributions.count)
-            let adjustmentString = decimalToString(perPersonAdjustment)
-            
-            for i in contributions.indices {
-                if let currentAmount = decimalFromString(contributions[i].amountText) {
-                    let newAmount = currentAmount + perPersonAdjustment
-                    contributions[i].amountText = decimalToString(newAmount)
+            if contributionMode == .simple {
+                // 簡化模式：調整單一支付金額
+                if contributions.count == 1 {
+                    contributions[0].amountText = decimalToString(totalAmount)
+                }
+            } else {
+                // 詳細模式：平均分配差異
+                let perPersonAdjustment = difference / Decimal(contributions.count)
+                let adjustmentString = decimalToString(perPersonAdjustment)
+                
+                for i in contributions.indices {
+                    if let currentAmount = decimalFromString(contributions[i].amountText) {
+                        let newAmount = currentAmount + perPersonAdjustment
+                        contributions[i].amountText = decimalToString(newAmount)
+                    }
                 }
             }
         }
@@ -915,32 +1711,37 @@ struct TransactionFormView: View {
         transactionToSave.currencyCode = currencyCode
         transactionToSave.subcategoryID = selectedSubcategoryID // ✅ 總會有值
         
+        // ✅ 保存參與者信息
+        if selectedType == .expense {
+            transactionToSave.participatingPayerIDs = Array(selectedParticipantIDs)
+        } else {
+            // 收入交易不需要參與者列表
+            transactionToSave.participatingPayerIDs = []
+        }
+        
+        // 清除舊的支付記錄
         for contribution in transactionToSave.contributions {
             context.delete(contribution)
         }
         transactionToSave.contributions.removeAll()
         
         if selectedType == .expense {
-            if showContributionSection && !contributions.isEmpty {
-                // ✅ 修改：啟用分攤時，只保存用戶輸入嘅分攤，唔好自動補足差額
-                for contribution in contributions {
-                    if let payerID = contribution.payerID,
-                       let payer = payers.first(where: { $0.id == payerID }),
-                       let amount = decimalFromString(contribution.amountText), amount > 0 {
-                        let paymentContribution = PaymentContribution(
-                            amount: amount,
-                            payer: payer,
-                            transaction: transactionToSave
-                        )
-                        transactionToSave.contributions.append(paymentContribution)
-                    }
+            // 保存支付記錄
+            for contribution in contributions {
+                if let payerID = contribution.payerID,
+                   let payer = payers.first(where: { $0.id == payerID }),
+                   let amount = decimalFromString(contribution.amountText), amount > 0 {
+                    let paymentContribution = PaymentContribution(
+                        amount: amount,
+                        payer: payer,
+                        transaction: transactionToSave
+                    )
+                    transactionToSave.contributions.append(paymentContribution)
                 }
-                
-                // ❌ 移除：唔好自動添加預設付款人補足差額
-                // 用戶可以之後再編輯交易補充分攤
-                
-            } else {
-                // ✅ 修改：冇啟用分攤時，自動添加預設付款人（100%）
+            }
+            
+            // 確保至少有一個支付記錄
+            if transactionToSave.contributions.isEmpty {
                 if let defaultPayer = defaultPayer {
                     let paymentContribution = PaymentContribution(
                         amount: totalAmount,
@@ -949,6 +1750,36 @@ struct TransactionFormView: View {
                     )
                     transactionToSave.contributions.append(paymentContribution)
                 }
+            }
+        } else {
+            // ✅ 新增：收入交易 - 添加收款人支付記錄
+            let incomePayerID: UUID?
+            
+            // 優先使用用戶選擇的收款人
+            if let payerID = selectedIncomePayerID {
+                incomePayerID = payerID
+            } else {
+                // 如果未選擇收款人，使用默認收款人
+                incomePayerID = getDefaultIncomePayer()?.id
+            }
+            
+            if let payerID = incomePayerID,
+               let payer = payers.first(where: { $0.id == payerID }) {
+                // 收入交易：收款人收到全部金額
+                let paymentContribution = PaymentContribution(
+                    amount: totalAmount,
+                    payer: payer,
+                    transaction: transactionToSave
+                )
+                transactionToSave.contributions.append(paymentContribution)
+            } else if let defaultPayer = getDefaultIncomePayer() {
+                // 後備：使用默認付款人
+                let paymentContribution = PaymentContribution(
+                    amount: totalAmount,
+                    payer: defaultPayer,
+                    transaction: transactionToSave
+                )
+                transactionToSave.contributions.append(paymentContribution)
             }
         }
         
@@ -1021,15 +1852,144 @@ struct TransactionFormView: View {
         return locale.currencySymbol ?? code
     }
     
-    // ✅ 新增：獲取分攤不匹配的警告信息
+    // ✅ 新增：獲取支付不匹配的警告信息
     private func getContributionMismatchMessage() -> String {
         let difference = abs(contributionDifference)
         let amountStr = formatCurrency(amount: difference, code: currencyCode)
         
         if contributionDifference > 0 {
-            return "分攤總額比交易金額多 \(amountStr)。\n\n建議修復分攤金額以確保計算準確。"
+            return "支付總額比交易金額多 \(amountStr)。\n\n建議修復支付金額以確保計算準確。"
         } else {
-            return "分攤總額比交易金額少 \(amountStr)。\n\n建議修復分攤金額以確保計算準確。"
+            return "支付總額比交易金額少 \(amountStr)。\n\n建議修復支付金額以確保計算準確。"
+        }
+    }
+}
+
+// MARK: - ParticipantChip
+struct ParticipantChip: View {
+    let payer: Payer
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                .frame(width: 8, height: 8)
+            Text(payer.name)
+                .font(.caption)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(8)
+    }
+}
+
+// MARK: - ParticipantSelectionSheet
+// MARK: - ParticipantSelectionSheet
+struct ParticipantSelectionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    
+    let assignedPayers: [Payer]
+    let allPayers: [Payer]
+    let selectedParticipantIDs: Set<UUID>
+    let onSave: (Set<UUID>) -> Void
+    
+    @State private var tempSelectedIDs: Set<UUID> = []
+    
+    // ✅ 修改：確保 assignedPayers 按 order 排序
+    private var sortedAssignedPayers: [Payer] {
+        assignedPayers.sorted { $0.order < $1.order }
+    }
+    
+    // ✅ 修改：otherPayers 按 order 排序
+    private var sortedOtherPayers: [Payer] {
+        allPayers
+            .filter { payer in
+                !assignedPayers.contains(where: { $0.id == payer.id })
+            }
+            .sorted { $0.order < $1.order }
+    }
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                // 已分配付款人區
+                if !sortedAssignedPayers.isEmpty {
+                    Section("此分類嘅付款人") {
+                        ForEach(sortedAssignedPayers) { payer in
+                            payerRow(payer)
+                        }
+                    }
+                }
+                
+                // 其他付款人區
+                if !sortedOtherPayers.isEmpty {
+                    Section("其他付款人") {
+                        ForEach(sortedOtherPayers) { payer in
+                            payerRow(payer)
+                        }
+                    }
+                }
+                
+                // 統計信息
+                Section {
+                    HStack {
+                        Text("已選擇")
+                        Spacer()
+                        Text("\(tempSelectedIDs.count)人")
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
+            .navigationTitle("選擇參與者")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("取消") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") {
+                        onSave(tempSelectedIDs)
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear {
+                tempSelectedIDs = selectedParticipantIDs
+            }
+        }
+    }
+    
+    private func payerRow(_ payer: Payer) -> some View {  // ✅ 修正：返回 some View
+        HStack {
+            Circle()
+                .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                .frame(width: 12, height: 12)
+            
+            Text(payer.name)
+            
+            Spacer()
+            
+            if tempSelectedIDs.contains(payer.id) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.blue)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            toggleSelection(payer.id)
+        }
+    }
+    
+    private func toggleSelection(_ payerID: UUID) {
+        if tempSelectedIDs.contains(payerID) {
+            tempSelectedIDs.remove(payerID)
+        } else {
+            tempSelectedIDs.insert(payerID)
         }
     }
 }

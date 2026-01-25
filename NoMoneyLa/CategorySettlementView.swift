@@ -53,6 +53,19 @@ struct PayerTransactionRowView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            
+            // ✅ 新增：顯示分攤狀態
+            if !transaction.isAmountValid && transaction.type == .expense {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    Text(transaction.contributionStatusDescription)
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
+                .padding(.top, 2)
+            }
         }
         .padding(.vertical, 4)
     }
@@ -245,6 +258,11 @@ struct CategorySettlementView: View {
     // 添加除錯狀態
     @State private var debugInfo: [String] = []
     
+    // ✅ 新增：分攤問題統計
+    @State private var invalidTransactionCount: Int = 0
+    @State private var missingAmount: Decimal = 0
+    @State private var hasContributionIssues: Bool = false
+    
     private var categoryTransactions: [Transaction] {
         let subcategoryIDs = allSubcategories
             .filter { $0.parentID == category.id }
@@ -288,6 +306,46 @@ struct CategorySettlementView: View {
                             Text("\(langManager.localized("assigned_payers"))：\(assignedPayers.map { $0.name }.joined(separator: ", "))")
                                 .font(.caption)
                                 .foregroundColor(.blue)
+                        }
+                        
+                        // ✅ 新增：顯示分攤問題統計
+                        if hasContributionIssues {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.caption2)
+                                        .foregroundColor(.orange)
+                                    Text("分攤問題警告")
+                                        .font(.caption)
+                                        .bold()
+                                        .foregroundColor(.orange)
+                                }
+                                
+                                Text("\(invalidTransactionCount) 筆交易分攤不完整")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                
+                                if missingAmount != 0 {
+                                    if missingAmount > 0 {
+                                        Text("分攤不足：\(formatCurrency(missingAmount))")
+                                            .font(.caption2)
+                                            .foregroundColor(.orange)
+                                    } else {
+                                        Text("分攤過多：\(formatCurrency(abs(missingAmount)))")
+                                            .font(.caption2)
+                                            .foregroundColor(.orange)
+                                    }
+                                }
+                                
+                                Text("債務計算可能不準確，建議先修復分攤問題")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
+                            .background(Color.orange.opacity(0.1))
+                            .cornerRadius(6)
+                            .padding(.top, 4)
                         }
                     }
                     
@@ -377,6 +435,35 @@ struct CategorySettlementView: View {
                     }
                     .font(.caption2)
                     .foregroundColor(.secondary)
+                    
+                    // ✅ 新增：分攤問題說明
+                    if hasContributionIssues {
+                        Divider()
+                            .padding(.vertical, 4)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("分攤問題對結算嘅影響")
+                                    .font(.caption)
+                                    .bold()
+                                    .foregroundColor(.orange)
+                            }
+                            
+                            Text("由於有交易分攤不完整，債務計算基於實際分攤金額，而非交易總額。")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            
+                            Text("建議先修復分攤問題以獲得準確嘅結算結果。")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(6)
+                    }
                 }
                 .padding(.vertical, 8)
             }
@@ -613,9 +700,12 @@ struct CategorySettlementView: View {
         clearDebugInfo()
         addDebugInfo("=== 開始計算結算 ===")
         addDebugInfo("分類: \(category.name)")
-        addDebugInfo("計算方法: 每筆交易平均分攤法")
+        addDebugInfo("計算方法: 基於實際分攤金額")
         
-        // 獲取所有參與者
+        // 檢查分攤問題
+        checkContributionIssues()
+        
+        // 獲取所有參與者（基於交易參與者）
         participants = getAllParticipants()
         
         // ✅ 加入呢啲檢查
@@ -638,26 +728,61 @@ struct CategorySettlementView: View {
             addDebugInfo("  類型: \(transaction.type == .expense ? "支出" : "收入")")
             addDebugInfo("  日期: \(transaction.date.formatted(date: .abbreviated, time: .omitted))")
             addDebugInfo("  付款人: \(transaction.contributions.map { $0.payer.name }.joined(separator: ", "))")
+            
+            // ✅ 新增：顯示參與者
+            let participantsForTransaction = getParticipantsForTransaction(transaction)
+            addDebugInfo("  參與者: \(participantsForTransaction.map { $0.name }.joined(separator: ", "))")
+            
+            // 顯示分攤狀態
+            if !transaction.isAmountValid && transaction.type == .expense {
+                addDebugInfo("  分攤狀態: \(transaction.contributionStatusDescription)")
+            }
         }
         
         addDebugInfo("參與者數量: \(participants.count)")
         
-        // 計算分類總金額
-        let totalCategoryAmount = categoryTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
-        addDebugInfo("分類總金額: \(formatCurrency(totalCategoryAmount))")
-        
-        // 1. 計算每人實付金額
+        // ✅ 修改：計算每人實付金額和應付金額
         var paidAmounts: [Payer: Decimal] = [:]
+        var shouldPayAmounts: [Payer: Decimal] = [:]
+        
+        // 初始化
         for payer in participants {
-            let paid = totalPaidByPayer(payer)
-            paidAmounts[payer] = paid
-            addDebugInfo("\(payer.name) 實付: \(formatCurrency(paid))")
+            paidAmounts[payer] = 0
+            shouldPayAmounts[payer] = 0
         }
         
-        // 2. 計算每人應付金額（每筆交易平均分攤）
-        let shouldPayAmounts = calculateAveragePerTransaction()
+        // 逐筆交易計算
+        for transaction in categoryTransactions {
+            // 獲取這筆交易的參與者
+            let transactionParticipants = getParticipantsForTransaction(transaction)
+            
+            if transactionParticipants.isEmpty {
+                continue
+            }
+            
+            // 計算每人應付金額（交易總額 ÷ 參與者人數）
+            let perPersonAmount = transaction.totalAmount / Decimal(transactionParticipants.count)
+            
+            // 更新每人應付總額
+            for participant in transactionParticipants {
+                shouldPayAmounts[participant] = (shouldPayAmounts[participant] ?? 0) + perPersonAmount
+            }
+            
+            // 計算每人實付金額
+            for contribution in transaction.contributions {
+                let payer = contribution.payer
+                if paidAmounts[payer] != nil {
+                    paidAmounts[payer] = (paidAmounts[payer] ?? 0) + contribution.amount
+                }
+            }
+        }
         
-        // 3. 計算淨結餘
+        addDebugInfo("--- 金額計算 ---")
+        for payer in participants {
+            addDebugInfo("\(payer.name): 實付=\(formatCurrency(paidAmounts[payer] ?? 0)), 應付=\(formatCurrency(shouldPayAmounts[payer] ?? 0))")
+        }
+        
+        // 計算淨結餘
         var netBalances: [Payer: Decimal] = [:]
         var results: [SettlementResult] = []
         
@@ -679,10 +804,10 @@ struct CategorySettlementView: View {
             ))
         }
         
-        // 4. 計算最優結算步驟
+        // 計算最優結算步驟
         settlementSteps = calculateOptimalSettlement(balances: netBalances)
         
-        // 5. 更新結算結果中的應付款信息
+        // 更新結算結果中的應付款信息
         for step in settlementSteps {
             if let index = results.firstIndex(where: { $0.payer.id == step.from.id }) {
                 results[index] = SettlementResult(
@@ -707,38 +832,45 @@ struct CategorySettlementView: View {
         addDebugInfo("=== 計算完成 ===")
     }
     
-    // 計算每人應付金額（每筆交易平均分攤法）
-    private func calculateAveragePerTransaction() -> [Payer: Decimal] {
-        var shouldPayAmounts: [Payer: Decimal] = [:]
-        
-        // 初始化每人應付總額為 0
-        for payer in participants {
-            shouldPayAmounts[payer] = 0
+    // ✅ 新增：獲取交易的參與者
+    private func getParticipantsForTransaction(_ transaction: Transaction) -> [Payer] {
+        // ✅ 優先使用交易記錄的參與者
+        if !transaction.participatingPayerIDs.isEmpty {
+            return allPayers.filter { transaction.participatingPayerIDs.contains($0.id) }
         }
         
-        // 逐筆交易計算平均分攤
+        // ❌ 後備：如果交易沒有參與者記錄，使用分類的所有已分配付款人（舊邏輯）
+        return category.assignedPayers(in: context)
+    }
+    
+    // ✅ 新增：檢查分攤問題
+    private func checkContributionIssues() {
+        invalidTransactionCount = 0
+        missingAmount = 0
+        hasContributionIssues = false
+        
         for transaction in categoryTransactions {
-            let participantCount = Decimal(participants.count)
-            if participantCount == 0 { continue }
-            
-            let perPersonAmount = transaction.totalAmount / participantCount
-            
-            addDebugInfo("交易 \(transaction.date.formatted(date: .abbreviated, time: .omitted)): \(formatCurrency(transaction.totalAmount))")
-            addDebugInfo("  每人應付: \(formatCurrency(perPersonAmount))")
-            
-            // 每人都應付平均金額
-            for payer in participants {
-                shouldPayAmounts[payer] = (shouldPayAmounts[payer] ?? 0) + perPersonAmount
+            if !transaction.isAmountValid && transaction.type == .expense {
+                invalidTransactionCount += 1
+                hasContributionIssues = true
+                
+                // 計算分攤差異
+                let sum = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
+                let difference = transaction.totalAmount - sum
+                missingAmount += difference
+                
+                addDebugInfo("發現分攤問題交易: \(transaction.date.formatted(date: .abbreviated, time: .omitted))")
+                addDebugInfo("  交易金額: \(formatCurrency(transaction.totalAmount))")
+                addDebugInfo("  分攤總額: \(formatCurrency(sum))")
+                addDebugInfo("  差異: \(formatCurrency(difference))")
             }
         }
         
-        // 打印每人應付總額
-        for payer in participants {
-            let shouldPay = shouldPayAmounts[payer] ?? 0
-            addDebugInfo("\(payer.name) 應付總額: \(formatCurrency(shouldPay))")
+        if hasContributionIssues {
+            addDebugInfo("分攤問題統計:")
+            addDebugInfo("  問題交易數量: \(invalidTransactionCount)")
+            addDebugInfo("  總差異金額: \(formatCurrency(missingAmount))")
         }
-        
-        return shouldPayAmounts
     }
     
     // 計算最優結算方案（最少轉帳次數）
@@ -799,26 +931,35 @@ struct CategorySettlementView: View {
         }
     }
     
-    // 獲取此分類的所有參與者（優先使用已分配的付款人）
+    // 獲取此分類的所有參與者（基於所有交易的參與者）
     private func getAllParticipants() -> [Payer] {
-        // 先從已分配的付款人中獲取
+        var participantIDs = Set<UUID>()
+        
+        // 收集所有交易的參與者
+        for transaction in categoryTransactions {
+            let participants = getParticipantsForTransaction(transaction)
+            for payer in participants {
+                participantIDs.insert(payer.id)
+            }
+        }
+        
+        // 如果有參與者，返回參與者
+        if !participantIDs.isEmpty {
+            let participants = allPayers.filter { participantIDs.contains($0.id) }
+            addDebugInfo("使用交易參與者: \(participants.map { $0.name }.joined(separator: ", "))")
+            return participants
+        }
+        
+        // 如果沒有參與者，使用已分配的付款人
         let assignedPayers = category.assignedPayers(in: context)
         if !assignedPayers.isEmpty {
             addDebugInfo("使用已分配的付款人: \(assignedPayers.map { $0.name }.joined(separator: ", "))")
             return assignedPayers
         }
         
-        // 如果沒有已分配的付款人，則從交易中動態計算
-        var participantIDs = Set<UUID>()
-        for transaction in categoryTransactions {
-            for contribution in transaction.contributions {
-                participantIDs.insert(contribution.payer.id)
-            }
-        }
-        
-        let dynamicParticipants = allPayers.filter { participantIDs.contains($0.id) }
-        addDebugInfo("使用動態參與者: \(dynamicParticipants.map { $0.name }.joined(separator: ", "))")
-        return dynamicParticipants
+        // 如果都沒有，返回空
+        addDebugInfo("沒有找到參與者")
+        return []
     }
     
     private func formatCurrency(_ amount: Decimal) -> String {

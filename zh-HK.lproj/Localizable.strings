@@ -48,6 +48,12 @@
 "excess" = "分攤過多";
 "contribution_insufficient" = "分攤不足";
 "contribution_excess" = "分攤過多";
+"income_recipient_section" = "收款人";
+"select_income_recipient" = "選擇收款人";
+"income_recipient_label" = "收款人";
+"expense_label" = "支出";
+"income_label" = "收入";
+"this_month" = "本月";
 
 /* SubcategoryManageView */
 "subcategory_manage_title_format" = "管理子分類：%@";

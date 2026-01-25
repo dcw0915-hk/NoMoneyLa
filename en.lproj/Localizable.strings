@@ -48,6 +48,12 @@
 "excess" = "Excess";
 "contribution_insufficient" = "Insufficient contribution";
 "contribution_excess" = "Excess contribution";
+"income_recipient_section" = "Recipient";
+"select_income_recipient" = "Select Recipient";
+"income_recipient_label" = "Recipient";
+"expense_label" = "Expense";
+"income_label" = "Income";
+"this_month" = "This Month";
 
 /* SubcategoryManageView */
 "subcategory_manage_title_format" = "Manage Subcategories: %@";

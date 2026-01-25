@@ -1,4 +1,3 @@
-// Transaction.swift
 import SwiftData
 import Foundation
 
@@ -12,7 +11,10 @@ final class Transaction {
     var type: TransactionType
     var currencyCode: String
     @Relationship(deleteRule: .cascade) var contributions: [PaymentContribution] = []
-
+    
+    // ✅ 新增：記錄這筆交易的參與者
+    var participatingPayerIDs: [UUID] = []
+    
     // 相容性屬性
     var amount: Decimal {
         get { totalAmount }
@@ -127,6 +129,12 @@ final class Transaction {
         return totalAmount / Decimal(contributions.count)
     }
     
+    // ✅ 新增：獲取參與者每人應付金額（基於參與者人數平均分攤）
+    func getPerPersonAmount() -> Decimal? {
+        guard type == .expense && !participatingPayerIDs.isEmpty else { return nil }
+        return totalAmount / Decimal(participatingPayerIDs.count)
+    }
+    
     // ✅ 新增：格式化貨幣的輔助方法
     private func formatCurrency(_ amount: Decimal) -> String {
         let formatter = NumberFormatter()
@@ -143,7 +151,8 @@ final class Transaction {
          subcategoryID: UUID? = nil,
          type: TransactionType,
          currencyCode: String = "HKD",
-         contributions: [PaymentContribution] = []) {
+         contributions: [PaymentContribution] = [],
+         participatingPayerIDs: [UUID] = []) {
         self.id = id
         self.totalAmount = totalAmount
         self.date = date
@@ -152,6 +161,7 @@ final class Transaction {
         self.type = type
         self.currencyCode = currencyCode
         self.contributions = contributions
+        self.participatingPayerIDs = participatingPayerIDs
     }
     
     // 相容舊版初始化
@@ -169,6 +179,7 @@ final class Transaction {
                   subcategoryID: subcategoryID,
                   type: type,
                   currencyCode: currencyCode,
-                  contributions: [])
+                  contributions: [],
+                  participatingPayerIDs: [])
     }
 }
