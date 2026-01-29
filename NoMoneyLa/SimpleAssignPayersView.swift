@@ -1,5 +1,3 @@
-// SimpleAssignPayersView.swift 完整更新版本
-
 import SwiftUI
 import SwiftData
 

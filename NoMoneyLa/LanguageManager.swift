@@ -1,11 +1,3 @@
-//
-//  LanguageManager.swift
-//  NoMoneyLa
-//
-//  Created by Ricky Ding on 16/1/2026.
-//
-
-// LanguageManager.swift
 import SwiftUI
 import Combine
 

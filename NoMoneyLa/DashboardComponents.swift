@@ -1,10 +1,3 @@
-//
-//  DashboardComponents.swift
-//  NoMoneyLa
-//
-//  Created by Ricky Ding on 20/1/2026.
-//
-
 import SwiftUI
 import SwiftData
 

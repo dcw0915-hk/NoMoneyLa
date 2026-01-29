@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  NoMoneyLa
-//
-//  Created by Ricky Ding on 16/1/2026.
-//
-
 // ContentView.swift
 import SwiftUI
 

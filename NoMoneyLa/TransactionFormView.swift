@@ -140,6 +140,9 @@ struct TransactionFormView: View {
     @State private var showPayerSelectionForNew = false
     @State private var selectedPayerForNew: Payer? = nil
     
+    // ✅ 新增：追踪每個支付金額輸入框嘅激活狀態
+    @State private var contributionAmountFocusStates: [UUID: Bool] = [:]
+    
     private let currencies = ["HKD", "USD", "JPY"]
     
     enum Field {
@@ -614,19 +617,43 @@ struct TransactionFormView: View {
                                                 hideKeyboard()
                                             }
                                             
-                                            TextField("金額", text: Binding(
-                                                get: { contributions[index].amountText },
-                                                set: { newValue in
-                                                    contributions[index].amountText = newValue
-                                                    validateAmounts()
+                                            // ✅ 修改：使用 SelectAllTextField 代替普通 TextField
+                                            SelectAllTextField(
+                                                text: Binding(
+                                                    get: { contributions[index].amountText },
+                                                    set: { newValue in
+                                                        contributions[index].amountText = newValue
+                                                        validateAmounts()
+                                                    }
+                                                ),
+                                                isFirstResponder: Binding(
+                                                    get: { contributionAmountFocusStates[contributions[index].id] ?? false },
+                                                    set: { newValue in
+                                                        contributionAmountFocusStates[contributions[index].id] = newValue
+                                                        
+                                                        // 當呢個輸入框激活時，其他輸入框要失焦
+                                                        if newValue {
+                                                            for (id, _) in contributionAmountFocusStates {
+                                                                if id != contributions[index].id {
+                                                                    contributionAmountFocusStates[id] = false
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                ),
+                                                placeholder: "金額",
+                                                keyboardType: .decimalPad,
+                                                onCommit: {
+                                                    // 輸入完成時可以做一些驗證或格式化
+                                                    if let value = decimalFromString(contributions[index].amountText) {
+                                                        contributions[index].amountText = decimalToString(value)
+                                                    }
+                                                    // 失焦
+                                                    contributionAmountFocusStates[contributions[index].id] = false
                                                 }
-                                            ))
-                                            .keyboardType(.decimalPad)
+                                            )
                                             .multilineTextAlignment(.trailing)
-                                            .frame(width: 80)
-                                            .onTapGesture {
-                                                hideKeyboard()
-                                            }
+                                            .frame(width: 90, height: 28)
                                             
                                             Text(currencyCode)
                                                 .font(.caption)
