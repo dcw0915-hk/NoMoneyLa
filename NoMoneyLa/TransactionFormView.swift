@@ -358,8 +358,8 @@ struct TransactionFormView: View {
                     }
                 }
                 
-                // ✅ 新增：參與者選擇區域
-                if selectedType == .expense {
+                // ✅ 修改：參與者選擇區域 - 只有當分類有分配付款人時才顯示
+                if selectedType == .expense && !assignedPayersForCategory.isEmpty {
                     Section(header: Text(langManager.localized("participants_section"))) {
                         if isEditing {
                             Button {
@@ -409,8 +409,10 @@ struct TransactionFormView: View {
                             }
                         }
                     }
-                    
-                    // ✅ 修改：支付方式選擇
+                }
+                
+                // ✅ 修改：支付方式選擇 - 支出交易才顯示
+                if selectedType == .expense {
                     Section(header: Text("支付方式")) {
                         if isEditing {
                             VStack(alignment: .leading, spacing: 12) {
@@ -1025,6 +1027,7 @@ struct TransactionFormView: View {
         selectedParticipantIDs.count
     }
     
+    // ✅ 修改：驗證邏輯 - 當分類冇付款人時，跳過參與者檢查
     private var isValid: Bool {
         guard let total = decimalFromString(totalAmountText), total > 0 else { return false }
         
@@ -1034,8 +1037,8 @@ struct TransactionFormView: View {
             return true // 允許保存，即使未選擇收款人（會使用默認收款人）
         }
         
-        // ✅ 支出交易：必須至少有一個參與者
-        if selectedParticipantIDs.isEmpty {
+        // ✅ 修改：支出交易 - 只有當分類有分配付款人時才檢查參與者
+        if !assignedPayersForCategory.isEmpty && selectedParticipantIDs.isEmpty {
             return false
         }
         
@@ -1133,7 +1136,12 @@ struct TransactionFormView: View {
     
     // ✅ 新增：獲取可用的支付人（用於簡化模式）
     private func getAvailablePayersForPayment() -> [Payer] {
-        // 簡化模式：只能選擇參與者
+        // ✅ 修改：如果分類冇付款人，使用所有付款人
+        if assignedPayersForCategory.isEmpty {
+            return payers.sorted { $0.order < $1.order }
+        }
+        
+        // 簡化模式：優先選擇參與者
         let participatingPayers = participantEntries
             .filter { $0.isParticipating }
             .map { $0.payer }
@@ -1149,7 +1157,7 @@ struct TransactionFormView: View {
         }
         
         // 最後備選：所有付款人
-        return payers
+        return payers.sorted { $0.order < $1.order }
     }
     
     // ✅ 新增：獲取收入交易可用的付款人
@@ -1196,8 +1204,14 @@ struct TransactionFormView: View {
         return availablePayers.filter { !selectedIDsSet.contains($0.id) }
     }
     
+    // ✅ 修改：優先使用付款人列表中的第一個（按order排序）
     private var defaultPayer: Payer? {
-        // ✅ 修改：優先使用當前分類已分配付款人中的第一個
+        // ✅ 修改：如果分類冇付款人，使用付款人列表中的第一個
+        if assignedPayersForCategory.isEmpty {
+            return payers.sorted { $0.order < $1.order }.first
+        }
+        
+        // 否則使用當前分類已分配付款人中的第一個
         if !assignedPayersForCategory.isEmpty {
             return assignedPayersForCategory.first
         } else if let parentID = selectedParentID,
@@ -1249,15 +1263,39 @@ struct TransactionFormView: View {
         }
     }
     
-    // ✅ 新增：更新當前分類的已分配付款人
+    // ✅ 修改：更新當前分類的已分配付款人，並根據情況設置支付
     private func updateAssignedPayersForCategory(_ category: Category) {
         let assignedPayers = category.assignedPayers(in: context)
         
         // ✅ 修改：按 order 排序
         assignedPayersForCategory = assignedPayers.sorted { $0.order < $1.order }
         
-        // ✅ 修改：更新參與者條目
-        updateParticipantEntriesForNewCategory(assignedPayersForCategory)
+        // ✅ 修改：如果分類冇付款人，自動設置默認付款人
+        if assignedPayersForCategory.isEmpty {
+            // 清空參與者條目
+            participantEntries = []
+            
+            // 設置默認付款人
+            if let defaultPayer = payers.sorted(by: { $0.order < $1.order }).first {
+                // 使用簡化模式，設置默認付款人
+                contributionMode = .simple
+                contributions = [
+                    ContributionEntry(
+                        payerID: defaultPayer.id,
+                        amountText: totalAmountText.isEmpty ? "" : totalAmountText,
+                        isRemovable: false
+                    )
+                ]
+            }
+        } else {
+            // ✅ 修改：按 order 排序後再創建條目
+            participantEntries = assignedPayersForCategory
+                .sorted { $0.order < $1.order }
+                .map { payer in
+                    ParticipantEntry(payer: payer, isParticipating: true)
+                }
+            updatePaymentSetup()
+        }
     }
     
     // ✅ 新增：從已分配付款人更新參與者條目
@@ -1307,10 +1345,25 @@ struct TransactionFormView: View {
         // 保持用戶控制權，唔好自動填寫金額
     }
     
-    // ✅ 修改：更新支付設置 - 默認使用簡化模式
+    // ✅ 修改：更新支付設置 - 默認使用簡化模式，並考慮分類冇付款人嘅情況
     private func updatePaymentSetup() {
         // ✅ 新增：檢查當前支付記錄中嘅付款人是否屬於當前分類
         cleanupInvalidContributions()
+        
+        // 如果分類冇分配付款人，設置默認付款人
+        if assignedPayersForCategory.isEmpty {
+            contributionMode = .simple
+            if let defaultPayer = payers.sorted(by: { $0.order < $1.order }).first {
+                contributions = [
+                    ContributionEntry(
+                        payerID: defaultPayer.id,
+                        amountText: totalAmountText.isEmpty ? "" : totalAmountText,
+                        isRemovable: false
+                    )
+                ]
+            }
+            return
+        }
         
         let participatingCount = selectedParticipantCount
         
@@ -1344,7 +1397,7 @@ struct TransactionFormView: View {
             contributions = [
                 ContributionEntry(
                     payerID: firstParticipant.id,
-                    amountText: "",
+                    amountText: totalAmountText.isEmpty ? "" : totalAmountText,
                     isRemovable: false
                 )
             ]
@@ -1354,7 +1407,7 @@ struct TransactionFormView: View {
                 contributions = [
                     ContributionEntry(
                         payerID: defaultPayer.id,
-                        amountText: "",
+                        amountText: totalAmountText.isEmpty ? "" : totalAmountText,
                         isRemovable: false
                     )
                 ]
@@ -1421,7 +1474,7 @@ struct TransactionFormView: View {
         contributions = [
             ContributionEntry(
                 payerID: payer.id,
-                amountText: "",
+                amountText: totalAmountText.isEmpty ? "" : totalAmountText,
                 isRemovable: false
             )
         ]
@@ -1635,7 +1688,7 @@ struct TransactionFormView: View {
         contributions = [
             ContributionEntry(
                 payerID: participatingPayers[0].id,  // 選擇第一個參與者
-                amountText: "",
+                amountText: totalAmountText.isEmpty ? "" : totalAmountText,
                 isRemovable: false
             )
         ]
@@ -1665,7 +1718,7 @@ struct TransactionFormView: View {
         setupSinglePayerPayment()  // ✅ 這個方法已經修改為空白金額
     }
     
-    // ✅ 新增：處理父分類變化
+    // ✅ 修改：處理父分類變化
     private func handleParentCategoryChange(oldValue: UUID?, newParent: UUID?) {
         hideKeyboard()
         
@@ -1746,8 +1799,8 @@ struct TransactionFormView: View {
                 setDefaultUncategorized()
             }
             
-            // ✅ 修改：設置支付記錄
-            if tx.type == .expense && !tx.contributions.isEmpty {
+            // ✅ 修改：設置支付記錄 - 考慮分類冇付款人嘅情況
+            if tx.type == .expense && !tx.contributions.isEmpty && !assignedPayersForCategory.isEmpty {
                 contributions = tx.contributions.map { contribution in
                     ContributionEntry(
                         payerID: contribution.payer.id,
@@ -1763,10 +1816,10 @@ struct TransactionFormView: View {
                     contributionMode = .detailed
                 }
             } else {
-                // 新交易或沒有支付記錄
+                // 新交易或沒有支付記錄，或者分類沒有分配付款人
                 // ✅ 修改：默認使用簡化模式
                 contributionMode = .simple
-                updatePaymentSetup()  // ✅ 這個方法調用 setupSinglePayerPayment()
+                updatePaymentSetup()  // ✅ 這個方法會根據情況設置付款人
             }
         } else {
             // ✅ 新增交易時，自動選擇預設「未分類」分類
