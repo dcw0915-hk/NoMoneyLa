@@ -1,45 +1,16 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - 數據結構
-
+// MARK: - 共用類型定義（UI 層使用）
 enum TimePeriod: String, CaseIterable {
     case month = "month"
     case year = "year"
 }
 
-struct MonthlyStats {
-    let totalAmount: Decimal
-    let previousMonthAmount: Decimal
-    let changePercentage: Double
-    let dailyAverage: Decimal
-    let highestTransaction: Transaction?
-    let transactionCount: Int
-    let periodDays: Int // 新增：期間天數
-}
+// MARK: - ✅ CategoryStat 已在 ViewModel 定義，此處唔重複
+//        UI 層直接使用 ViewModel 嘅 CategoryStat
 
-struct CategoryStat: Identifiable {
-    let id = UUID()
-    let category: Category
-    let amount: Decimal
-    let percentage: Double
-    let transactionCount: Int
-}
-
-struct SpendingInsights {
-    let peakSpendingDay: Date?
-    let peakSpendingAmount: Decimal
-    let weekendVsWeekdayRatio: Double
-    let mostFrequentCategory: Category?
-    let mostActiveDay: String // "週一"、"週末"等
-    let weekdayTransactionCount: Int // 新增：平日交易筆數
-    let weekendTransactionCount: Int // 新增：週末交易筆數
-    let peakMonth: String?      // 新增：消費最高月份
-    let peakMonthAmount: Decimal // 新增：該月消費金額
-}
-
-// MARK: - 控制欄組件
-
+// MARK: - 控制欄組件（不變）
 struct DashboardControlBar: View {
     @Binding var selectedPayer: Payer?
     @Binding var selectedPeriod: TimePeriod
@@ -48,13 +19,10 @@ struct DashboardControlBar: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // 付款人選擇器
             PayerSelectionView(
                 selectedPayer: $selectedPayer,
                 allPayers: allPayers
             )
-            
-            // 時間選擇器
             PeriodSelectionView(
                 selectedPeriod: $selectedPeriod,
                 selectedDate: $selectedDate
@@ -76,7 +44,6 @@ struct PayerSelectionView: View {
             Text(langManager.localized("dashboard_analyze_target"))
                 .font(.caption)
                 .foregroundColor(.secondary)
-            
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(allPayers) { payer in
@@ -104,7 +71,6 @@ struct PayerChipView: View {
             Circle()
                 .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                 .frame(width: 16, height: 16)
-            
             Text(payer.name)
                 .font(.subheadline)
                 .lineLimit(1)
@@ -129,7 +95,6 @@ struct PeriodSelectionView: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            // 月/年切換
             Picker(langManager.localized("dashboard_period"), selection: $selectedPeriod) {
                 ForEach(TimePeriod.allCases, id: \.self) { period in
                     Text(langManager.localized(period == .month ? "period_month" : "period_year")).tag(period)
@@ -138,7 +103,6 @@ struct PeriodSelectionView: View {
             .pickerStyle(.segmented)
             .frame(maxWidth: 200)
             
-            // 日期導航
             HStack(spacing: 20) {
                 Button {
                     moveDate(by: -1)
@@ -147,11 +111,9 @@ struct PeriodSelectionView: View {
                         .font(.headline)
                         .foregroundColor(.blue)
                 }
-                
                 Text(formatDate())
                     .font(.headline)
                     .frame(minWidth: 120)
-                
                 Button {
                     moveDate(by: 1)
                 } label: {
@@ -166,14 +128,10 @@ struct PeriodSelectionView: View {
     private func moveDate(by value: Int) {
         let calendar = Calendar.current
         var dateComponent = DateComponents()
-        
         switch selectedPeriod {
-        case .month:
-            dateComponent.month = value
-        case .year:
-            dateComponent.year = value
+        case .month: dateComponent.month = value
+        case .year:  dateComponent.year = value
         }
-        
         if let newDate = calendar.date(byAdding: dateComponent, to: selectedDate) {
             selectedDate = newDate
         }
@@ -181,27 +139,24 @@ struct PeriodSelectionView: View {
     
     private func formatDate() -> String {
         let formatter = DateFormatter()
-        
         switch selectedPeriod {
         case .month:
             formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "yyyy年M月" : "MMM yyyy"
         case .year:
             formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "yyyy年" : "yyyy"
         }
-        
         return formatter.string(from: selectedDate)
     }
 }
 
-// MARK: - 篩選欄組件
-
+// MARK: - 篩選欄組件（不變）
 struct FilterBarView: View {
     @EnvironmentObject var langManager: LanguageManager
     let filterType: TransactionType?
     let filterCategory: Category?
     let filterSubcategory: Subcategory?
-    let filterPayer: Payer?  // 新增
-    let filterDateRange: String?  // 新增
+    let filterPayer: Payer?
+    let filterDateRange: String?
     let searchText: String
     let clearFilters: () -> Void
     
@@ -211,17 +166,13 @@ struct FilterBarView: View {
                 Text(langManager.localized("filter_current"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                
                 Spacer()
-                
                 Button(langManager.localized("clear_button")) {
                     clearFilters()
                 }
                 .font(.caption)
                 .foregroundColor(.blue)
             }
-            
-            // 篩選標籤行
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     if let type = filterType {
@@ -230,23 +181,18 @@ struct FilterBarView: View {
                             color: .gray
                         )
                     }
-                    
                     if let cat = filterCategory {
                         filterTag(text: cat.name, color: .blue)
                     }
-                    
                     if let sub = filterSubcategory {
                         filterTag(text: sub.name, color: .blue.opacity(0.8))
                     }
-                    
                     if let payer = filterPayer {
                         filterTag(text: payer.name, color: .green)
                     }
-                    
                     if let dateRange = filterDateRange {
                         filterTag(text: dateRange, color: .orange)
                     }
-                    
                     if !searchText.isEmpty {
                         filterTag(
                             text: "\(langManager.localized("search_label"))：\(searchText)",
@@ -279,21 +225,20 @@ struct FilterBarView: View {
     }
 }
 
-// MARK: - 工具欄菜單組件
-
+// MARK: - 工具欄菜單組件（不變）
 struct ToolbarMenuView: View {
     @EnvironmentObject var langManager: LanguageManager
     let categories: [Category]
     let subcategories: [Subcategory]
-    let payers: [Payer]  // 新增
+    let payers: [Payer]
     let filterCategory: Category?
     let filterType: TransactionType?
     let filterSubcategory: Subcategory?
-    let filterPayer: Payer?  // 新增
+    let filterPayer: Payer?
     let onSelectType: (TransactionType?) -> Void
     let onSelectCategory: (Category?) -> Void
     let onSelectSubcategory: (Subcategory?) -> Void
-    let onSelectPayer: (Payer?) -> Void  // 新增
+    let onSelectPayer: (Payer?) -> Void
     let saveFilterState: () -> Void
     
     var body: some View {
@@ -350,7 +295,6 @@ struct ToolbarMenuView: View {
                       systemImage: "tag")
             }
             
-            // 新增付款人篩選菜單
             Menu {
                 Button(langManager.localized("all_payers")) {
                     onSelectPayer(nil)
@@ -376,16 +320,24 @@ struct ToolbarMenuView: View {
     }
 }
 
-// MARK: - 統計卡片組件
-
+// MARK: - 總消費卡片（支援多貨幣，不變）
 struct TotalSpendingCard: View {
     @EnvironmentObject var langManager: LanguageManager
-    let stats: MonthlyStats?
+    let totalAmounts: [String: Decimal]
+    let transactionCount: Int
+    let previousMonthAmounts: [String: Decimal]?
+    let changePercentages: [String: Double]?
     let isLoading: Bool
     let period: TimePeriod
     
-    init(stats: MonthlyStats?, isLoading: Bool, period: TimePeriod) {
-        self.stats = stats
+    init(totalAmounts: [String: Decimal], transactionCount: Int,
+         previousMonthAmounts: [String: Decimal]? = nil,
+         changePercentages: [String: Double]? = nil,
+         isLoading: Bool, period: TimePeriod) {
+        self.totalAmounts = totalAmounts
+        self.transactionCount = transactionCount
+        self.previousMonthAmounts = previousMonthAmounts
+        self.changePercentages = changePercentages
         self.isLoading = isLoading
         self.period = period
     }
@@ -398,70 +350,87 @@ struct TotalSpendingCard: View {
             if isLoading {
                 ProgressView()
                     .scaleEffect(0.8)
-            } else if let stats = stats {
+            } else if totalAmounts.isEmpty {
+                Text(langManager.localized("no_data"))
+                    .foregroundColor(.secondary)
+                    .italic()
+            } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    // 總金額
-                    Text(formatCurrency(stats.totalAmount))
-                        .font(.title)
-                        .bold()
-                        .foregroundColor(.primary)
-                    
-                    // 與上期比較
-                    if stats.previousMonthAmount > 0 {
-                        HStack(spacing: 6) {
-                            Image(systemName: stats.changePercentage >= 0 ?
-                                  "arrow.up.right" : "arrow.down.right")
-                                .font(.caption)
-                            
-                            Text("\(abs(stats.changePercentage), specifier: "%.1f")%")
-                                .font(.subheadline)
-                                .bold()
-                            
-                            Text(period == .month ?
-                                 langManager.localized("vs_last_month") :
-                                 langManager.localized("vs_last_year"))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                    if totalAmounts.count == 1, let (code, amount) = totalAmounts.first {
+                        Text(formatCurrency(amount: amount, code: code))
+                            .font(.title)
+                            .bold()
+                            .foregroundColor(.primary)
+                        
+                        if code == "HKD", let prev = previousMonthAmounts?["HKD"], prev > 0,
+                           let change = changePercentages?["HKD"] {
+                            HStack(spacing: 6) {
+                                Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
+                                    .font(.caption)
+                                Text("\(abs(change), specifier: "%.1f")%")
+                                    .font(.subheadline)
+                                    .bold()
+                                Text(period == .month ?
+                                     langManager.localized("vs_last_month") :
+                                     langManager.localized("vs_last_year"))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .foregroundColor(change >= 0 ? .red : .green)
                         }
-                        .foregroundColor(stats.changePercentage >= 0 ? .red : .green)
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.caption)
+                                Text(langManager.localized("multiple_currencies"))
+                                    .font(.headline)
+                                    .foregroundColor(.orange)
+                            }
+                            
+                            ForEach(totalAmounts.sorted(by: { $0.value > $1.value }), id: \.key) { code, amount in
+                                HStack {
+                                    Text(code)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(formatCurrency(amount: amount, code: code))
+                                        .font(.body)
+                                        .bold()
+                                }
+                            }
+                        }
                     }
                     
-                    // 交易筆數
                     HStack {
                         Image(systemName: "list.bullet")
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                        
-                        Text("\(stats.transactionCount) \(langManager.localized("transactions_label"))")
+                        Text("\(transactionCount) \(langManager.localized("transactions_label"))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     
-                    // 說明文字
                     Text(langManager.localized("dashboard_include_all_transactions"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .padding(.top, 4)
                 }
-            } else {
-                Text(langManager.localized("no_data"))
-                    .foregroundColor(.secondary)
-                    .italic()
             }
         }
     }
     
-    private func formatCurrency(_ amount: Decimal) -> String {
+    private func formatCurrency(amount: Decimal, code: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = "HKD"
+        formatter.currencyCode = code
         formatter.maximumFractionDigits = 0
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 }
 
-// MARK: - 分類分佈卡片（直向優化版）
-
+// MARK: - ✅ 分類分佈卡片（支援多貨幣）
 struct CategoryBreakdownCard: View {
     @EnvironmentObject var langManager: LanguageManager
     let categories: [CategoryStat]
@@ -480,46 +449,36 @@ struct CategoryBreakdownCard: View {
                     .frame(maxWidth: .infinity)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    // 使用更寬嘅顯示方式
                     ForEach(Array(categories.prefix(5))) { stat in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
-                                // 分類名稱和顏色
                                 HStack(spacing: 8) {
                                     Circle()
                                         .fill(Color(hex: stat.category.colorHex ?? "#A8A8A8"))
                                         .frame(width: 10, height: 10)
-                                    
                                     Text(stat.category.name)
                                         .font(.body)
                                         .lineLimit(1)
                                 }
-                                
                                 Spacer()
-                                
-                                // 金額和百分比
                                 VStack(alignment: .trailing, spacing: 2) {
-                                    Text(formatCurrency(stat.amount))
+                                    // ✅ 使用分類本身嘅貨幣代碼
+                                    Text(formatCurrency(amount: stat.amount, code: stat.currencyCode))
                                         .font(.body)
                                         .bold()
-                                    
-                                    Text("\(Int(stat.percentage))%")
+                                    // 顯示貨幣代碼作為輔助信息
+                                    Text("\(stat.currencyCode) · \(Int(stat.percentage))%")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            
-                            // 進度條（使用全寬度）
+                            // 進度條仍然以百分比顯示，唔受貨幣影響
                             GeometryReader { geometry in
                                 let barWidth = geometry.size.width * CGFloat(stat.percentage / 100)
-                                
                                 ZStack(alignment: .leading) {
-                                    // 背景條
                                     RoundedRectangle(cornerRadius: 3)
                                         .fill(Color.gray.opacity(0.15))
                                         .frame(height: 6)
-                                    
-                                    // 前景條
                                     RoundedRectangle(cornerRadius: 3)
                                         .fill(
                                             stat.category.name == langManager.localized("uncategorized") ?
@@ -533,8 +492,6 @@ struct CategoryBreakdownCard: View {
                         }
                         .padding(.vertical, 4)
                     }
-                    
-                    // 如果分類超過5個，顯示"查看更多"
                     if categories.count > 5 {
                         HStack {
                             Spacer()
@@ -550,69 +507,52 @@ struct CategoryBreakdownCard: View {
         }
     }
     
-    private func formatCurrency(_ amount: Decimal) -> String {
+    private func formatCurrency(amount: Decimal, code: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = "HKD"
-        formatter.maximumFractionDigits = 0  // 整數顯示，節省空間
+        formatter.currencyCode = code
+        formatter.maximumFractionDigits = 0
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 }
 
-// MARK: - 日均消費卡片
-
+// MARK: - 日均消費卡片（不變）
 struct DailyAverageCard: View {
     @EnvironmentObject var langManager: LanguageManager
     let stats: MonthlyStats?
     let isLoading: Bool
     let period: TimePeriod
     
-    init(stats: MonthlyStats?, isLoading: Bool, period: TimePeriod) {
-        self.stats = stats
-        self.isLoading = isLoading
-        self.period = period
-    }
-    
     var body: some View {
-        let title = langManager.localized("daily_average_spending")
-        let periodText = period == .month ? langManager.localized("this_month") : langManager.localized("this_year")
-        
-        DashboardCard(title: title, icon: "calendar") {
+        DashboardCard(title: langManager.localized("daily_average_spending"), icon: "calendar") {
             if isLoading {
                 ProgressView()
                     .scaleEffect(0.8)
             } else if let stats = stats {
                 VStack(alignment: .leading, spacing: 10) {
-                    // 日均消費金額
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(formatCurrency(stats.dailyAverage))
                             .font(.title)
                             .bold()
                             .foregroundColor(.primary)
-                        
                         Text("/\(langManager.localized("day_unit"))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
-                    // 詳細說明
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 4) {
                             Image(systemName: "equal.circle.fill")
                                 .font(.caption2)
                                 .foregroundColor(.blue.opacity(0.7))
-                            
                             Text(langManager.localized("calculation_method"))
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
-                            
                             Text("\(langManager.localized("total_spending")) ÷ \(stats.periodDays)\(langManager.localized("days_unit"))")
                                 .font(.caption2)
                                 .bold()
                                 .foregroundColor(.blue)
                         }
-                        
-                        Text("(\(periodText) \(langManager.localized("total_days")) \(stats.periodDays) \(langManager.localized("days_unit")))")
+                        Text("(\(period == .month ? langManager.localized("this_month") : langManager.localized("this_year")) \(langManager.localized("total_days")) \(stats.periodDays) \(langManager.localized("days_unit")))")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -623,62 +563,51 @@ struct DailyAverageCard: View {
                             .fill(Color.blue.opacity(0.1))
                     )
                     
-                    // 顯示年視圖的每月平均
                     if period == .year {
                         Divider()
                             .padding(.vertical, 4)
-                        
-                        let monthlyAverage = stats.totalAmount > 0 ? stats.totalAmount / 12 : 0
+                        let monthlyAverage = (stats.totalAmounts["HKD"] ?? 0) / 12
                         HStack(spacing: 8) {
                             Image(systemName: "calendar.badge.clock")
                                 .font(.caption)
                                 .foregroundColor(.purple)
-                            
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(langManager.localized("monthly_average"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                
                                 Text(formatCurrency(monthlyAverage))
                                     .font(.subheadline)
                                     .bold()
                                     .foregroundColor(.purple)
                             }
-                            
                             Spacer()
                         }
                         .padding(.top, 2)
                     }
                     
-                    // 最高交易（如果存在）
                     if let highest = stats.highestTransaction {
                         Divider()
                             .padding(.vertical, 4)
-                        
                         HStack(spacing: 8) {
                             Image(systemName: "arrow.up.circle.fill")
                                 .font(.caption)
                                 .foregroundColor(.orange)
-                            
                             VStack(alignment: .leading, spacing: 2) {
-                                // ✅ 修改這裡：使用更清晰的標題
-                                Text(getHighestTransactionTitle())
+                                Text(period == .month ?
+                                     langManager.localized("highest_spending_day") :
+                                     langManager.localized("highest_spending_date"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                
                                 HStack(spacing: 4) {
-                                    Text(formatCurrency(highest.totalAmount))
+                                    Text(formatCurrency(amount: highest.totalAmount, code: highest.currencyCode))
                                         .font(.subheadline)
                                         .bold()
                                         .foregroundColor(.orange)
-                                    
-                                    // ✅ 修改這裡：使用更清晰的日期格式
                                     Text("(\(formatTransactionDate(highest.date)))")
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            
                             Spacer()
                         }
                         .padding(.top, 2)
@@ -689,61 +618,11 @@ struct DailyAverageCard: View {
                     Text(langManager.localized("no_data"))
                         .foregroundColor(.secondary)
                         .italic()
-                    
                     Text(langManager.localized("no_transactions_in_period"))
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
                 }
             }
-        }
-    }
-    
-    // ✅ 新增：獲取最高交易標題
-    private func getHighestTransactionTitle() -> String {
-        switch period {
-        case .month:
-            return langManager.localized("highest_spending_day")
-        case .year:
-            return langManager.localized("highest_spending_date")
-        }
-    }
-    
-    // ✅ 新增：格式化交易日期
-    private func formatTransactionDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        
-        switch period {
-        case .month:
-            // 月視圖：顯示日期，如 "25號" 或 "25th"
-            formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "d號" : "d'日'"
-            
-            // 英文環境下添加序數後綴
-            if langManager.selectedLanguage == .english {
-                let day = Calendar.current.component(.day, from: date)
-                let suffix = daySuffix(for: day)
-                return "\(day)\(suffix)"
-            }
-            return formatter.string(from: date)
-            
-        case .year:
-            // 年視圖：顯示月份和日期
-            formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "M月d日" : "MMM d"
-            return formatter.string(from: date)
-        }
-    }
-    
-    // ✅ 新增：英文日期序數後綴
-    private func daySuffix(for day: Int) -> String {
-        switch day {
-        case 1, 21, 31:
-            return "st"
-        case 2, 22:
-            return "nd"
-        case 3, 23:
-            return "rd"
-        default:
-            return "th"
         }
     }
     
@@ -752,24 +631,30 @@ struct DailyAverageCard: View {
         formatter.numberStyle = .currency
         formatter.currencyCode = "HKD"
         formatter.maximumFractionDigits = 0
-        formatter.minimumFractionDigits = 0
-        formatter.locale = Locale(identifier: langManager.selectedLanguage.rawValue)
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
+    
+    private func formatCurrency(amount: Decimal, code: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = code
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+    }
+    
+    private func formatTransactionDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = langManager.selectedLanguage == .chineseHK ? "M/d" : "MMM d"
+        return formatter.string(from: date)
+    }
 }
-// MARK: - 消費洞察卡片
 
+// MARK: - 消費洞察卡片（不變）
 struct SpendingInsightCard: View {
     @EnvironmentObject var langManager: LanguageManager
     let insights: SpendingInsights?
     let isLoading: Bool
     let period: TimePeriod
-    
-    init(insights: SpendingInsights?, isLoading: Bool, period: TimePeriod) {
-        self.insights = insights
-        self.isLoading = isLoading
-        self.period = period
-    }
     
     var body: some View {
         DashboardCard(title: langManager.localized("spending_insights"), icon: "lightbulb") {
@@ -779,12 +664,9 @@ struct SpendingInsightCard: View {
                     .padding()
             } else if let insights = insights {
                 VStack(alignment: .leading, spacing: 16) {
-                    // 根據週期顯示不同洞察
                     if period == .year {
-                        // 年視圖：顯示月度洞察
                         yearlyInsightsView(insights: insights)
                     } else {
-                        // 月視圖：顯示原有洞察
                         monthlyInsightsView(insights: insights)
                     }
                 }
@@ -793,16 +675,13 @@ struct SpendingInsightCard: View {
                     Image(systemName: "chart.bar.doc.horizontal")
                         .font(.system(size: 40))
                         .foregroundColor(.gray.opacity(0.3))
-                    
                     Text(langManager.localized("no_insights_data"))
                         .font(.body)
                         .foregroundColor(.secondary)
                         .italic()
-                    
                     Text(langManager.localized("record_more_transactions_for_insights"))
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
@@ -812,63 +691,48 @@ struct SpendingInsightCard: View {
     
     private func monthlyInsightsView(insights: SpendingInsights) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // 使用網格佈局顯示多個洞察
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                // 洞察1：消費時段
                 insightItem(
                     icon: "clock",
                     title: langManager.localized("primary_time_period"),
                     value: insights.mostActiveDay,
                     color: .blue
                 )
-                
-                // 洞察2：週末比例
-                let weekendRatio = Int(insights.weekendVsWeekdayRatio * 100)
                 insightItem(
                     icon: "calendar",
                     title: langManager.localized("weekend_spending"),
-                    value: "\(weekendRatio)%",
+                    value: "\(Int(insights.weekendVsWeekdayRatio * 100))%",
                     color: .orange
                 )
-                
-                // 洞察3：交易筆數
-                let totalTransactions = insights.weekdayTransactionCount + insights.weekendTransactionCount
                 insightItem(
                     icon: "list.bullet",
                     title: langManager.localized("total_transactions_label"),
-                    value: "\(totalTransactions)\(langManager.localized("transactions_unit"))",
+                    value: "\(insights.weekdayTransactionCount + insights.weekendTransactionCount)\(langManager.localized("transactions_unit"))",
                     color: .green
                 )
-                
-                // 洞察4：最高消費
                 if insights.peakSpendingAmount > 0 {
                     insightItem(
                         icon: "arrow.up.circle",
                         title: langManager.localized("highest_spending"),
-                        value: formatCurrency(insights.peakSpendingAmount),
+                        value: formatCurrency(insights.peakSpendingAmount, code: "HKD"),
                         color: .red
                     )
                 }
             }
-            
-            // 如果有最常用分類，顯示在下方
             if let category = insights.mostFrequentCategory {
                 HStack {
                     Image(systemName: "tag.fill")
                         .foregroundColor(.purple)
                         .font(.caption)
-                    
                     Text("\(langManager.localized("most_used_category"))：")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    
                     Text(category.name)
                         .font(.caption)
                         .bold()
-                    
                     Spacer()
                 }
                 .padding(.top, 4)
@@ -877,14 +741,11 @@ struct SpendingInsightCard: View {
     }
     
     private func yearlyInsightsView(insights: SpendingInsights) -> some View {
-        let totalTransactions = insights.weekdayTransactionCount + insights.weekendTransactionCount
-        return VStack(alignment: .leading, spacing: 12) {
-            // 年視圖專用洞察
+        VStack(alignment: .leading, spacing: 12) {
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                // 洞察1：消費最高月份
                 if let peakMonth = insights.peakMonth {
                     insightItem(
                         icon: "chart.bar.fill",
@@ -892,74 +753,56 @@ struct SpendingInsightCard: View {
                         value: peakMonth,
                         color: .blue
                     )
-                    
                     insightItem(
                         icon: "dollarsign.circle.fill",
                         title: langManager.localized("month_amount"),
-                        value: formatCurrency(insights.peakMonthAmount),
+                        value: formatCurrency(insights.peakMonthAmount, code: "HKD"),
                         color: .blue
                     )
                 }
-                
-                // 洞察2：週末比例
-                let weekendRatio = Int(insights.weekendVsWeekdayRatio * 100)
                 insightItem(
                     icon: "calendar",
                     title: langManager.localized("weekend_spending"),
-                    value: "\(weekendRatio)%",
+                    value: "\(Int(insights.weekendVsWeekdayRatio * 100))%",
                     color: .orange
                 )
-                
-                // 洞察3：交易筆數
-                let totalTransactions = insights.weekdayTransactionCount + insights.weekendTransactionCount
                 insightItem(
                     icon: "list.bullet",
                     title: langManager.localized("total_transactions_label"),
-                    value: "\(totalTransactions)\(langManager.localized("transactions_unit"))",
+                    value: "\(insights.weekdayTransactionCount + insights.weekendTransactionCount)\(langManager.localized("transactions_unit"))",
                     color: .green
                 )
-                
-                // 洞察4：最高消費
                 if insights.peakSpendingAmount > 0 {
                     insightItem(
                         icon: "crown.fill",
                         title: langManager.localized("yearly_highest_spending"),
-                        value: formatCurrency(insights.peakSpendingAmount),
+                        value: formatCurrency(insights.peakSpendingAmount, code: "HKD"),
                         color: .red
                     )
                 }
             }
-            
-            // 如果有最常用分類，顯示在下方
             if let category = insights.mostFrequentCategory {
                 HStack {
                     Image(systemName: "tag.fill")
                         .foregroundColor(.purple)
                         .font(.caption)
-                    
                     Text("\(langManager.localized("yearly_most_used_category"))：")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    
                     Text(category.name)
                         .font(.caption)
                         .bold()
-                    
                     Spacer()
                 }
                 .padding(.top, 4)
             }
-            
-            // 顯示週末/平日統計
             Divider()
                 .padding(.vertical, 4)
-            
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(langManager.localized("spending_time_distribution"))
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    
                     HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(langManager.localized("weekday"))
@@ -969,7 +812,6 @@ struct SpendingInsightCard: View {
                                 .font(.body)
                                 .bold()
                         }
-                        
                         VStack(alignment: .leading, spacing: 2) {
                             Text(langManager.localized("weekend"))
                                 .font(.caption2)
@@ -980,23 +822,19 @@ struct SpendingInsightCard: View {
                         }
                     }
                 }
-                
                 Spacer()
-                
-                // 比例環形圖
+                let totalTransactions = insights.weekdayTransactionCount + insights.weekendTransactionCount
                 if totalTransactions > 0 {
                     let weekendPercentage = Double(insights.weekendTransactionCount) / Double(totalTransactions)
                     ZStack {
                         Circle()
                             .stroke(Color.gray.opacity(0.2), lineWidth: 8)
                             .frame(width: 50, height: 50)
-                        
                         Circle()
                             .trim(from: 0, to: CGFloat(weekendPercentage))
                             .stroke(Color.orange, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                             .frame(width: 50, height: 50)
                             .rotationEffect(.degrees(-90))
-                        
                         Text("\(Int(weekendPercentage * 100))%")
                             .font(.caption)
                             .bold()
@@ -1008,20 +846,15 @@ struct SpendingInsightCard: View {
     
     private func insightItem(icon: String, title: String, value: String, color: Color) -> some View {
         VStack(spacing: 6) {
-            // 圖標
             Image(systemName: icon)
                 .font(.title3)
                 .foregroundColor(color)
                 .frame(height: 24)
-            
-            // 標題
             Text(title)
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
-            
-            // 數值
             Text(value)
                 .font(.body)
                 .bold()
@@ -1035,17 +868,16 @@ struct SpendingInsightCard: View {
         .cornerRadius(8)
     }
     
-    private func formatCurrency(_ amount: Decimal) -> String {
+    private func formatCurrency(_ amount: Decimal, code: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = "HKD"
+        formatter.currencyCode = code
         formatter.maximumFractionDigits = 0
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 }
 
-// MARK: - 通用卡片容器
-
+// MARK: - 通用卡片容器（不變）
 struct DashboardCard<Content: View>: View {
     let title: String
     let icon: String
@@ -1058,22 +890,18 @@ struct DashboardCard<Content: View>: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {  // 稍微增加間距
-            // 標題欄
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label(title, systemImage: icon)
                     .font(.headline)
                     .foregroundColor(.primary)
-                
                 Spacer()
             }
-            .padding(.bottom, 4)  // 增加標題與內容之間的距離
-            
-            // 內容
+            .padding(.bottom, 4)
             content
         }
-        .frame(maxWidth: .infinity, alignment: .leading)  // 佔滿寬度
-        .padding(16)  // 使用一致padding
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)

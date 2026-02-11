@@ -11,7 +11,6 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // 控制欄
                 DashboardControlBar(
                     selectedPayer: $dashboardVM.selectedPayer,
                     selectedPeriod: $dashboardVM.selectedPeriod,
@@ -28,44 +27,41 @@ struct DashboardView: View {
                     dashboardVM.refreshData()
                 }
                 
-                // 主要內容 - 改為直向滾動
                 ScrollView {
-                    VStack(spacing: 16) {  // 垂直排列卡片
-                        // 1. 總消費卡片（傳遞 period）
+                    VStack(spacing: 16) {
+                        // ✅ 使用新的 TotalSpendingCard，傳入多貨幣字典
                         TotalSpendingCard(
-                            stats: dashboardVM.monthlyStats,
+                            totalAmounts: dashboardVM.monthlyStats?.totalAmounts ?? [:],
+                            transactionCount: dashboardVM.monthlyStats?.transactionCount ?? 0,
+                            previousMonthAmounts: dashboardVM.monthlyStats?.previousMonthAmounts,
+                            changePercentages: dashboardVM.monthlyStats?.changePercentages,
                             isLoading: dashboardVM.isLoading,
                             period: dashboardVM.selectedPeriod
                         )
                         
-                        // 2. 日均消費卡片（傳遞 period）
                         DailyAverageCard(
                             stats: dashboardVM.monthlyStats,
                             isLoading: dashboardVM.isLoading,
                             period: dashboardVM.selectedPeriod
                         )
                         
-                        // 3. 分類分佈卡片
                         CategoryBreakdownCard(
                             categories: dashboardVM.categoryStats,
                             isLoading: dashboardVM.isLoading
                         )
                         
-                        // 4. 消費洞察卡片（傳遞 period）
                         SpendingInsightCard(
                             insights: dashboardVM.spendingInsights,
                             isLoading: dashboardVM.isLoading,
                             period: dashboardVM.selectedPeriod
                         )
                         
-                        // 最近交易（可選擴展）
                         if !dashboardVM.isLoading,
                            let stats = dashboardVM.monthlyStats,
                            stats.transactionCount > 0 {
                             RecentTransactionsSection()
                         }
                         
-                        // 空狀態提示
                         if !dashboardVM.isLoading,
                            dashboardVM.monthlyStats == nil {
                             emptyStateView
@@ -119,7 +115,7 @@ struct DashboardView: View {
             }
             
             Button(langManager.localized("view_all_transactions")) {
-                // 可以導航到交易列表
+                // 導航到交易列表
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
@@ -131,8 +127,7 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - 最近交易組件
-
+// MARK: - 最近交易組件（不變）
 struct RecentTransactionsSection: View {
     @EnvironmentObject var langManager: LanguageManager
     @EnvironmentObject var dashboardVM: DashboardViewModel
@@ -150,7 +145,6 @@ struct RecentTransactionsSection: View {
                 
                 Spacer()
                 
-                // 只顯示有交易時才顯示查看全部
                 if totalFilteredTransactions > 0 {
                     NavigationLink(langManager.localized("view_all")) {
                         TransactionListView(
@@ -176,7 +170,6 @@ struct RecentTransactionsSection: View {
                     TransactionRow(transaction: transaction)
                 }
                 
-                // 顯示篩選條件信息
                 if let payerName = dashboardVM.selectedPayer?.name {
                     Text("\(langManager.localized("filter_label"))：\(payerName)｜\(formatPeriod())")
                         .font(.caption2)
@@ -207,17 +200,14 @@ struct RecentTransactionsSection: View {
             return
         }
         
-        // 計算時間範圍
         let (startDate, endDate) = dashboardVM.calculateDateRange()
         
         do {
             let fetchDescriptor = FetchDescriptor<Transaction>(
                 sortBy: [SortDescriptor(\.date, order: .reverse)]
             )
-            
             let allTransactions = try context.fetch(fetchDescriptor)
             
-            // 篩選：包含該付款人 + 在時間範圍內
             let filtered = allTransactions.filter { transaction in
                 let isInPeriod = transaction.date >= startDate && transaction.date <= endDate
                 let hasPayer = transaction.contributions.contains { $0.payer.id == payer.id }
@@ -225,14 +215,7 @@ struct RecentTransactionsSection: View {
             }
             
             totalFilteredTransactions = filtered.count
-            
-            // 只取前5筆顯示
-            if filtered.count > 5 {
-                recentTransactions = Array(filtered.prefix(5))
-            } else {
-                recentTransactions = filtered
-            }
-            
+            recentTransactions = Array(filtered.prefix(5))
         } catch {
             print("載入最近交易失敗: \(error)")
             recentTransactions = []
@@ -258,13 +241,11 @@ struct TransactionRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // 交易類型圖標
             Image(systemName: transaction.type == .expense ? "arrow.down.circle" : "arrow.up.circle")
                 .foregroundColor(transaction.type == .expense ? .red : .green)
                 .font(.headline)
             
             VStack(alignment: .leading, spacing: 4) {
-                // 交易備註或分類
                 if let note = transaction.note, !note.isEmpty {
                     Text(note)
                         .font(.subheadline)
@@ -275,7 +256,6 @@ struct TransactionRow: View {
                         .foregroundColor(.secondary)
                 }
                 
-                // 交易日期
                 Text(transaction.date, format: .dateTime.month().day())
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -283,8 +263,8 @@ struct TransactionRow: View {
             
             Spacer()
             
-            // 交易金額
-            Text(formatCurrency(transaction.totalAmount, code: transaction.currencyCode))
+            // ✅ 使用交易本身的貨幣代碼
+            Text(formatCurrency(amount: transaction.totalAmount, code: transaction.currencyCode))
                 .font(.headline)
                 .foregroundColor(transaction.type == .expense ? .red : .green)
         }
@@ -295,7 +275,7 @@ struct TransactionRow: View {
         .padding(.horizontal, 16)
     }
     
-    private func formatCurrency(_ amount: Decimal, code: String) -> String {
+    private func formatCurrency(amount: Decimal, code: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = code
@@ -305,26 +285,17 @@ struct TransactionRow: View {
 }
 
 // MARK: - 預覽
-
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: Transaction.self, Category.self, Subcategory.self, Payer.self, PaymentContribution.self, configurations: config)
     
-    // 創建測試數據
     let context = container.mainContext
-    
-    // 創建測試付款人
     let testPayer = Payer(name: "測試用戶", colorHex: "#3498db")
     context.insert(testPayer)
-    
-    // 創建測試分類
     let testCategory = Category(name: "飲食", colorHex: "#FF6B6B")
     context.insert(testCategory)
-    
     let testSubcategory = Subcategory(name: "餐廳", parentID: testCategory.id, colorHex: "#FF6B6B")
     context.insert(testSubcategory)
-    
-    // 創建測試交易
     let testTransaction = Transaction(
         totalAmount: 150,
         date: Date(),
@@ -334,8 +305,6 @@ struct TransactionRow: View {
         currencyCode: "HKD"
     )
     context.insert(testTransaction)
-    
-    // 創建分攤
     let contribution = PaymentContribution(
         amount: 150,
         payer: testPayer,
@@ -343,7 +312,6 @@ struct TransactionRow: View {
     )
     context.insert(contribution)
     testTransaction.contributions.append(contribution)
-    
     try? context.save()
     
     return DashboardView()
