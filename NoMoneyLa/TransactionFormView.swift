@@ -120,27 +120,27 @@ struct TransactionFormView: View {
     @State private var amountFieldIsFirstResponder: Bool = false
     @FocusState private var focusedField: Field?
     
-    // ✅ 新增：參與者選擇相關狀態
+    // 參與者選擇相關狀態
     @State private var participantEntries: [ParticipantEntry] = []
     @State private var showParticipantSelection = false
     @State private var assignedPayersForCategory: [Payer] = []
     
-    // ✅ 新增：用於顯示分攤警告的狀態
+    // 用於顯示分攤警告的狀態
     @State private var showContributionMismatchAlert = false
     @State private var contributionDifference: Decimal = 0
     @State private var allowSaveAnyway = false
     
-    // ✅ 新增：收入交易收款人ID
+    // 收入交易收款人ID
     @State private var selectedIncomePayerID: UUID? = nil
     
-    // ✅ 修改：分攤模式狀態 - 默認為 .simple（一人支付全部）
-    @State private var contributionMode: ContributionMode = .simple  // 默認一人支付全部
+    // 分攤模式狀態 - 默認為 .simple（一人支付全部）
+    @State private var contributionMode: ContributionMode = .simple
     
-    // ✅ 新增：付款人選擇相關狀態
+    // 付款人選擇相關狀態
     @State private var showPayerSelectionForNew = false
     @State private var selectedPayerForNew: Payer? = nil
     
-    // ✅ 新增：追踪每個支付金額輸入框嘅激活狀態
+    // 追踪每個支付金額輸入框嘅激活狀態
     @State private var contributionAmountFocusStates: [UUID: Bool] = [:]
     
     private let currencies = ["HKD", "USD", "JPY"]
@@ -179,7 +179,6 @@ struct TransactionFormView: View {
                             .frame(height: 28)
                             .controlSize(.small)
                             .focused($focusedField, equals: .totalAmount)
-                            // ✅ 修正：當總金額改變時，更新簡化模式嘅支付金額
                             .onChange(of: totalAmountText) { oldValue, newValue in
                                 updateContributionAmountsOnTotalChange()
                             }
@@ -270,10 +269,10 @@ struct TransactionFormView: View {
                                             selectedSubcategoryID = uncategorizedSub.id
                                         }
                                         
-                                        // ✅ 更新：當選擇分類時，更新該分類的已分配付款人及參與者
+                                        // 更新該分類的已分配付款人及參與者
                                         updateAssignedPayersForCategory(cat)
                                         
-                                        // ✅ 更新：重置收入收款人選擇（如果切換分類）
+                                        // 如果切換分類，重置收入收款人選擇
                                         if selectedType == .income {
                                             selectedIncomePayerID = nil
                                         }
@@ -294,7 +293,7 @@ struct TransactionFormView: View {
                                     Text(selectedParentName)
                                         .lineLimit(1)
                                         .truncationMode(.tail)
-                                        .foregroundColor(.primary)
+                                        .foregroundColor(selectedParentID == nil ? .secondary : .primary)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     Image(systemName: "chevron.down")
                                         .font(.system(size: 12, weight: .semibold))
@@ -358,7 +357,7 @@ struct TransactionFormView: View {
                     }
                 }
                 
-                // ✅ 修改：參與者選擇區域 - 只有當分類有分配付款人時才顯示
+                // 參與者選擇區域 - 只有當分類有分配付款人時才顯示
                 if selectedType == .expense && !assignedPayersForCategory.isEmpty {
                     Section(header: Text(langManager.localized("participants_section"))) {
                         if isEditing {
@@ -411,12 +410,11 @@ struct TransactionFormView: View {
                     }
                 }
                 
-                // ✅ 修改：支付方式選擇 - 支出交易才顯示
+                // 支付方式選擇 - 支出交易才顯示
                 if selectedType == .expense {
                     Section(header: Text("支付方式")) {
                         if isEditing {
                             VStack(alignment: .leading, spacing: 12) {
-                                // 支付方式選擇
                                 Picker("", selection: $contributionMode) {
                                     Text("一人支付全額（默認）").tag(ContributionMode.simple)
                                     Text("多人分攤支付").tag(ContributionMode.detailed)
@@ -426,7 +424,6 @@ struct TransactionFormView: View {
                                     handleContributionModeChange(newMode)
                                 }
                                 
-                                // 說明文字
                                 Text(getContributionModeDescription())
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -434,7 +431,6 @@ struct TransactionFormView: View {
                             }
                             .padding(.vertical, 4)
                         } else {
-                            // 查看模式
                             HStack {
                                 Text("支付方式")
                                 Spacer()
@@ -444,11 +440,10 @@ struct TransactionFormView: View {
                         }
                     }
                     
-                    // ✅ 修改：支付詳情（根據模式顯示）
+                    // 支付詳情（根據模式顯示）
                     if contributionMode == .simple {
                         Section(header: Text("支付詳情")) {
                             if isEditing {
-                                // 簡化模式：選擇誰支付了全額
                                 Menu {
                                     ForEach(getAvailablePayersForPayment()) { payer in
                                         Button(action: {
@@ -490,7 +485,6 @@ struct TransactionFormView: View {
                                     hideKeyboard()
                                 }
                                 
-                                // 顯示支付金額（自動設置為交易全額）
                                 if let contribution = contributions.first,
                                    let amount = decimalFromString(contribution.amountText),
                                    amount > 0 {
@@ -504,7 +498,6 @@ struct TransactionFormView: View {
                                     .padding(.top, 8)
                                 }
                             } else {
-                                // 查看模式
                                 if let contribution = contributions.first,
                                    let payerID = contribution.payerID,
                                    let payer = payers.first(where: { $0.id == payerID }),
@@ -534,7 +527,6 @@ struct TransactionFormView: View {
                             }
                         }
                     } else {
-                        // ✅ 修改：詳細模式 - 不自動列出所有付款人
                         Section(header: HStack {
                             Text("分攤支付詳情")
                             Spacer()
@@ -549,7 +541,6 @@ struct TransactionFormView: View {
                             }
                         }) {
                             if isEditing {
-                                // ✅ 修改：如果冇付款記錄，顯示添加按鈕
                                 if contributions.isEmpty {
                                     VStack(spacing: 16) {
                                         Button(action: {
@@ -581,7 +572,6 @@ struct TransactionFormView: View {
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 8)
                                 } else {
-                                    // 現有付款記錄列表
                                     ForEach(0..<contributions.count, id: \.self) { index in
                                         HStack(spacing: 12) {
                                             Menu {
@@ -619,7 +609,6 @@ struct TransactionFormView: View {
                                                 hideKeyboard()
                                             }
                                             
-                                            // ✅ 修改：使用 SelectAllTextField 代替普通 TextField
                                             SelectAllTextField(
                                                 text: Binding(
                                                     get: { contributions[index].amountText },
@@ -633,7 +622,6 @@ struct TransactionFormView: View {
                                                     set: { newValue in
                                                         contributionAmountFocusStates[contributions[index].id] = newValue
                                                         
-                                                        // 當呢個輸入框激活時，其他輸入框要失焦
                                                         if newValue {
                                                             for (id, _) in contributionAmountFocusStates {
                                                                 if id != contributions[index].id {
@@ -646,11 +634,9 @@ struct TransactionFormView: View {
                                                 placeholder: "金額",
                                                 keyboardType: .decimalPad,
                                                 onCommit: {
-                                                    // 輸入完成時可以做一些驗證或格式化
                                                     if let value = decimalFromString(contributions[index].amountText) {
                                                         contributions[index].amountText = decimalToString(value)
                                                     }
-                                                    // 失焦
                                                     contributionAmountFocusStates[contributions[index].id] = false
                                                 }
                                             )
@@ -679,7 +665,6 @@ struct TransactionFormView: View {
                                         .padding(.vertical, 4)
                                     }
                                     
-                                    // ✅ 修改：添加付款人按鈕（永遠顯示）
                                     Button(action: {
                                         hideKeyboard()
                                         if canAddNewContribution() {
@@ -703,7 +688,6 @@ struct TransactionFormView: View {
                                             .font(.caption)
                                         Spacer()
                                         
-                                        // 改進：根據差異顯示不同顏色
                                         let totalColor = getTotalColor()
                                         let diffText = getDifferenceText()
                                         
@@ -731,7 +715,6 @@ struct TransactionFormView: View {
                                     .padding(.top, 4)
                                 }
                             } else {
-                                // 查看模式
                                 if contributions.isEmpty {
                                     Text("無支付記錄")
                                         .foregroundColor(.secondary)
@@ -768,12 +751,11 @@ struct TransactionFormView: View {
                     }
                 }
 
-                // ✅ 新增：收入交易收款人選擇
+                // 收入交易收款人選擇
                 if selectedType == .income {
                     Section(header: Text(langManager.localized("income_recipient_section"))) {
                         if isEditing {
                             Menu {
-                                // ✅ 收入交易只能選擇已分配給當前分類的付款人
                                 let availablePayersForIncome = getAvailablePayersForIncome()
                                 
                                 if availablePayersForIncome.isEmpty {
@@ -826,7 +808,6 @@ struct TransactionFormView: View {
                                 hideKeyboard()
                             }
                             
-                            // ✅ 顯示付款人限制提示
                             if let parentID = selectedParentID,
                                let category = categories.first(where: { $0.id == parentID }) {
                                 let assignedPayers = category.assignedPayers(in: context)
@@ -838,7 +819,6 @@ struct TransactionFormView: View {
                                 }
                             }
                         } else {
-                            // 查看模式
                             if let payerID = selectedIncomePayerID,
                                let payer = payers.first(where: { $0.id == payerID }) {
                                 HStack {
@@ -934,14 +914,12 @@ struct TransactionFormView: View {
                     selectedParticipantIDs: selectedParticipantIDs,
                     onSave: { selectedIDs in
                         updateParticipantEntries(selectedIDs: selectedIDs)
-                        // 更新支付設置
                         updatePaymentSetup()
                     }
                 )
                 .environment(\.modelContext, context)
             }
             .sheet(isPresented: $showPayerSelectionForNew) {
-                // ✅ 新增：付款人選擇彈窗
                 PayerSelectionSheetForNew(
                     availablePayers: getAvailablePayersForNewContribution(),
                     onSelect: { payer in
@@ -990,15 +968,13 @@ struct TransactionFormView: View {
            let parent = categories.first(where: { $0.id == parentID }) {
             return parent.name
         } else {
-            // ✅ 如果冇選擇分類，顯示「未分類」而非「無」
-            return langManager.localized("uncategorized_label")
+            return langManager.localized("select_category_placeholder")  // 顯示「請選擇分類」
         }
     }
     
     private var selectedSubcategoryName: String {
         if selectedParentID == nil {
-            // ✅ 如果冇選擇父分類，顯示「未分類」而非「請先選擇父分類」
-            return langManager.localized("uncategorized_label")
+            return ""  // 無父分類時子分類 Menu 會被 disable，呢度唔需要顯示內容
         } else if let subID = selectedSubcategoryID,
                   let sub = subcategories.first(where: { $0.id == subID }) {
             return sub.name
@@ -1017,51 +993,32 @@ struct TransactionFormView: View {
         }
     }
     
-    // ✅ 新增：已選擇的參與者ID集合
     private var selectedParticipantIDs: Set<UUID> {
         Set(participantEntries.filter { $0.isParticipating }.map { $0.payer.id })
     }
     
-    // ✅ 新增：已選擇的參與者數量
     private var selectedParticipantCount: Int {
         selectedParticipantIDs.count
     }
     
-    // ✅ 修改：驗證邏輯 - 當分類冇付款人時，跳過參與者檢查
     private var isValid: Bool {
         guard let total = decimalFromString(totalAmountText), total > 0 else { return false }
         
-        // ✅ 移除分類檢查，因為現在總會有分類（預設未分類）
-        if selectedType == .income {
-            // ✅ 收入交易：必須有收款人
-            return true // 允許保存，即使未選擇收款人（會使用默認收款人）
-        }
-        
-        // ✅ 修改：支出交易 - 只有當分類有分配付款人時才檢查參與者
-        if !assignedPayersForCategory.isEmpty && selectedParticipantIDs.isEmpty {
-            return false
-        }
-        
-        // ✅ 簡化模式：必須有一個付款人
-        if contributionMode == .simple {
-            guard !contributions.isEmpty else { return false }
-            guard contributions.first?.payerID != nil else { return false }
-            return true
-        }
-        
-        // ✅ 詳細模式：檢查每個分攤項
-        if contributionMode == .detailed {
-            guard !contributions.isEmpty else { return false }
-            
-            for contribution in contributions {
-                if contribution.payerID == nil { return false }
-                guard let amount = decimalFromString(contribution.amountText), amount > 0 else { return false }
+        // 支出交易需要至少一個有效支付記錄
+        if selectedType == .expense {
+            if contributionMode == .simple {
+                guard !contributions.isEmpty else { return false }
+                guard contributions.first?.payerID != nil else { return false }
+            } else if contributionMode == .detailed {
+                guard !contributions.isEmpty else { return false }
+                for contribution in contributions {
+                    if contribution.payerID == nil { return false }
+                    guard let amount = decimalFromString(contribution.amountText), amount > 0 else { return false }
+                }
             }
-            
-            return true
         }
         
-        return false
+        return true
     }
     
     private func getPayerName(for index: Int) -> String {
@@ -1081,30 +1038,22 @@ struct TransactionFormView: View {
         return nil
     }
     
-    // ✅ 修改：只顯示當前分類已分配的付款人
     private func getAvailablePayers(for index: Int) -> [Payer] {
-        // 1. 優先使用已選擇的參與者（按 order 排序）
         let participatingPayers = participantEntries
             .filter { $0.isParticipating }
             .map { $0.payer }
-            .sorted { $0.order < $1.order }  // ✅ 確保排序
+            .sorted { $0.order < $1.order }
         
         if !participatingPayers.isEmpty {
-            // 只顯示參與者中的付款人
             var availableFromParticipants = participatingPayers
-            
-            // 排除已被其他分攤項選中的付款人
             let selectedPayerIDs = contributions
                 .enumerated()
                 .filter { $0.offset != index }
                 .compactMap { $0.element.payerID }
-            
             let selectedIDsSet = Set(selectedPayerIDs)
-            
             return availableFromParticipants.filter { !selectedIDsSet.contains($0.id) }
         }
         
-        // 2. 如果沒有參與者，使用分類的已分配付款人（按 order 排序）
         var availablePayers: [Payer]
         
         if !assignedPayersForCategory.isEmpty {
@@ -1115,69 +1064,55 @@ struct TransactionFormView: View {
             if !assignedPayers.isEmpty {
                 availablePayers = assignedPayers.sorted { $0.order < $1.order }
             } else {
-                // 3. 如果分類沒有分配付款人，使用所有付款人（按 order 排序）
                 availablePayers = payers.sorted { $0.order < $1.order }
             }
         } else {
-            // 4. 沒有選擇分類，使用所有付款人（按 order 排序）
             availablePayers = payers.sorted { $0.order < $1.order }
         }
         
-        // 排除已被其他分攤項選中的付款人
         let selectedPayerIDs = contributions
             .enumerated()
             .filter { $0.offset != index }
             .compactMap { $0.element.payerID }
-        
         let selectedIDsSet = Set(selectedPayerIDs)
         
         return availablePayers.filter { !selectedIDsSet.contains($0.id) }
     }
     
-    // ✅ 新增：獲取可用的支付人（用於簡化模式）
     private func getAvailablePayersForPayment() -> [Payer] {
-        // ✅ 修改：如果分類冇付款人，使用所有付款人
         if assignedPayersForCategory.isEmpty {
             return payers.sorted { $0.order < $1.order }
         }
         
-        // 簡化模式：優先選擇參與者
         let participatingPayers = participantEntries
             .filter { $0.isParticipating }
             .map { $0.payer }
-            .sorted { $0.order < $1.order }  // ✅ 確保排序
+            .sorted { $0.order < $1.order }
         
         if !participatingPayers.isEmpty {
             return participatingPayers
         }
         
-        // 如果沒有參與者，使用已分配付款人
         if !assignedPayersForCategory.isEmpty {
-            return assignedPayersForCategory.sorted { $0.order < $1.order }  // ✅ 確保排序
+            return assignedPayersForCategory.sorted { $0.order < $1.order }
         }
         
-        // 最後備選：所有付款人
         return payers.sorted { $0.order < $1.order }
     }
     
-    // ✅ 新增：獲取收入交易可用的付款人
     private func getAvailablePayersForIncome() -> [Payer] {
-        // 收入交易只能選擇已分配給當前分類的付款人
         if !assignedPayersForCategory.isEmpty {
-            return assignedPayersForCategory.sorted { $0.order < $1.order }  // ✅ 確保排序
+            return assignedPayersForCategory.sorted { $0.order < $1.order }
         } else if let parentID = selectedParentID,
                   let category = categories.first(where: { $0.id == parentID }) {
             let assignedPayers = category.assignedPayers(in: context)
-            return assignedPayers.sorted { $0.order < $1.order }  // ✅ 確保排序
+            return assignedPayers.sorted { $0.order < $1.order }
         } else {
-            // 沒有選擇分類，顯示所有付款人
-            return payers.sorted { $0.order < $1.order }  // ✅ 確保排序
+            return payers.sorted { $0.order < $1.order }
         }
     }
     
-    // ✅ 新增：獲取新付款人可用的付款人
     private func getAvailablePayersForNewContribution() -> [Payer] {
-        // 獲取可用的付款人（包括參與者和已分配付款人）
         let participatingPayers = participantEntries
             .filter { $0.isParticipating }
             .map { $0.payer }
@@ -1197,21 +1132,17 @@ struct TransactionFormView: View {
             availablePayers = payers.sorted { $0.order < $1.order }
         }
         
-        // 排除已被選中的付款人
         let selectedPayerIDs = contributions.compactMap { $0.payerID }
         let selectedIDsSet = Set(selectedPayerIDs)
         
         return availablePayers.filter { !selectedIDsSet.contains($0.id) }
     }
     
-    // ✅ 修改：優先使用付款人列表中的第一個（按order排序）
     private var defaultPayer: Payer? {
-        // ✅ 修改：如果分類冇付款人，使用付款人列表中的第一個
         if assignedPayersForCategory.isEmpty {
             return payers.sorted { $0.order < $1.order }.first
         }
         
-        // 否則使用當前分類已分配付款人中的第一個
         if !assignedPayersForCategory.isEmpty {
             return assignedPayersForCategory.first
         } else if let parentID = selectedParentID,
@@ -1222,13 +1153,10 @@ struct TransactionFormView: View {
             }
         }
         
-        // 如果沒有已分配的付款人，使用預設付款人或第一個付款人
         return payers.first { $0.isDefault } ?? payers.first
     }
     
-    // ✅ 新增：獲取收入交易的默認收款人
     private func getDefaultIncomePayer() -> Payer? {
-        // 優先使用已分配付款人中的第一個
         if !assignedPayersForCategory.isEmpty {
             return assignedPayersForCategory.first
         } else if let parentID = selectedParentID,
@@ -1238,22 +1166,15 @@ struct TransactionFormView: View {
                 return assignedPayers.first
             }
         }
-        
-        // 如果沒有已分配的付款人，使用預設付款人
         return payers.first { $0.isDefault } ?? payers.first
     }
     
-    // ✅ 修改：檢查是否可以添加新的分攤項
     private func canAddNewContribution() -> Bool {
-        // 詳細模式才需要檢查
         guard contributionMode == .detailed else { return false }
-        
-        // 檢查是否還有可用的付款人
         let availablePayers = getAvailablePayersForNewContribution()
         return !availablePayers.isEmpty
     }
     
-    // ✅ 新增：獲取支付模式描述
     private func getContributionModeDescription() -> String {
         switch contributionMode {
         case .simple:
@@ -1263,21 +1184,13 @@ struct TransactionFormView: View {
         }
     }
     
-    // ✅ 修改：更新當前分類的已分配付款人，並根據情況設置支付
     private func updateAssignedPayersForCategory(_ category: Category) {
         let assignedPayers = category.assignedPayers(in: context)
-        
-        // ✅ 修改：按 order 排序
         assignedPayersForCategory = assignedPayers.sorted { $0.order < $1.order }
         
-        // ✅ 修改：如果分類冇付款人，自動設置默認付款人
         if assignedPayersForCategory.isEmpty {
-            // 清空參與者條目
             participantEntries = []
-            
-            // 設置默認付款人
             if let defaultPayer = payers.sorted(by: { $0.order < $1.order }).first {
-                // 使用簡化模式，設置默認付款人
                 contributionMode = .simple
                 contributions = [
                     ContributionEntry(
@@ -1288,7 +1201,6 @@ struct TransactionFormView: View {
                 ]
             }
         } else {
-            // ✅ 修改：按 order 排序後再創建條目
             participantEntries = assignedPayersForCategory
                 .sorted { $0.order < $1.order }
                 .map { payer in
@@ -1298,9 +1210,7 @@ struct TransactionFormView: View {
         }
     }
     
-    // ✅ 新增：從已分配付款人更新參與者條目
     private func updateParticipantEntriesFromAssignedPayers() {
-        // ✅ 修改：按 order 排序後再創建條目
         participantEntries = assignedPayersForCategory
             .sorted { $0.order < $1.order }
             .map { payer in
@@ -1309,48 +1219,31 @@ struct TransactionFormView: View {
         updatePaymentSetup()
     }
     
-    // ✅ 新增：為新分類更新參與者條目
     private func updateParticipantEntriesForNewCategory(_ newAssignedPayers: [Payer]) {
-        // 創建新嘅參與者條目
         var newParticipantEntries: [ParticipantEntry] = []
         
-        // 遍歷新分類嘅付款人
         for payer in newAssignedPayers {
-            // 檢查呢個付款人是否已經喺舊嘅參與者列表中
             if let existingEntry = participantEntries.first(where: { $0.payer.id == payer.id }) {
-                // 保留原有嘅參與狀態
                 newParticipantEntries.append(existingEntry)
             } else {
-                // 新付款人，默認參與
                 newParticipantEntries.append(ParticipantEntry(payer: payer, isParticipating: true))
             }
         }
         
-        // 設置新嘅參與者條目
         participantEntries = newParticipantEntries
-        
-        // ✅ 新增：重置支付詳情
         resetPaymentDetailsForNewCategory()
     }
     
-    // ✅ 修改：更新參與者條目（根據選擇的ID）
     private func updateParticipantEntries(selectedIDs: Set<UUID>) {
         for i in participantEntries.indices {
             participantEntries[i].isParticipating = selectedIDs.contains(participantEntries[i].payer.id)
         }
-        // 更新支付設置
         updatePaymentSetup()
-        
-        // ✅ 修改：詳細模式唔再自動重新計算
-        // 保持用戶控制權，唔好自動填寫金額
     }
     
-    // ✅ 修改：更新支付設置 - 默認使用簡化模式，並考慮分類冇付款人嘅情況
     private func updatePaymentSetup() {
-        // ✅ 新增：檢查當前支付記錄中嘅付款人是否屬於當前分類
         cleanupInvalidContributions()
         
-        // 如果分類冇分配付款人，設置默認付款人
         if assignedPayersForCategory.isEmpty {
             contributionMode = .simple
             if let defaultPayer = payers.sorted(by: { $0.order < $1.order }).first {
@@ -1367,33 +1260,23 @@ struct TransactionFormView: View {
         
         let participatingCount = selectedParticipantCount
         
-        // ✅ 修改：默認使用簡化模式（一人支付全部）
         if participatingCount == 0 {
-            // 沒有人參與：清空支付記錄
             contributionMode = .simple
             contributions = []
         } else {
-            // ✅ 修改：保持當前模式，但默認為簡化模式
-            // 唔會自動跳去詳細模式，俾用戶自己選擇
             if contributionMode == .simple {
                 setupSinglePayerPayment()
-            } else if contributionMode == .detailed {
-                // ✅ 修改：詳細模式唔再自動添加所有參與者
-                // 保持現有支付記錄，唔做任何自動添加
             }
         }
     }
     
-    // ✅ 修正：設置單人支付 - 改進邏輯
     private func setupSinglePayerPayment() {
-        // 獲取當前分類嘅參與者
         let participatingPayers = participantEntries
             .filter { $0.isParticipating }
             .map { $0.payer }
             .sorted { $0.order < $1.order }
         
         if let firstParticipant = participatingPayers.first {
-            // 設置第一個參與者支付全額
             contributions = [
                 ContributionEntry(
                     payerID: firstParticipant.id,
@@ -1402,7 +1285,6 @@ struct TransactionFormView: View {
                 )
             ]
         } else {
-            // 冇參與者，使用默認付款人
             if let defaultPayer = defaultPayer {
                 contributions = [
                     ContributionEntry(
@@ -1412,64 +1294,41 @@ struct TransactionFormView: View {
                     )
                 ]
             } else {
-                // 冇默認付款人，清空支付記錄
                 contributions = []
             }
         }
     }
     
-    // ✅ 修改：設置詳細支付（不再自動添加所有參與者）
-    private func setupDetailedPayments() {
-        // ✅ 修改：唔再清空現有支付記錄
-        // 保持用戶可能已經設置嘅支付記錄
-        
-        // 如果原本係簡化模式，保留現有嘅單一付款記錄
-        // 如果原本就係詳細模式，保持現狀
-        
-        // 唔再做任何自動添加
-        // 等用戶自己手動添加付款人
-    }
-    
-    // ✅ 修改：處理支付模式變化
     private func handleContributionModeChange(_ newMode: ContributionMode) {
         hideKeyboard()
         
         if newMode == .simple {
-            // 轉為簡化模式
             setupSinglePayerPayment()
         } else {
-            // 轉為詳細模式
-            // ✅ 修改：唔再自動設置詳細支付，保持現有記錄
-            // 如果現有記錄為空，唔做任何嘢，等用戶自己添加
+            // 轉為詳細模式時，保留現有支付記錄，唔做任何自動添加
         }
     }
     
-    // ✅ 新增：添加新付款人
     private func addNewContribution(payer: Payer) {
         hideKeyboard()
         
-        // 檢查是否已選擇該付款人
         let alreadySelected = contributions.contains { $0.payerID == payer.id }
         guard !alreadySelected else {
             showPayerSelectionForNew = false
             return
         }
         
-        // 添加新付款記錄（金額空白）
         contributions.append(ContributionEntry(
             payerID: payer.id,
-            amountText: "",  // ✅ 保持空白，等用戶自己輸入
+            amountText: "",  // 留空俾用戶自己輸入
             isRemovable: true
         ))
         
         selectedPayerForNew = nil
         showPayerSelectionForNew = false
-        
-        // 驗證金額
         validateAmounts()
     }
     
-    // ✅ 新增：設置單人支付
     private func setSinglePayerPayment(_ payer: Payer) {
         contributions = [
             ContributionEntry(
@@ -1480,21 +1339,17 @@ struct TransactionFormView: View {
         ]
     }
     
-    // ✅ 修改：計算平均分配
     private func calculateEqualDistribution() {
         let participatingCount = selectedParticipantCount
         guard participatingCount > 0, totalAmountDecimal > 0 else { return }
         
-        // 計算每人應付金額
         let total = totalAmountDecimal
         let share = total / Decimal(participatingCount)
         let shareString = decimalToString(share)
         
-        // 只更新未設置金額或金額為0嘅分攤項
         var updatedCount = 0
         for i in contributions.indices {
             if let currentAmount = decimalFromString(contributions[i].amountText), currentAmount > 0 {
-                // 保留已輸入嘅金額
                 continue
             } else {
                 contributions[i].amountText = shareString
@@ -1502,19 +1357,16 @@ struct TransactionFormView: View {
             }
         }
         
-        // 如果全部都係空白，更新全部
         if updatedCount == 0 && !contributions.isEmpty {
             for i in contributions.indices {
                 contributions[i].amountText = shareString
             }
         }
         
-        // 處理四捨五入誤差
         adjustRoundingErrors()
         validateAmounts()
     }
     
-    // ✅ 修正：自動分配剩餘金額 - 簡單直接邏輯
     private func calculateRemainingDistribution() {
         guard !contributions.isEmpty else { return }
         
@@ -1522,12 +1374,8 @@ struct TransactionFormView: View {
         let currentTotal = distributedTotal
         let remaining = total - currentTotal
         
-        // 如果冇剩餘金額或者差異好細，唔使做任何嘢
         guard abs(remaining) > Decimal(0.01) else { return }
         
-        // **核心邏輯：將剩餘金額分配俾金額為0或空白嘅項目**
-        
-        // 1. 找出金額為0或空白嘅項目索引
         var zeroOrEmptyIndices: [Int] = []
         
         for i in contributions.indices {
@@ -1536,24 +1384,18 @@ struct TransactionFormView: View {
                     zeroOrEmptyIndices.append(i)
                 }
             } else {
-                // 金額為空字串
                 zeroOrEmptyIndices.append(i)
             }
         }
         
-        // 2. 情況A：有空白/0金額項目
         if !zeroOrEmptyIndices.isEmpty {
-            // 將剩餘金額平均分配俾呢啲項目
             let share = remaining / Decimal(zeroOrEmptyIndices.count)
             let shareString = decimalToString(share)
             
             for index in zeroOrEmptyIndices {
                 contributions[index].amountText = shareString
             }
-        }
-        // 3. 情況B：全部項目都有金額（>0）
-        else {
-            // 將剩餘金額平均分配俾所有人
+        } else {
             let share = remaining / Decimal(contributions.count)
             
             for i in contributions.indices {
@@ -1564,12 +1406,10 @@ struct TransactionFormView: View {
             }
         }
         
-        // 4. 最後檢查並修正四捨五入誤差
         adjustRoundingErrors()
         validateAmounts()
     }
     
-    // ✅ 新增：處理四捨五入誤差
     private func adjustRoundingErrors() {
         guard contributionMode == .detailed else { return }
         
@@ -1577,40 +1417,31 @@ struct TransactionFormView: View {
         let currentTotal = distributedTotal
         let difference = total - currentTotal
         
-        // 如果誤差好細（小於 0.01），忽略
         if abs(difference) < Decimal(0.01) {
             return
         }
         
-        // 將誤差加到第一個分攤項度
         if !contributions.isEmpty, let firstAmount = decimalFromString(contributions[0].amountText) {
             let adjustedAmount = firstAmount + difference
             contributions[0].amountText = decimalToString(adjustedAmount)
         }
     }
     
-    // ✅ 新增：當總金額改變時更新分攤
     private func updateContributionAmountsOnTotalChange() {
         guard !contributions.isEmpty else { return }
         
         if contributionMode == .simple {
-            // 簡化模式：更新單一支付金額
             if contributions.count == 1 {
                 contributions[0].amountText = totalAmountText
             }
         }
-        // 詳細模式唔會自動更新，保持用戶控制權
-        // 用戶可以自己點擊「自動分配剩餘金額」
         
         validateAmounts()
     }
     
-    // ✅ 新增：更新分攤金額
     private func updateContributionAmounts() {
-        // 確保每個分攤項都有合理的金額
         for i in contributions.indices {
             if contributions[i].amountText.isEmpty || decimalFromString(contributions[i].amountText) == 0 {
-                // 如果金額為空或0，設置為平均份額
                 let participatingCount = max(selectedParticipantCount, 1)
                 let share = totalAmountDecimal / Decimal(participatingCount)
                 contributions[i].amountText = decimalToString(share)
@@ -1619,7 +1450,6 @@ struct TransactionFormView: View {
         validateAmounts()
     }
     
-    // ✅ 新增：獲取總額顏色
     private func getTotalColor() -> Color {
         let difference = abs(distributedTotal - totalAmountDecimal)
         
@@ -1632,7 +1462,6 @@ struct TransactionFormView: View {
         }
     }
     
-    // ✅ 新增：獲取差異文字
     private func getDifferenceText() -> String {
         let difference = distributedTotal - totalAmountDecimal
         
@@ -1647,31 +1476,24 @@ struct TransactionFormView: View {
         }
     }
     
-    // ✅ 新增：清理無效嘅支付記錄（付款人不屬於當前分類）
     private func cleanupInvalidContributions() {
         guard !contributions.isEmpty else { return }
         
-        // 獲取當前分類嘅付款人ID集合
         let validPayerIDs = Set(assignedPayersForCategory.map { $0.id })
-        
-        // 如果冇已分配付款人，使用所有付款人
         let allPayerIDs = validPayerIDs.isEmpty ? Set(payers.map { $0.id }) : validPayerIDs
         
-        // 過濾無效嘅支付記錄
         contributions = contributions.filter { entry in
             if let payerID = entry.payerID {
                 return allPayerIDs.contains(payerID)
             }
-            return true // 冇選擇付款人嘅記錄保留
+            return true
         }
         
-        // 如果支付記錄被清空，重新設置
         if contributions.isEmpty {
             setupPaymentBasedOnParticipants()
         }
     }
     
-    // ✅ 修改：根據參與者設置支付 - 默認使用簡化模式
     private func setupPaymentBasedOnParticipants() {
         let participatingPayers = participantEntries
             .filter { $0.isParticipating }
@@ -1683,25 +1505,20 @@ struct TransactionFormView: View {
             return
         }
         
-        // ✅ 修改：無論參與人數多少，默認使用簡化模式
         contributionMode = .simple
         contributions = [
             ContributionEntry(
-                payerID: participatingPayers[0].id,  // 選擇第一個參與者
+                payerID: participatingPayers[0].id,
                 amountText: totalAmountText.isEmpty ? "" : totalAmountText,
                 isRemovable: false
             )
         ]
     }
     
-    // ✅ 修改：重置支付詳情（當分類變更時） - 默認使用簡化模式
     private func resetPaymentDetailsForNewCategory() {
-        // 1. 清除所有現有支付記錄
         contributions.removeAll()
         
-        // 2. 重置參與者選擇（如果已有選擇）
         if !participantEntries.isEmpty {
-            // 只保留仍然在 assignedPayersForCategory 中嘅付款人
             for i in participantEntries.indices {
                 let payerID = participantEntries[i].payer.id
                 if assignedPayersForCategory.contains(where: { $0.id == payerID }) {
@@ -1712,47 +1529,46 @@ struct TransactionFormView: View {
             }
         }
         
-        // 3. 根據新分類重新設置支付
-        // ✅ 修改：默認使用簡化模式
         contributionMode = .simple
-        setupSinglePayerPayment()  // ✅ 這個方法已經修改為空白金額
+        setupSinglePayerPayment()
     }
     
-    // ✅ 修改：處理父分類變化
     private func handleParentCategoryChange(oldValue: UUID?, newParent: UUID?) {
         hideKeyboard()
-        
-        // 如果分類冇變，唔使做任何嘢
         guard oldValue != newParent else { return }
         
-        DispatchQueue.main.async {
-            if let newParent = newParent {
-                // 當選擇父分類時，自動選擇「未分類」子分類
-                if let uncategorizedSub = subcategories.first(where: {
-                    $0.parentID == newParent && $0.name == langManager.localized("uncategorized_label")
-                }) {
-                    selectedSubcategoryID = uncategorizedSub.id
-                }
-                
-                // ✅ 重要修改：更新已分配付款人及參與者
-                if let category = categories.first(where: { $0.id == newParent }) {
-                    updateAssignedPayersForCategory(category)
-                }
-                
-                // ✅ 更新：重置收入收款人選擇
-                if selectedType == .income {
-                    selectedIncomePayerID = nil
-                }
+        if let newParent = newParent {
+            // 自動選擇/創建「未分類」子分類
+            if let uncategorizedSub = subcategories.first(where: {
+                $0.parentID == newParent && $0.name == langManager.localized("uncategorized_label")
+            }) {
+                selectedSubcategoryID = uncategorizedSub.id
             } else {
-                selectedSubcategoryID = nil
-                assignedPayersForCategory = []
-                participantEntries = []
-                selectedIncomePayerID = nil
-                
-                // ✅ 新增：重置支付詳情
-                contributions.removeAll()
-                contributionMode = .simple
+                // ✅ 修正：parentID 必須喺 order 前面
+                let newSub = Subcategory(
+                    name: langManager.localized("uncategorized_label"),
+                    parentID: newParent,
+                    order: 0,
+                    colorHex: "#A8A8A8"
+                )
+                context.insert(newSub)
+                selectedSubcategoryID = newSub.id
             }
+            
+            if let category = categories.first(where: { $0.id == newParent }) {
+                updateAssignedPayersForCategory(category)
+            }
+            
+            if selectedType == .income {
+                selectedIncomePayerID = nil
+            }
+        } else {
+            selectedSubcategoryID = nil
+            assignedPayersForCategory = []
+            participantEntries = []
+            selectedIncomePayerID = nil
+            contributions.removeAll()
+            contributionMode = .simple
         }
     }
     
@@ -1772,86 +1588,82 @@ struct TransactionFormView: View {
                 selectedParentID = sub.parentID
                 selectedSubcategoryID = sub.id
                 
-                // ✅ 更新：設置當前分類的已分配付款人
                 if let category = categories.first(where: { $0.id == sub.parentID }) {
                     updateAssignedPayersForCategory(category)
                     
-                    // ✅ 設置參與者選擇（優先使用交易記錄的參與者）
                     if !tx.participatingPayerIDs.isEmpty {
-                        // 使用交易記錄的參與者
                         let selectedIDs = Set(tx.participatingPayerIDs)
                         updateParticipantEntries(selectedIDs: selectedIDs)
                     } else {
-                        // 舊交易沒有參與者記錄，默認所有已分配付款人都參與
                         updateParticipantEntriesFromAssignedPayers()
                     }
                 }
                 
-                // ✅ 新增：設置收入交易的收款人
                 if tx.type == .income && !tx.contributions.isEmpty {
-                    // 收入交易應該只有一個分攤（收款人）
                     if let contribution = tx.contributions.first {
                         selectedIncomePayerID = contribution.payer.id
                     }
                 }
             } else {
-                // ✅ 如果交易原本 subcategoryID 為 nil，設置為預設未分類
-                setDefaultUncategorized()
+                // 舊交易可能無 subcategoryID，自動補上預設未分類
+                assignToDefaultUncategorized()
             }
             
-            // ✅ 修改：設置支付記錄 - 考慮分類冇付款人嘅情況
             if tx.type == .expense && !tx.contributions.isEmpty && !assignedPayersForCategory.isEmpty {
                 contributions = tx.contributions.map { contribution in
                     ContributionEntry(
                         payerID: contribution.payer.id,
-                        amountText: decimalToString(contribution.amount),  // ✅ 這裡應該保留原始金額
+                        amountText: decimalToString(contribution.amount),
                         isRemovable: true
                     )
                 }
                 
-                // ✅ 修改：簡化模式只檢查是否是單人支付
                 if tx.contributions.count == 1 {
                     contributionMode = .simple
                 } else {
                     contributionMode = .detailed
                 }
             } else {
-                // 新交易或沒有支付記錄，或者分類沒有分配付款人
-                // ✅ 修改：默認使用簡化模式
                 contributionMode = .simple
-                updatePaymentSetup()  // ✅ 這個方法會根據情況設置付款人
+                updatePaymentSetup()
             }
         } else {
-            // ✅ 新增交易時，自動選擇預設「未分類」分類
-            setDefaultUncategorized()
-            
+            // ✅ 新交易：初始不選任何分類
+            selectedParentID = nil
+            selectedSubcategoryID = nil
+            assignedPayersForCategory = []
+            participantEntries = []
             selectedIncomePayerID = nil
-            
-            // ✅ 修改：設置默認支付模式為簡化模式
+            contributions.removeAll()
             contributionMode = .simple
-            updatePaymentSetup()
+            
+            // 可預設一個付款人（不強制分類）
+            if let defaultPayer = payers.sorted(by: { $0.order < $1.order }).first {
+                contributions = [
+                    ContributionEntry(
+                        payerID: defaultPayer.id,
+                        amountText: "",   // 金額留空
+                        isRemovable: false
+                    )
+                ]
+            }
         }
     }
     
-    // ✅ 新方法：設置預設未分類分類
-    private func setDefaultUncategorized() {
+    // 輔助方法：將交易強制歸入預設「未分類」分類
+    private func assignToDefaultUncategorized() {
         if let defaultCategory = categories.first(where: { $0.isDefault }),
            let defaultSubcategory = subcategories.first(where: {
                $0.parentID == defaultCategory.id && $0.name == langManager.localized("uncategorized_label")
            }) {
             selectedParentID = defaultCategory.id
             selectedSubcategoryID = defaultSubcategory.id
-            
-            // ✅ 更新：設置預設分類的已分配付款人
             updateAssignedPayersForCategory(defaultCategory)
         } else if let firstCategory = categories.first {
-            // 如果沒有預設分類，使用第一個分類
             selectedParentID = firstCategory.id
             if let firstSubcategory = subcategories.first(where: { $0.parentID == firstCategory.id }) {
                 selectedSubcategoryID = firstSubcategory.id
             }
-            
-            // ✅ 更新：設置第一個分類的已分配付款人
             updateAssignedPayersForCategory(firstCategory)
         }
     }
@@ -1861,10 +1673,8 @@ struct TransactionFormView: View {
     private func handleTypeChange(_ newType: TransactionType) {
         selectedType = newType
         if newType == .income {
-            // 收入交易：清空支付記錄
             contributions.removeAll()
         } else {
-            // 支出交易：重新設置支付
             updatePaymentSetup()
         }
     }
@@ -1874,7 +1684,6 @@ struct TransactionFormView: View {
         showAmountError = difference > Decimal(0.01)
     }
     
-    // ✅ 改進：保存前驗證
     private func saveWithValidation() {
         guard let totalAmount = decimalFromString(totalAmountText), totalAmount > 0 else {
             return
@@ -1882,26 +1691,22 @@ struct TransactionFormView: View {
         
         hideKeyboard()
         
-        // 確保總會有分類（如果未選擇，使用預設未分類）
+        // ✅ 如果用戶冇揀分類，自動分配去預設「未分類」分類
         if selectedSubcategoryID == nil {
-            setDefaultUncategorized()
+            assignToDefaultUncategorized()
         }
         
-        // ✅ 檢查支付金額是否匹配
         let difference = abs(distributedTotal - totalAmount)
         
         if difference > Decimal(0.01) {
-            // 顯示警告，讓用戶選擇
             contributionDifference = distributedTotal - totalAmount
             showContributionMismatchAlert = true
             return
         }
         
-        // 如果沒有支付問題，直接保存
         saveTransaction()
     }
     
-    // ✅ 新增：修復支付金額並保存
     private func fixContributionAmountsAndSave() {
         guard let totalAmount = decimalFromString(totalAmountText) else { return }
         
@@ -1909,14 +1714,11 @@ struct TransactionFormView: View {
             let difference = totalAmount - distributedTotal
             
             if contributionMode == .simple {
-                // 簡化模式：調整單一支付金額
                 if contributions.count == 1 {
                     contributions[0].amountText = decimalToString(totalAmount)
                 }
             } else {
-                // 詳細模式：平均分配差異
                 let perPersonAdjustment = difference / Decimal(contributions.count)
-                let adjustmentString = decimalToString(perPersonAdjustment)
                 
                 for i in contributions.indices {
                     if let currentAmount = decimalFromString(contributions[i].amountText) {
@@ -1954,24 +1756,20 @@ struct TransactionFormView: View {
         transactionToSave.note = note.isEmpty ? nil : note
         transactionToSave.type = selectedType
         transactionToSave.currencyCode = currencyCode
-        transactionToSave.subcategoryID = selectedSubcategoryID // ✅ 總會有值
+        transactionToSave.subcategoryID = selectedSubcategoryID  // 呢度一定有值，因為 saveWithValidation 已確保
         
-        // ✅ 保存參與者信息
         if selectedType == .expense {
             transactionToSave.participatingPayerIDs = Array(selectedParticipantIDs)
         } else {
-            // 收入交易不需要參與者列表
             transactionToSave.participatingPayerIDs = []
         }
         
-        // 清除舊的支付記錄
         for contribution in transactionToSave.contributions {
             context.delete(contribution)
         }
         transactionToSave.contributions.removeAll()
         
         if selectedType == .expense {
-            // 保存支付記錄
             for contribution in contributions {
                 if let payerID = contribution.payerID,
                    let payer = payers.first(where: { $0.id == payerID }),
@@ -1985,7 +1783,6 @@ struct TransactionFormView: View {
                 }
             }
             
-            // 確保至少有一個支付記錄
             if transactionToSave.contributions.isEmpty {
                 if let defaultPayer = defaultPayer {
                     let paymentContribution = PaymentContribution(
@@ -1997,20 +1794,16 @@ struct TransactionFormView: View {
                 }
             }
         } else {
-            // ✅ 新增：收入交易 - 添加收款人支付記錄
             let incomePayerID: UUID?
             
-            // 優先使用用戶選擇的收款人
             if let payerID = selectedIncomePayerID {
                 incomePayerID = payerID
             } else {
-                // 如果未選擇收款人，使用默認收款人
                 incomePayerID = getDefaultIncomePayer()?.id
             }
             
             if let payerID = incomePayerID,
                let payer = payers.first(where: { $0.id == payerID }) {
-                // 收入交易：收款人收到全部金額
                 let paymentContribution = PaymentContribution(
                     amount: totalAmount,
                     payer: payer,
@@ -2018,7 +1811,6 @@ struct TransactionFormView: View {
                 )
                 transactionToSave.contributions.append(paymentContribution)
             } else if let defaultPayer = getDefaultIncomePayer() {
-                // 後備：使用默認付款人
                 let paymentContribution = PaymentContribution(
                     amount: totalAmount,
                     payer: defaultPayer,
@@ -2060,7 +1852,7 @@ struct TransactionFormView: View {
                 return parent.name
             }
         } else {
-            return langManager.localized("uncategorized_label") // ✅ 顯示「未分類」而非「無」
+            return langManager.localized("uncategorized_label")
         }
     }
     
@@ -2097,7 +1889,6 @@ struct TransactionFormView: View {
         return locale.currencySymbol ?? code
     }
     
-    // ✅ 新增：獲取支付不匹配的警告信息
     private func getContributionMismatchMessage() -> String {
         let difference = abs(contributionDifference)
         let amountStr = formatCurrency(amount: difference, code: currencyCode)
@@ -2141,12 +1932,10 @@ struct ParticipantSelectionSheet: View {
     
     @State private var tempSelectedIDs: Set<UUID> = []
     
-    // ✅ 修改：確保 assignedPayers 按 order 排序
     private var sortedAssignedPayers: [Payer] {
         assignedPayers.sorted { $0.order < $1.order }
     }
     
-    // ✅ 修改：otherPayers 按 order 排序
     private var sortedOtherPayers: [Payer] {
         allPayers
             .filter { payer in
@@ -2158,7 +1947,6 @@ struct ParticipantSelectionSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                // 已分配付款人區
                 if !sortedAssignedPayers.isEmpty {
                     Section("此分類嘅付款人") {
                         ForEach(sortedAssignedPayers) { payer in
@@ -2167,7 +1955,6 @@ struct ParticipantSelectionSheet: View {
                     }
                 }
                 
-                // 其他付款人區
                 if !sortedOtherPayers.isEmpty {
                     Section("其他付款人") {
                         ForEach(sortedOtherPayers) { payer in
@@ -2176,7 +1963,6 @@ struct ParticipantSelectionSheet: View {
                     }
                 }
                 
-                // 統計信息
                 Section {
                     HStack {
                         Text("已選擇")
@@ -2238,7 +2024,7 @@ struct ParticipantSelectionSheet: View {
     }
 }
 
-// MARK: - PayerSelectionSheetForNew (新付款人選擇)
+// MARK: - PayerSelectionSheetForNew
 struct PayerSelectionSheetForNew: View {
     @Environment(\.dismiss) private var dismiss
     
