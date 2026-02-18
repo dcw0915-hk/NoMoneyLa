@@ -27,6 +27,14 @@ struct MainTabView: View {
                 Label(langManager.localized("analysis_tab"), systemImage: "chart.bar.fill")
             }
 
+            // 債務結算頁面（獨立頁面）
+            NavigationStack {
+                SettlementTabView()
+            }
+            .tabItem {
+                Label(langManager.localized("settlement_tab"), systemImage: "dollarsign.circle")
+            }
+            
             // 設定頁面
             NavigationStack {
                 SettingsView()
@@ -35,13 +43,6 @@ struct MainTabView: View {
                 Label(langManager.localized("settings_tab"), systemImage: "gear")
             }
             
-            // 債務結算頁面（獨立頁面）
-            NavigationStack {
-                SettlementTabView()
-            }
-            .tabItem {
-                Label(langManager.localized("settlement_tab"), systemImage: "dollarsign.circle")
-            }
         }
     }
 }
@@ -116,6 +117,14 @@ struct SettlementTabView: View {
         }
     }
     
+    private func categoryDisplayName(_ category: Category) -> String {
+        if category.isDefault {
+            return langManager.localized("uncategorized_label")
+        } else {
+            return category.name
+        }
+    }
+    
     private func categoryCard(_ category: Category) -> some View {
         HStack(spacing: 16) {
             if let colorHex = category.colorHex {
@@ -125,7 +134,7 @@ struct SettlementTabView: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(category.name)
+                Text(categoryDisplayName(category))
                     .font(.title2)
                     .bold()
                     .foregroundColor(.primary)
@@ -163,8 +172,7 @@ struct SettlementTabView: View {
                         .cornerRadius(8)
                 }
                 
-                if let defaultCategory = categories.first(where: { $0.isDefault }),
-                   category.id == defaultCategory.id {
+                if category.isDefault {
                     Text(langManager.localized("default_label"))
                         .font(.caption2)
                         .padding(.horizontal, 8)
@@ -287,7 +295,7 @@ struct SettlementTabView: View {
                             }
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(category.name)
+                                Text(categoryDisplayName(category))
                                     .font(.body)
                                     .foregroundColor(.primary)
                                 

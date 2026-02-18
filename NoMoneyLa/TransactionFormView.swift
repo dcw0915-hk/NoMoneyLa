@@ -264,7 +264,7 @@ struct TransactionFormView: View {
                                         selectedParentID = cat.id
                                         // 自動選擇該分類下的「未分類」子分類
                                         if let uncategorizedSub = subcategories.first(where: {
-                                            $0.parentID == cat.id && $0.name == langManager.localized("uncategorized_label")
+                                            $0.parentID == cat.id && $0.isUncategorized
                                         }) {
                                             selectedSubcategoryID = uncategorizedSub.id
                                         }
@@ -316,7 +316,8 @@ struct TransactionFormView: View {
                                         selectedSubcategoryID = sub.id
                                     }) {
                                         HStack {
-                                            Text(sub.name)
+                                            // ✅ 使用 isUncategorized 判斷顯示名稱
+                                            Text(sub.isUncategorized ? langManager.localized("uncategorized_label") : sub.name)
                                                 .lineLimit(1)
                                                 .truncationMode(.tail)
                                             if selectedSubcategoryID == sub.id {
@@ -369,7 +370,7 @@ struct TransactionFormView: View {
                                         .foregroundColor(.blue)
                                     Text(langManager.localized("select_participants"))
                                     Spacer()
-                                    Text("\(selectedParticipantCount)人")
+                                    Text(String(format: langManager.localized("people_count_format"), selectedParticipantCount))
                                         .foregroundColor(.secondary)
                                     Image(systemName: "chevron.right")
                                         .font(.caption)
@@ -412,12 +413,12 @@ struct TransactionFormView: View {
                 
                 // 支付方式選擇 - 支出交易才顯示
                 if selectedType == .expense {
-                    Section(header: Text("支付方式")) {
+                    Section(header: Text(langManager.localized("payment_method_section"))) {
                         if isEditing {
                             VStack(alignment: .leading, spacing: 12) {
                                 Picker("", selection: $contributionMode) {
-                                    Text("一人支付全額（默認）").tag(ContributionMode.simple)
-                                    Text("多人分攤支付").tag(ContributionMode.detailed)
+                                    Text(langManager.localized("simple_payment_mode")).tag(ContributionMode.simple)
+                                    Text(langManager.localized("detailed_payment_mode")).tag(ContributionMode.detailed)
                                 }
                                 .pickerStyle(.segmented)
                                 .onChange(of: contributionMode) { newMode in
@@ -432,9 +433,9 @@ struct TransactionFormView: View {
                             .padding(.vertical, 4)
                         } else {
                             HStack {
-                                Text("支付方式")
+                                Text(langManager.localized("payment_method_label"))
                                 Spacer()
-                                Text(contributionMode == .simple ? "一人支付全額" : "多人分攤支付")
+                                Text(contributionMode == .simple ? langManager.localized("simple_payment_mode") : langManager.localized("detailed_payment_mode"))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -442,7 +443,7 @@ struct TransactionFormView: View {
                     
                     // 支付詳情（根據模式顯示）
                     if contributionMode == .simple {
-                        Section(header: Text("支付詳情")) {
+                        Section(header: Text(langManager.localized("payment_details_section"))) {
                             if isEditing {
                                 Menu {
                                     ForEach(getAvailablePayersForPayment()) { payer in
@@ -472,7 +473,7 @@ struct TransactionFormView: View {
                                             Text(payer.name)
                                                 .foregroundColor(.primary)
                                         } else {
-                                            Text("選擇支付人")
+                                            Text(langManager.localized("select_payer_placeholder"))
                                                 .foregroundColor(.secondary)
                                         }
                                         Spacer()
@@ -489,7 +490,7 @@ struct TransactionFormView: View {
                                    let amount = decimalFromString(contribution.amountText),
                                    amount > 0 {
                                     HStack {
-                                        Text("支付金額")
+                                        Text(langManager.localized("payment_amount_label"))
                                         Spacer()
                                         Text(formatCurrency(amount: amount, code: currencyCode))
                                             .foregroundColor(.blue)
@@ -510,13 +511,13 @@ struct TransactionFormView: View {
                                             Text(payer.name)
                                                 .font(.body)
                                             Spacer()
-                                            Text("支付全額")
+                                            Text(langManager.localized("pays_full_amount"))
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                         }
                                         
                                         HStack {
-                                            Text("支付金額")
+                                            Text(langManager.localized("payment_amount_label"))
                                             Spacer()
                                             Text(formatCurrency(amount: amount, code: currencyCode))
                                                 .font(.headline)
@@ -528,14 +529,14 @@ struct TransactionFormView: View {
                         }
                     } else {
                         Section(header: HStack {
-                            Text("分攤支付詳情")
+                            Text(langManager.localized("detailed_payment_header"))
                             Spacer()
                             if isEditing && !contributions.isEmpty {
                                 Button(action: {
                                     hideKeyboard()
                                     calculateRemainingDistribution()
                                 }) {
-                                    Text("自動分配剩餘金額")
+                                    Text(langManager.localized("auto_distribute_remaining_button"))
                                         .font(.caption)
                                 }
                             }
@@ -551,7 +552,7 @@ struct TransactionFormView: View {
                                                 Image(systemName: "plus.circle.fill")
                                                     .foregroundColor(.accentColor)
                                                     .font(.title2)
-                                                Text("添加付款人")
+                                                Text(langManager.localized("add_payer_button"))
                                                     .font(.headline)
                                                     .foregroundColor(.primary)
                                                 Spacer()
@@ -565,7 +566,7 @@ struct TransactionFormView: View {
                                             .cornerRadius(10)
                                         }
                                         
-                                        Text("開始記錄誰支付了多少金額")
+                                        Text(langManager.localized("start_recording_payments"))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
@@ -601,10 +602,11 @@ struct TransactionFormView: View {
                                                     
                                                     Text(getPayerName(for: index))
                                                         .foregroundColor(contributions[index].payerID == nil ? .secondary : .primary)
-                                                        .frame(width: 100)
+                                                        .frame(width: 100, alignment: .leading)
+                                                        .lineLimit(1)
                                                 }
                                             }
-                                            .frame(width: 140)
+                                            .frame(width: 120)
                                             .onTapGesture {
                                                 hideKeyboard()
                                             }
@@ -631,7 +633,7 @@ struct TransactionFormView: View {
                                                         }
                                                     }
                                                 ),
-                                                placeholder: "金額",
+                                                placeholder: langManager.localized("amount_placeholder"),
                                                 keyboardType: .decimalPad,
                                                 onCommit: {
                                                     if let value = decimalFromString(contributions[index].amountText) {
@@ -674,7 +676,7 @@ struct TransactionFormView: View {
                                         HStack {
                                             Image(systemName: "plus.circle.fill")
                                                 .foregroundColor(canAddNewContribution() ? .accentColor : .gray)
-                                            Text("添加付款人")
+                                            Text(langManager.localized("add_payer_button"))
                                                 .foregroundColor(canAddNewContribution() ? .primary : .gray)
                                         }
                                     }
@@ -684,7 +686,7 @@ struct TransactionFormView: View {
                                 
                                 if !contributions.isEmpty {
                                     HStack {
-                                        Text("支付總額")
+                                        Text(langManager.localized("total_paid_label"))
                                             .font(.caption)
                                         Spacer()
                                         
@@ -708,7 +710,7 @@ struct TransactionFormView: View {
                                     HStack {
                                         Image(systemName: "exclamationmark.triangle")
                                             .foregroundColor(.orange)
-                                        Text("支付金額不匹配")
+                                        Text(langManager.localized("amount_mismatch_warning"))
                                             .font(.caption)
                                             .foregroundColor(.orange)
                                     }
@@ -716,7 +718,7 @@ struct TransactionFormView: View {
                                 }
                             } else {
                                 if contributions.isEmpty {
-                                    Text("無支付記錄")
+                                    Text(langManager.localized("no_payment_records"))
                                         .foregroundColor(.secondary)
                                 } else {
                                     ForEach(contributions, id: \.id) { contribution in
@@ -738,7 +740,7 @@ struct TransactionFormView: View {
                                         }
                                     }
                                     HStack {
-                                        Text("支付總額")
+                                        Text(langManager.localized("total_paid_label"))
                                             .font(.headline)
                                         Spacer()
                                         Text(formatCurrency(amount: totalAmountDecimal, code: currencyCode))
@@ -759,11 +761,11 @@ struct TransactionFormView: View {
                                 let availablePayersForIncome = getAvailablePayersForIncome()
                                 
                                 if availablePayersForIncome.isEmpty {
-                                    Text("當前分類未分配付款人")
+                                    Text(langManager.localized("no_assigned_payers_for_category"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 } else {
-                                    Text("選擇收款人（只能選擇已分配給此分類的付款人）")
+                                    Text(langManager.localized("income_recipient_constraint_description"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     
@@ -812,7 +814,7 @@ struct TransactionFormView: View {
                                let category = categories.first(where: { $0.id == parentID }) {
                                 let assignedPayers = category.assignedPayers(in: context)
                                 if !assignedPayers.isEmpty {
-                                    Text("只能選擇已分配給「\(category.name)」的付款人")
+                                    Text(String(format: langManager.localized("income_recipient_constraint_format"), category.name))
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                         .padding(.top, 4)
@@ -839,7 +841,7 @@ struct TransactionFormView: View {
                                     Text(defaultPayer.name)
                                         .foregroundColor(.secondary)
                                     Spacer()
-                                    Text("\(langManager.localized("income_recipient_label"))（預設）")
+                                    Text("\(langManager.localized("income_recipient_label")) (\(langManager.localized("default_label")))")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -910,7 +912,6 @@ struct TransactionFormView: View {
             .sheet(isPresented: $showParticipantSelection) {
                 ParticipantSelectionSheet(
                     assignedPayers: assignedPayersForCategory,
-                    allPayers: payers,
                     selectedParticipantIDs: selectedParticipantIDs,
                     onSave: { selectedIDs in
                         updateParticipantEntries(selectedIDs: selectedIDs)
@@ -934,14 +935,14 @@ struct TransactionFormView: View {
             } message: {
                 Text(langManager.localized("form_delete_message"))
             }
-            .alert("支付金額不匹配", isPresented: $showContributionMismatchAlert) {
-                Button("取消", role: .cancel) {
+            .alert(langManager.localized("contribution_mismatch_alert_title"), isPresented: $showContributionMismatchAlert) {
+                Button(langManager.localized("cancel_button"), role: .cancel) {
                     allowSaveAnyway = false
                 }
-                Button("修復並保存") {
+                Button(langManager.localized("fix_and_save_button")) {
                     fixContributionAmountsAndSave()
                 }
-                Button("仍然保存", role: .destructive) {
+                Button(langManager.localized("save_anyway_button"), role: .destructive) {
                     allowSaveAnyway = true
                     saveTransaction()
                 }
@@ -966,18 +967,19 @@ struct TransactionFormView: View {
     private var selectedParentName: String {
         if let parentID = selectedParentID,
            let parent = categories.first(where: { $0.id == parentID }) {
-            return parent.name
+            return categoryDisplayName(parent)
         } else {
-            return langManager.localized("select_category_placeholder")  // 顯示「請選擇分類」
+            return langManager.localized("select_category_placeholder")
         }
     }
     
     private var selectedSubcategoryName: String {
         if selectedParentID == nil {
-            return ""  // 無父分類時子分類 Menu 會被 disable，呢度唔需要顯示內容
+            return ""
         } else if let subID = selectedSubcategoryID,
                   let sub = subcategories.first(where: { $0.id == subID }) {
-            return sub.name
+            // ✅ 使用 isUncategorized 判斷顯示名稱
+            return sub.isUncategorized ? langManager.localized("uncategorized_label") : sub.name
         } else {
             return langManager.localized("uncategorized_label")
         }
@@ -1004,7 +1006,6 @@ struct TransactionFormView: View {
     private var isValid: Bool {
         guard let total = decimalFromString(totalAmountText), total > 0 else { return false }
         
-        // 支出交易需要至少一個有效支付記錄
         if selectedType == .expense {
             if contributionMode == .simple {
                 guard !contributions.isEmpty else { return false }
@@ -1026,7 +1027,7 @@ struct TransactionFormView: View {
            let payer = payers.first(where: { $0.id == payerID }) {
             return payer.name
         } else {
-            return "選擇付款人"
+            return langManager.localized("select_payer_placeholder")
         }
     }
     
@@ -1178,9 +1179,9 @@ struct TransactionFormView: View {
     private func getContributionModeDescription() -> String {
         switch contributionMode {
         case .simple:
-            return "通常情況下，由一個人先墊付全額，其他人之後還錢。（默認模式）"
+            return langManager.localized("simple_payment_description")
         case .detailed:
-            return "多人即時分攤支付，每人支付自己部分。"
+            return langManager.localized("detailed_payment_description")
         }
     }
     
@@ -1320,7 +1321,7 @@ struct TransactionFormView: View {
         
         contributions.append(ContributionEntry(
             payerID: payer.id,
-            amountText: "",  // 留空俾用戶自己輸入
+            amountText: "",
             isRemovable: true
         ))
         
@@ -1538,18 +1539,17 @@ struct TransactionFormView: View {
         guard oldValue != newParent else { return }
         
         if let newParent = newParent {
-            // 自動選擇/創建「未分類」子分類
             if let uncategorizedSub = subcategories.first(where: {
-                $0.parentID == newParent && $0.name == langManager.localized("uncategorized_label")
+                $0.parentID == newParent && $0.isUncategorized
             }) {
                 selectedSubcategoryID = uncategorizedSub.id
             } else {
-                // ✅ 修正：parentID 必須喺 order 前面
                 let newSub = Subcategory(
-                    name: langManager.localized("uncategorized_label"),
+                    name: "uncategorized",
                     parentID: newParent,
                     order: 0,
-                    colorHex: "#A8A8A8"
+                    colorHex: "#A8A8A8",
+                    isUncategorized: true
                 )
                 context.insert(newSub)
                 selectedSubcategoryID = newSub.id
@@ -1605,7 +1605,6 @@ struct TransactionFormView: View {
                     }
                 }
             } else {
-                // 舊交易可能無 subcategoryID，自動補上預設未分類
                 assignToDefaultUncategorized()
             }
             
@@ -1628,7 +1627,6 @@ struct TransactionFormView: View {
                 updatePaymentSetup()
             }
         } else {
-            // ✅ 新交易：初始不選任何分類
             selectedParentID = nil
             selectedSubcategoryID = nil
             assignedPayersForCategory = []
@@ -1637,12 +1635,11 @@ struct TransactionFormView: View {
             contributions.removeAll()
             contributionMode = .simple
             
-            // 可預設一個付款人（不強制分類）
             if let defaultPayer = payers.sorted(by: { $0.order < $1.order }).first {
                 contributions = [
                     ContributionEntry(
                         payerID: defaultPayer.id,
-                        amountText: "",   // 金額留空
+                        amountText: "",
                         isRemovable: false
                     )
                 ]
@@ -1650,11 +1647,10 @@ struct TransactionFormView: View {
         }
     }
     
-    // 輔助方法：將交易強制歸入預設「未分類」分類
     private func assignToDefaultUncategorized() {
         if let defaultCategory = categories.first(where: { $0.isDefault }),
            let defaultSubcategory = subcategories.first(where: {
-               $0.parentID == defaultCategory.id && $0.name == langManager.localized("uncategorized_label")
+               $0.parentID == defaultCategory.id && $0.isUncategorized
            }) {
             selectedParentID = defaultCategory.id
             selectedSubcategoryID = defaultSubcategory.id
@@ -1691,7 +1687,6 @@ struct TransactionFormView: View {
         
         hideKeyboard()
         
-        // ✅ 如果用戶冇揀分類，自動分配去預設「未分類」分類
         if selectedSubcategoryID == nil {
             assignToDefaultUncategorized()
         }
@@ -1756,7 +1751,7 @@ struct TransactionFormView: View {
         transactionToSave.note = note.isEmpty ? nil : note
         transactionToSave.type = selectedType
         transactionToSave.currencyCode = currencyCode
-        transactionToSave.subcategoryID = selectedSubcategoryID  // 呢度一定有值，因為 saveWithValidation 已確保
+        transactionToSave.subcategoryID = selectedSubcategoryID
         
         if selectedType == .expense {
             transactionToSave.participatingPayerIDs = Array(selectedParticipantIDs)
@@ -1846,10 +1841,12 @@ struct TransactionFormView: View {
     
     private func categoryPath(parentID: UUID?, subID: UUID?) -> String {
         if let p = parentID, let parent = categories.first(where: { $0.id == p }) {
+            let parentName = categoryDisplayName(parent)
             if let s = subID, let sub = subcategories.first(where: { $0.id == s }) {
-                return "\(parent.name) / \(sub.name)"
+                let subName = sub.isUncategorized ? langManager.localized("uncategorized_label") : sub.name
+                return "\(parentName) / \(subName)"
             } else {
-                return parent.name
+                return parentName
             }
         } else {
             return langManager.localized("uncategorized_label")
@@ -1894,9 +1891,16 @@ struct TransactionFormView: View {
         let amountStr = formatCurrency(amount: difference, code: currencyCode)
         
         if contributionDifference > 0 {
-            return "支付總額比交易金額多 \(amountStr)。\n\n建議修復支付金額以確保計算準確。"
+            return String(format: langManager.localized("contribution_excess_alert_message_format"), amountStr)
         } else {
-            return "支付總額比交易金額少 \(amountStr)。\n\n建議修復支付金額以確保計算準確。"
+            return String(format: langManager.localized("contribution_insufficient_alert_message_format"), amountStr)
+        }
+    }
+    private func categoryDisplayName(_ category: Category) -> String {
+        if category.isDefault {
+            return langManager.localized("uncategorized_label")
+        } else {
+            return category.name
         }
     }
 }
@@ -1923,66 +1927,72 @@ struct ParticipantChip: View {
 // MARK: - ParticipantSelectionSheet
 struct ParticipantSelectionSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var context
-    
+    @EnvironmentObject var langManager: LanguageManager
+
     let assignedPayers: [Payer]
-    let allPayers: [Payer]
     let selectedParticipantIDs: Set<UUID>
     let onSave: (Set<UUID>) -> Void
-    
+
     @State private var tempSelectedIDs: Set<UUID> = []
-    
+
     private var sortedAssignedPayers: [Payer] {
         assignedPayers.sorted { $0.order < $1.order }
     }
-    
-    private var sortedOtherPayers: [Payer] {
-        allPayers
-            .filter { payer in
-                !assignedPayers.contains(where: { $0.id == payer.id })
-            }
-            .sorted { $0.order < $1.order }
-    }
-    
+
     var body: some View {
         NavigationStack {
             List {
-                if !sortedAssignedPayers.isEmpty {
-                    Section("此分類嘅付款人") {
+                if sortedAssignedPayers.isEmpty {
+                    ContentUnavailableView(
+                        langManager.localized("no_assigned_payers_for_category"),
+                        systemImage: "person.slash",
+                        description: Text(langManager.localized("assign_payers_first"))
+                    )
+                } else {
+                    Section {
                         ForEach(sortedAssignedPayers) { payer in
-                            payerRow(payer)
+                            HStack {
+                                Circle()
+                                    .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
+                                    .frame(width: 12, height: 12)
+
+                                Text(payer.name)
+
+                                Spacer()
+
+                                if tempSelectedIDs.contains(payer.id) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                toggleSelection(payer.id)
+                            }
                         }
                     }
-                }
-                
-                if !sortedOtherPayers.isEmpty {
-                    Section("其他付款人") {
-                        ForEach(sortedOtherPayers) { payer in
-                            payerRow(payer)
+
+                    Section {
+                        HStack {
+                            Text(langManager.localized("selected_label"))
+                            Spacer()
+                            Text(String(format: langManager.localized("people_count_format"), tempSelectedIDs.count))
+                                .foregroundColor(.blue)
                         }
-                    }
-                }
-                
-                Section {
-                    HStack {
-                        Text("已選擇")
-                        Spacer()
-                        Text("\(tempSelectedIDs.count)人")
-                            .foregroundColor(.blue)
                     }
                 }
             }
-            .navigationTitle("選擇參與者")
+            .navigationTitle(langManager.localized("select_participants"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("取消") {
+                    Button(langManager.localized("cancel_button")) {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") {
+                    Button(langManager.localized("done_button")) {
                         onSave(tempSelectedIDs)
                         dismiss()
                     }
@@ -1993,28 +2003,7 @@ struct ParticipantSelectionSheet: View {
             }
         }
     }
-    
-    private func payerRow(_ payer: Payer) -> some View {
-        HStack {
-            Circle()
-                .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
-                .frame(width: 12, height: 12)
-            
-            Text(payer.name)
-            
-            Spacer()
-            
-            if tempSelectedIDs.contains(payer.id) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.blue)
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            toggleSelection(payer.id)
-        }
-    }
-    
+
     private func toggleSelection(_ payerID: UUID) {
         if tempSelectedIDs.contains(payerID) {
             tempSelectedIDs.remove(payerID)
@@ -2027,6 +2016,7 @@ struct ParticipantSelectionSheet: View {
 // MARK: - PayerSelectionSheetForNew
 struct PayerSelectionSheetForNew: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var langManager: LanguageManager
     
     let availablePayers: [Payer]
     let onSelect: (Payer) -> Void
@@ -2041,11 +2031,11 @@ struct PayerSelectionSheetForNew: View {
                             .foregroundColor(.secondary)
                             .opacity(0.7)
                         
-                        Text("冇可用嘅付款人")
+                        Text(langManager.localized("no_available_payers_title"))
                             .font(.headline)
                             .foregroundColor(.primary)
                         
-                        Text("所有付款人都已經被選擇")
+                        Text(langManager.localized("all_payers_already_selected"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -2053,7 +2043,7 @@ struct PayerSelectionSheetForNew: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
                 } else {
-                    Section("可選擇嘅付款人") {
+                    Section(langManager.localized("available_payers_section_header")) {
                         ForEach(availablePayers) { payer in
                             Button(action: {
                                 onSelect(payer)
@@ -2079,19 +2069,19 @@ struct PayerSelectionSheetForNew: View {
                     
                     Section {
                         HStack {
-                            Text("可選擇")
+                            Text(langManager.localized("available_label"))
                             Spacer()
-                            Text("\(availablePayers.count)人")
+                            Text(String(format: langManager.localized("people_count_format"), availablePayers.count))
                                 .foregroundColor(.blue)
                         }
                     }
                 }
             }
-            .navigationTitle("選擇付款人")
+            .navigationTitle(langManager.localized("select_payer_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("取消") {
+                    Button(langManager.localized("cancel_button")) {
                         dismiss()
                     }
                 }

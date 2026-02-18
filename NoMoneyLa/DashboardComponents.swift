@@ -456,7 +456,9 @@ struct CategoryBreakdownCard: View {
                                     Circle()
                                         .fill(Color(hex: stat.category.colorHex ?? "#A8A8A8"))
                                         .frame(width: 10, height: 10)
-                                    Text(stat.category.name)
+                                    // 使用條件顯示名稱
+                                    let displayName = stat.category.isDefault ? langManager.localized("uncategorized_label") : stat.category.name
+                                    Text(displayName)
                                         .font(.body)
                                         .lineLimit(1)
                                 }

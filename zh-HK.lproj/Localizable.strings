@@ -264,3 +264,73 @@
 "total_paid_amount" = "總已付金額";
 "participating_transactions_count" = "參與交易筆數";
 "total_transactions" = "總交易筆數";
+
+/* ===== 新增遺漏鍵值 ===== */
+/* CategorySettlementView 新增 */
+"contribution_issue_warning" = "分攤問題警告";
+"transactions_incomplete_format" = "%d 筆交易分攤不完整";
+"contribution_difference_label" = "分攤差異：";
+"suggestion_check_transactions" = "建議前往交易列表檢查並修復";
+"currency_header_format" = "貨幣：%@";
+"optimal_settlement_for_currency_format" = "%@ 最佳結算方案";
+"debug_calculation_details" = "計算詳情 (除錯)";
+"show_button" = "顯示";
+"hide_button" = "隱藏";
+"calc_explanation_1" = "• 每個貨幣獨立計算結算";
+"calc_explanation_2" = "• 交易金額以其原始貨幣顯示";
+"calc_explanation_3" = "• 若分類含多種貨幣，請分別處理找續";
+
+/* TransactionFormView 新增 */
+"payment_method_section" = "支付方式";
+"simple_payment_mode" = "一人支付全額（默認）";
+"detailed_payment_mode" = "多人分攤支付";
+"simple_payment_description" = "通常情況下，由一個人先墊付全額，其他人之後還錢。（默認模式）";
+"detailed_payment_description" = "多人即時分攤支付，每人支付自己部分。";
+"payment_details_section" = "支付詳情";
+"select_payer_placeholder" = "選擇支付人";
+"payment_amount_label" = "支付金額";
+"auto_distribute_remaining" = "自動分配剩餘金額";
+"add_payer_button" = "添加付款人";
+"total_paid_label" = "支付總額";
+"income_recipient_description" = "選擇收款人（只能選擇已分配給此分類的付款人）";
+"income_recipient_constraint_format" = "只能選擇已分配給「%@」的付款人";
+"assigned_payers_section" = "此分類嘅付款人";
+"other_payers_section" = "其他付款人";
+"selected_label" = "已選擇";
+"no_available_payers" = "冇可用嘅付款人";
+"all_payers_already_selected" = "所有付款人都已經被選擇";
+"contribution_excess_message_format" = "支付總額比交易金額多 %@。\n\n建議修復支付金額以確保計算準確。";
+"contribution_insufficient_message_format" = "支付總額比交易金額少 %@。\n\n建議修復支付金額以確保計算準確。";
+"select_category_placeholder" = "選擇分類";
+"select_category_placeholder" = "選擇分類";
+"participants_section" = "參與者";
+"select_participants" = "選擇參與者";
+"no_participants" = "無參與者";
+"detailed_payment_header" = "分攤支付詳情";
+"auto_distribute_remaining_button" = "自動分配剩餘金額";
+"amount_placeholder" = "金額";
+"select_payer_title" = "選擇付款人";
+"assigned_payers_section_header" = "此分類的付款人";
+"available_payers_section_header" = "可選擇的付款人";
+"multiple_currencies" = "多種貨幣";
+"people_count_format" = "%d 人";
+
+/* TransactionListView 新增 */
+"fix_contribution" = "修復分攤";
+"fix_no_contribution_message" = "此交易沒有分攤記錄。請在編輯交易中添加付款人分攤。";
+"fix_insufficient_message_format" = "分攤不足 %@。是否要平均分配剩餘金額？";
+"fix_excess_message_format" = "分攤過多 %@。是否要按比例減少各人分攤金額？";
+
+"contribution_issues_check" = "分攤問題檢查";
+"no_contribution_issues_title" = "沒有分攤問題";
+"no_contribution_issues_description" = "所有交易的分攤金額都正確";
+"payment_method_label" = "支付方式";
+"contribution_issues_found_title" = "發現分攤問題";
+"contribution_mismatch_alert_title" = "支付金額不匹配";
+"contribution_insufficient_alert_message_format" = "支付總額比交易金額少 %@。\n\n建議修復支付金額以確保計算準確。";
+"fix_and_save_button" = "修復並儲存";
+"save_anyway_button" = "仍然儲存";
+"amount_mismatch_warning" = "支付金額不匹配";
+"contribution_insufficient_format" = "分攤不足 %@";
+"payment_method_label" = "支付方式";
+"contribution_issues_found_title" = "發現分攤問題";

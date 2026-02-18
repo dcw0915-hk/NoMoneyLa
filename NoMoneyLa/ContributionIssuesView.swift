@@ -61,13 +61,13 @@ struct ContributionIssuesView: View {
         NavigationStack {
             Group {
                 if isLoading {
-                    ProgressView("載入中...")
+                    ProgressView(langManager.localized("loading_label"))
                         .padding()
                 } else if invalidTransactions.isEmpty {
                     ContentUnavailableView(
-                        "無分攤問題",
+                        langManager.localized("no_contribution_issues_title"),
                         systemImage: "checkmark.circle.fill",
-                        description: Text("所有交易的分攤金額都正確")
+                        description: Text(langManager.localized("no_contribution_issues_description"))
                     )
                 } else {
                     List {
@@ -80,11 +80,11 @@ struct ContributionIssuesView: View {
                                         .foregroundColor(.orange)
                                     
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("發現分攤問題")
+                                        Text(langManager.localized("contribution_issues_found_title"))
                                             .font(.headline)
                                             .foregroundColor(.primary)
                                         
-                                        Text("\(invalidTransactions.count) 筆交易需要修復")
+                                        Text(String(format: langManager.localized("transactions_need_fix_format"), invalidTransactions.count))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
@@ -94,7 +94,7 @@ struct ContributionIssuesView: View {
                                 
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("總差異金額")
+                                        Text(langManager.localized("total_difference_label"))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                         
@@ -107,11 +107,11 @@ struct ContributionIssuesView: View {
                                     Spacer()
                                     
                                     VStack(alignment: .trailing, spacing: 2) {
-                                        Text("涉及分類")
+                                        Text(langManager.localized("involved_categories_label"))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                         
-                                        Text("\(transactionsByCategory.keys.count) 個")
+                                        Text(String(format: langManager.localized("count_categories_format"), transactionsByCategory.keys.count))
                                             .font(.title2)
                                             .bold()
                                     }
@@ -137,7 +137,7 @@ struct ContributionIssuesView: View {
                                     
                                     Spacer()
                                     
-                                    Text("\(transactions.count) 筆")
+                                    Text(String(format: langManager.localized("transactions_count_format"), transactions.count))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }) {
@@ -151,11 +151,11 @@ struct ContributionIssuesView: View {
                         // 快速修復選項
                         Section {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("快速修復")
+                                Text(langManager.localized("quick_fix_title"))
                                     .font(.headline)
                                     .foregroundColor(.primary)
                                 
-                                Text("可以自動修復所有交易的分攤問題，將未分攤的金額平均分配給現有付款人。")
+                                Text(langManager.localized("quick_fix_description"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -166,7 +166,7 @@ struct ContributionIssuesView: View {
                                     HStack {
                                         Image(systemName: "wand.and.stars")
                                             .font(.body)
-                                        Text("一鍵修復所有分攤問題")
+                                        Text(langManager.localized("fix_all_button"))
                                             .font(.headline)
                                     }
                                     .frame(maxWidth: .infinity)
@@ -181,11 +181,11 @@ struct ContributionIssuesView: View {
                     }
                 }
             }
-            .navigationTitle("分攤問題檢查")
+            .navigationTitle(langManager.localized("contribution_issues_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("完成") {
+                    Button(langManager.localized("done_button")) {
                         dismiss()
                     }
                 }
@@ -200,13 +200,13 @@ struct ContributionIssuesView: View {
                     .disabled(isLoading)
                 }
             }
-            .alert("確認修復所有分攤問題", isPresented: $showingFixAllAlert) {
-                Button("取消", role: .cancel) { }
-                Button("修復", role: .destructive) {
+            .alert(langManager.localized("confirm_fix_all_title"), isPresented: $showingFixAllAlert) {
+                Button(langManager.localized("cancel_button"), role: .cancel) { }
+                Button(langManager.localized("fix_button"), role: .destructive) {
                     fixAllContributionIssues()
                 }
             } message: {
-                Text("將會修復 \(invalidTransactions.count) 筆交易的分攤問題。此操作無法撤銷。")
+                Text(String(format: langManager.localized("confirm_fix_all_message_format"), invalidTransactions.count))
             }
             .onAppear {
                 reloadData()
@@ -263,7 +263,7 @@ struct ContributionIssuesView: View {
                     
                     // 現有分攤
                     if !transaction.contributions.isEmpty {
-                        Text("\(transaction.contributions.count) 人分攤")
+                        Text(String(format: langManager.localized("people_count_format"), transaction.contributions.count) + " " + langManager.localized("split_label"))
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -285,7 +285,7 @@ struct ContributionIssuesView: View {
                         }
                         
                         if transaction.contributions.count > 3 {
-                            Text("+\(transaction.contributions.count - 3) 人")
+                            Text(String(format: langManager.localized("people_extra_format"), transaction.contributions.count - 3))
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
@@ -297,14 +297,14 @@ struct ContributionIssuesView: View {
     }
     
     private func categoryName(for subID: UUID?) -> String {
-        guard let subID = subID else { return "未分類" }
+        guard let subID = subID else { return langManager.localized("uncategorized_label") }
         
         if let sub = allSubcategories.first(where: { $0.id == subID }),
            let parent = allCategories.first(where: { $0.id == sub.parentID }) {
             return "\(parent.name) / \(sub.name)"
         }
         
-        return "未分類"
+        return langManager.localized("uncategorized_label")
     }
     
     private func formatCurrency(_ amount: Decimal) -> String {

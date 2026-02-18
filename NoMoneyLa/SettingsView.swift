@@ -39,9 +39,8 @@ struct SettingsView: View {
                         Label(langManager.localized("settings_manage_payers"), systemImage: "person.2")
                     }
                     
-                    // ✅ 新增：分攤問題檢查
                     NavigationLink(destination: ContributionIssuesView()) {
-                        Label("分攤問題檢查", systemImage: "exclamationmark.triangle")
+                        Label(langManager.localized("contribution_issues_check"), systemImage: "exclamationmark.triangle")
                             .foregroundColor(.orange)
                     }
                 }

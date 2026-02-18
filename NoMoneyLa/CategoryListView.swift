@@ -71,7 +71,7 @@ struct AssignPayersView: View {
                     }
                 }
             }
-            .navigationTitle(managedCategory?.name ?? langManager.localized("assign_payers_title"))
+            .navigationTitle(categoryDisplayName(for: managedCategory))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -83,6 +83,15 @@ struct AssignPayersView: View {
                 }
             }
             .onAppear { loadData() }
+        }
+    }
+
+    private func categoryDisplayName(for category: Category?) -> String {
+        guard let cat = category else { return langManager.localized("assign_payers_title") }
+        if cat.isDefault {
+            return langManager.localized("uncategorized_label")
+        } else {
+            return cat.name
         }
     }
 
@@ -251,7 +260,9 @@ struct CategoryListView: View {
                 Button(langManager.localized("cancel_button"), role: .cancel) {}
                 Button(langManager.localized("delete_button"), role: .destructive) { safeDelete(category) }
             } message: { category in
-                Text(String(format: langManager.localized("delete_category_confirmation"), category.name))
+                // 顯示分類名稱時，如果是預設分類則使用本地化字串
+                let displayName = category.isDefault ? langManager.localized("uncategorized_label") : category.name
+                Text(String(format: langManager.localized("delete_category_confirmation"), displayName))
             }
             .alert(langManager.localized("cannot_delete_title"), isPresented: $showCannotDeleteAlert) {
                 Button(langManager.localized("understand_button"), role: .cancel) { }
@@ -330,7 +341,9 @@ struct CategoryListView: View {
     }
 
     private func normalView(for category: Category) -> some View {
-        Text(category.name)
+        // 如果是預設分類，顯示本地化字串；否則顯示儲存的名稱
+        let displayName = category.isDefault ? langManager.localized("uncategorized_label") : category.name
+        return Text(displayName)
             .font(.body)
             .lineLimit(1)
             .truncationMode(.tail)

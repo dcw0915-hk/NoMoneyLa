@@ -177,7 +177,7 @@ struct PayerTransactionsView: View {
                                 .font(.headline)
                                 .foregroundColor(.blue)
                         } else {
-                            Text(formatCurrency(totalPaid, code: "HKD") + " HKD (估算)")
+                            Text(String(format: langManager.localized("estimated_hkd_format"), formatCurrency(totalPaid, code: "HKD")))
                                 .font(.headline)
                                 .foregroundColor(.blue)
                         }
@@ -273,77 +273,46 @@ struct CategorySettlementView: View {
     @State private var missingAmount: Decimal = 0
     @State private var hasContributionIssues: Bool = false
     
+    // 用於控制詳細結果摺疊的狀態
+    @State private var expandedDetails: [String: Bool] = [:]
+    // 用於控制 debug 資訊顯示
+    @State private var showDebugInfo: Bool = false
+    
     var body: some View {
         List {
-            // MARK: 分類摘要
-            Section {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(category.name)
-                            .font(.title2)
-                            .bold()
+            // 分攤問題警告（如果有問題先顯示）
+            if hasContributionIssues {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text(langManager.localized("contribution_issue_warning"))
+                                .font(.headline)
+                                .foregroundColor(.orange)
+                            Spacer()
+                        }
                         
-                        Text("\(langManager.localized("total_transactions"))：\(categoryTransactions.count)")
+                        Text(String(format: langManager.localized("transactions_incomplete_format"), invalidTransactionCount))
+                            .font(.subheadline)
+                            .foregroundColor(.orange)
+                        
+                        if missingAmount != 0 {
+                            HStack {
+                                Text(langManager.localized("contribution_difference_label"))
+                                Text(formatCurrency(abs(missingAmount), code: "HKD") + " HKD")
+                            }
+                            .font(.subheadline)
+                            .foregroundColor(.orange)
+                        }
+                        
+                        Text(langManager.localized("suggestion_check_transactions"))
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
-                        // 總金額
-                        let totalAmount = categoryTransactions.reduce(Decimal(0)) { $0 + $1.totalAmount }
-                        if isSingleCurrency {
-                            Text("\(langManager.localized("total_amount"))：\(formatCurrency(totalAmount, code: primaryCurrency))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("\(langManager.localized("total_amount"))：\(formatCurrency(totalAmount, code: "HKD")) HKD (估算)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        // 已分配付款人
-                        let assignedPayers = category.assignedPayers(in: context)
-                        if !assignedPayers.isEmpty {
-                            Text("\(langManager.localized("assigned_payers"))：\(assignedPayers.map { $0.name }.joined(separator: ", "))")
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                        }
-                        
-                        // 分攤問題警告
-                        if hasContributionIssues {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.caption2)
-                                        .foregroundColor(.orange)
-                                    Text("分攤問題警告")
-                                        .font(.caption)
-                                        .bold()
-                                        .foregroundColor(.orange)
-                                }
-                                Text("\(invalidTransactionCount) 筆交易分攤不完整")
-                                    .font(.caption2)
-                                    .foregroundColor(.orange)
-                                if missingAmount != 0 {
-                                    Text("分攤差異：\(formatCurrency(abs(missingAmount), code: "HKD")) HKD")
-                                        .font(.caption2)
-                                        .foregroundColor(.orange)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 8)
-                            .background(Color.orange.opacity(0.1))
-                            .cornerRadius(6)
-                        }
+                            .padding(.top, 4)
                     }
-                    
-                    Spacer()
-                    
-                    if let colorHex = category.colorHex {
-                        Circle()
-                            .fill(Color(hex: colorHex))
-                            .frame(width: 40, height: 40)
-                    }
+                    .padding(.vertical, 8)
                 }
-                .padding(.vertical, 4)
             }
             
             // MARK: - 按貨幣分組顯示參與者及結算
@@ -359,11 +328,11 @@ struct CategorySettlementView: View {
                         HStack {
                             Image(systemName: "dollarsign.circle")
                                 .foregroundColor(.blue)
-                            Text("貨幣：\(currency)")
+                            Text(String(format: langManager.localized("currency_header_format"), currency))
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             Spacer()
-                            Text("\(transactions.count) 筆交易")
+                            Text("\(transactions.count) \(langManager.localized("transactions_label"))")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -415,7 +384,7 @@ struct CategorySettlementView: View {
                     if !steps.isEmpty {
                         Section(langManager.localized("optimal_settlement_solution")) {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("\(currency) 最佳結算方案")
+                                Text(String(format: langManager.localized("optimal_settlement_for_currency_format"), currency))
                                     .font(.headline)
                                     .foregroundColor(.green)
                                 
@@ -458,76 +427,108 @@ struct CategorySettlementView: View {
                         }
                     }
                     
-                    // 詳細計算結果（該貨幣）
+                    // 詳細計算結果（該貨幣）- 可摺疊
                     if !results.isEmpty {
-                        Section(langManager.localized("detailed_calculation_results") + " (\(currency))") {
-                            ForEach(results, id: \.payer.id) { result in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Circle()
-                                            .fill(Color(hex: result.payer.colorHex ?? "#A8A8A8"))
-                                            .frame(width: 12, height: 12)
-                                        
-                                        Text(result.payer.name)
-                                            .font(.headline)
-                                        
-                                        Spacer()
-                                        
-                                        let paid = totalPaidByPayer(result.payer, in: currency)
-                                        Text("\(langManager.localized("actual_paid"))：\(formatCurrency(paid, code: currency))")
-                                            .font(.caption)
-                                            .foregroundColor(.blue)
-                                    }
-                                    
-                                    HStack {
-                                        Text("\(langManager.localized("net_balance"))：")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        
-                                        Text(formatCurrency(result.netBalance, code: currency))
-                                            .font(.body)
-                                            .foregroundColor(result.netBalance > 0 ? .green : (result.netBalance < 0 ? .red : .primary))
-                                        
-                                        Spacer()
-                                        
-                                        if let toPayer = result.shouldPayTo {
-                                            Text("\(langManager.localized("should_pay_to")) \(toPayer.name)")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
+                        Section {
+                            DisclosureGroup(
+                                isExpanded: Binding(
+                                    get: { expandedDetails[currency] ?? false },
+                                    set: { expandedDetails[currency] = $0 }
+                                ),
+                                content: {
+                                    ForEach(results, id: \.payer.id) { result in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            HStack {
+                                                Circle()
+                                                    .fill(Color(hex: result.payer.colorHex ?? "#A8A8A8"))
+                                                    .frame(width: 12, height: 12)
+                                                
+                                                Text(result.payer.name)
+                                                    .font(.headline)
+                                                
+                                                Spacer()
+                                                
+                                                let paid = totalPaidByPayer(result.payer, in: currency)
+                                                Text("\(langManager.localized("actual_paid"))：\(formatCurrency(paid, code: currency))")
+                                                    .font(.caption)
+                                                    .foregroundColor(.blue)
+                                            }
+                                            
+                                            HStack {
+                                                Text("\(langManager.localized("net_balance"))：")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                                
+                                                Text(formatCurrency(result.netBalance, code: currency))
+                                                    .font(.body)
+                                                    .foregroundColor(result.netBalance > 0 ? .green : (result.netBalance < 0 ? .red : .primary))
+                                                
+                                                Spacer()
+                                                
+                                                if let toPayer = result.shouldPayTo {
+                                                    Text("\(langManager.localized("should_pay_to")) \(toPayer.name)")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            }
                                         }
+                                        .padding(.vertical, 4)
                                     }
+                                },
+                                label: {
+                                    Text(langManager.localized("detailed_calculation_results") + " (\(currency))")
+                                        .font(.headline)
                                 }
-                                .padding(.vertical, 4)
-                            }
+                            )
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
                     }
                 }
             }
             
-            // MARK: 計算方法說明（略）
+            // MARK: 計算方法說明
             Section(langManager.localized("calculation_explanation")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("• 每個貨幣獨立計算結算")
+                    Text(langManager.localized("calc_explanation_1"))
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text("• 交易金額以其原始貨幣顯示")
+                    Text(langManager.localized("calc_explanation_2"))
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text("• 若分類含多種貨幣，請分別處理找續")
+                    Text(langManager.localized("calc_explanation_3"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 .padding(.vertical, 8)
             }
             
-            // MARK: 除錯信息
+            // MARK: 除錯信息 - 改為可摺疊
             if !debugInfo.isEmpty {
-                Section(langManager.localized("calculation_details")) {
-                    ForEach(debugInfo.indices, id: \.self) { index in
-                        Text(debugInfo[index])
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                Section {
+                    DisclosureGroup(
+                        isExpanded: $showDebugInfo,
+                        content: {
+                            ForEach(debugInfo.indices, id: \.self) { index in
+                                Text(debugInfo[index])
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.vertical, 2)
+                            }
+                        },
+                        label: {
+                            HStack {
+                                Image(systemName: "hammer.fill")
+                                    .foregroundColor(.gray)
+                                Text(langManager.localized("debug_calculation_details"))
+                                    .font(.headline)
+                                    .foregroundColor(.gray)
+                                Spacer()
+                                Text(showDebugInfo ? langManager.localized("hide_button") : langManager.localized("show_button"))
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -566,7 +567,7 @@ struct CategorySettlementView: View {
     private func calculateSettlement() {
         clearDebugInfo()
         addDebugInfo("=== 開始按貨幣分組結算 ===")
-        addDebugInfo("分類: \(category.name)")
+        addDebugInfo("分類: \(categoryDisplayName)")
         
         checkContributionIssues()
         
@@ -651,6 +652,15 @@ struct CategorySettlementView: View {
             
             settlementResultsByCurrency[currency] = results.sorted { $0.netBalance > $1.netBalance }
             addDebugInfo("  結算步驟數: \(steps.count)")
+        }
+    }
+    
+    // 獲取分類顯示名稱（用於除錯）
+    private var categoryDisplayName: String {
+        if category.isDefault {
+            return langManager.localized("uncategorized_label")
+        } else {
+            return category.name
         }
     }
     
