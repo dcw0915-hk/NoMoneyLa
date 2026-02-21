@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit   // 新增
 
 // AssignPayersView.swift
 struct AssignPayersView: View {
@@ -495,6 +496,7 @@ struct CategoryListView: View {
         context.delete(category)
         do {
             try context.save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
             reorderCategories()
         } catch {
             print("刪除分類失敗：\(error.localizedDescription)")

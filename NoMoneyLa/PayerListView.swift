@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit   // 新增
 
 struct PayerListView: View {
     @EnvironmentObject var langManager: LanguageManager
@@ -11,6 +12,8 @@ struct PayerListView: View {
     @State private var newColorHex: String = "#3498db"
     @State private var showDeleteAlert = false
     @State private var payerToDelete: Payer?
+    @State private var showCannotDeleteAlert = false
+    @State private var cannotDeletePayerName = ""
 
     @State private var editingPayerID: UUID?
     @State private var inlineEditedName: String = ""
@@ -29,7 +32,6 @@ struct PayerListView: View {
                             .submitLabel(.done)
                             .onSubmit { addPayer() }
                         
-                        // Color picker moved to just before (left of) the add button
                         ColorPicker("", selection: Binding(
                             get: { Color(hex: newColorHex) },
                             set: { newColorHex = $0.toHex() ?? "#3498db" }
@@ -93,12 +95,14 @@ struct PayerListView: View {
                         }
                         .frame(height: 44)
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        // 添加左滑刪除功能
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                deletePayer(payer)
-                            } label: {
-                                Label(langManager.localized("delete_button"), systemImage: "trash")
+                        // 添加左滑刪除功能（預設付款人除外）
+                        .swipeActions(edge: .trailing, allowsFullSwipe: !payer.isDefault) {
+                            if !payer.isDefault {
+                                Button(role: .destructive) {
+                                    deletePayer(payer)
+                                } label: {
+                                    Label(langManager.localized("delete_button"), systemImage: "trash")
+                                }
                             }
                         }
                     }
@@ -111,6 +115,11 @@ struct PayerListView: View {
                 Button(langManager.localized("delete_button"), role: .destructive) { safeDelete(payer) }
             } message: { payer in
                 Text(String(format: langManager.localized("delete_payer_confirmation"), payer.isDefault ? langManager.localized("default_payer_name") : payer.name))
+            }
+            .alert(langManager.localized("cannot_delete_title"), isPresented: $showCannotDeleteAlert) {
+                Button(langManager.localized("understand_button"), role: .cancel) { }
+            } message: {
+                Text(String(format: langManager.localized("default_payer_cannot_delete"), cannotDeletePayerName))
             }
         }
     }
@@ -220,17 +229,29 @@ struct PayerListView: View {
 
     // 左滑刪除觸發的方法
     private func deletePayer(_ payer: Payer) {
+        if payer.isDefault {
+            cannotDeletePayerName = langManager.localized("default_payer_name")
+            showCannotDeleteAlert = true
+            return
+        }
         payerToDelete = payer
         showDeleteAlert = true
     }
 
     // 實際執行刪除的方法
     private func safeDelete(_ payer: Payer) {
+        guard !payer.isDefault else { return } // 最後一道防線
+        
         for tx in transactions {
             tx.contributions.removeAll { $0.payer.id == payer.id }
         }
         context.delete(payer)
-        try? context.save()
+        do {
+            try context.save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
+        } catch {
+            print("刪除付款人失敗：\(error)")
+        }
     }
 
     private func reorderPayers() {

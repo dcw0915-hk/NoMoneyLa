@@ -8,19 +8,83 @@
 
 /* Begin PBXBuildFile section */
 		4D815C452F1A7AB9004CAC45 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 4D815C432F1A7AB9004CAC45 /* Localizable.strings */; };
+		4DB9E82C2F4A226000062CCE /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DB9E82B2F4A225F00062CCE /* WidgetKit.framework */; };
+		4DB9E82E2F4A226000062CCE /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DB9E82D2F4A226000062CCE /* SwiftUI.framework */; };
+		4DB9E83F2F4A226100062CCE /* NoMoneyLaWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4DB9E8292F4A225F00062CCE /* NoMoneyLaWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4DB9E83D2F4A226100062CCE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4D815C1F2F1A6F64004CAC45 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4DB9E8282F4A225F00062CCE;
+			remoteInfo = NoMoneyLaWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		4DB9E8442F4A226100062CCE /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				4DB9E83F2F4A226100062CCE /* NoMoneyLaWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		4D815C272F1A6F64004CAC45 /* NoMoneyLa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NoMoneyLa.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D815C442F1A7AB9004CAC45 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		4D815C462F1A7AE7004CAC45 /* zh-HK */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-HK"; path = "zh-HK.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		4D815C472F1A7AEC004CAC45 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Localizable.strings; sourceTree = "<group>"; };
+		4DB9E8292F4A225F00062CCE /* NoMoneyLaWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NoMoneyLaWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		4DB9E82B2F4A225F00062CCE /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		4DB9E82D2F4A226000062CCE /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		4DB9E8462F4A233E00062CCE /* NoMoneyLaWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NoMoneyLaWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		4DB9E8402F4A226100062CCE /* Exceptions for "NoMoneyLaWidget" folder in "NoMoneyLaWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4DB9E8282F4A225F00062CCE /* NoMoneyLaWidgetExtension */;
+		};
+		4DB9E8482F4A261700062CCE /* Exceptions for "NoMoneyLa" folder in "NoMoneyLaWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Category.swift,
+				Payer.swift,
+				PayerContribution.swift,
+				Subcategory.swift,
+				Transaction.swift,
+				TransactionType.swift,
+			);
+			target = 4DB9E8282F4A225F00062CCE /* NoMoneyLaWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4D815C292F1A6F64004CAC45 /* NoMoneyLa */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4DB9E8482F4A261700062CCE /* Exceptions for "NoMoneyLa" folder in "NoMoneyLaWidgetExtension" target */,
+			);
 			path = NoMoneyLa;
+			sourceTree = "<group>";
+		};
+		4DB9E82F2F4A226000062CCE /* NoMoneyLaWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4DB9E8402F4A226100062CCE /* Exceptions for "NoMoneyLaWidget" folder in "NoMoneyLaWidgetExtension" target */,
+			);
+			path = NoMoneyLaWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,14 +97,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4DB9E8262F4A225F00062CCE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4DB9E82E2F4A226000062CCE /* SwiftUI.framework in Frameworks */,
+				4DB9E82C2F4A226000062CCE /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		4D815C1E2F1A6F64004CAC45 = {
 			isa = PBXGroup;
 			children = (
+				4DB9E8462F4A233E00062CCE /* NoMoneyLaWidgetExtension.entitlements */,
 				4D815C432F1A7AB9004CAC45 /* Localizable.strings */,
 				4D815C292F1A6F64004CAC45 /* NoMoneyLa */,
+				4DB9E82F2F4A226000062CCE /* NoMoneyLaWidget */,
+				4DB9E82A2F4A225F00062CCE /* Frameworks */,
 				4D815C282F1A6F64004CAC45 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -49,8 +125,18 @@
 			isa = PBXGroup;
 			children = (
 				4D815C272F1A6F64004CAC45 /* NoMoneyLa.app */,
+				4DB9E8292F4A225F00062CCE /* NoMoneyLaWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4DB9E82A2F4A225F00062CCE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4DB9E82B2F4A225F00062CCE /* WidgetKit.framework */,
+				4DB9E82D2F4A226000062CCE /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -63,10 +149,12 @@
 				4D815C232F1A6F64004CAC45 /* Sources */,
 				4D815C242F1A6F64004CAC45 /* Frameworks */,
 				4D815C252F1A6F64004CAC45 /* Resources */,
+				4DB9E8442F4A226100062CCE /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				4DB9E83E2F4A226100062CCE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				4D815C292F1A6F64004CAC45 /* NoMoneyLa */,
@@ -77,6 +165,28 @@
 			productName = NoMoneyLa;
 			productReference = 4D815C272F1A6F64004CAC45 /* NoMoneyLa.app */;
 			productType = "com.apple.product-type.application";
+		};
+		4DB9E8282F4A225F00062CCE /* NoMoneyLaWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4DB9E8412F4A226100062CCE /* Build configuration list for PBXNativeTarget "NoMoneyLaWidgetExtension" */;
+			buildPhases = (
+				4DB9E8252F4A225F00062CCE /* Sources */,
+				4DB9E8262F4A225F00062CCE /* Frameworks */,
+				4DB9E8272F4A225F00062CCE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4DB9E82F2F4A226000062CCE /* NoMoneyLaWidget */,
+			);
+			name = NoMoneyLaWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = NoMoneyLaWidgetExtension;
+			productReference = 4DB9E8292F4A225F00062CCE /* NoMoneyLaWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -89,6 +199,9 @@
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					4D815C262F1A6F64004CAC45 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					4DB9E8282F4A225F00062CCE = {
 						CreatedOnToolsVersion = 26.2;
 					};
 				};
@@ -110,6 +223,7 @@
 			projectRoot = "";
 			targets = (
 				4D815C262F1A6F64004CAC45 /* NoMoneyLa */,
+				4DB9E8282F4A225F00062CCE /* NoMoneyLaWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -123,6 +237,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4DB9E8272F4A225F00062CCE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -133,7 +254,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4DB9E8252F4A225F00062CCE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4DB9E83E2F4A226100062CCE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4DB9E8282F4A225F00062CCE /* NoMoneyLaWidgetExtension */;
+			targetProxy = 4DB9E83D2F4A226100062CCE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		4D815C432F1A7AB9004CAC45 /* Localizable.strings */ = {
@@ -277,6 +413,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NoMoneyLa/NoMoneyLa.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = F28XM7FL3N;
@@ -309,6 +446,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NoMoneyLa/NoMoneyLa.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = F28XM7FL3N;
@@ -336,6 +474,68 @@
 			};
 			name = Release;
 		};
+		4DB9E8422F4A226100062CCE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = NoMoneyLaWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F28XM7FL3N;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NoMoneyLaWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NoMoneyLaWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Ricky.NoMoneyLa.NoMoneyLaWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		4DB9E8432F4A226100062CCE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = NoMoneyLaWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F28XM7FL3N;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NoMoneyLaWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NoMoneyLaWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Ricky.NoMoneyLa.NoMoneyLaWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -353,6 +553,15 @@
 			buildConfigurations = (
 				4D815C332F1A6F65004CAC45 /* Debug */,
 				4D815C342F1A6F65004CAC45 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4DB9E8412F4A226100062CCE /* Build configuration list for PBXNativeTarget "NoMoneyLaWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4DB9E8422F4A226100062CCE /* Debug */,
+				4DB9E8432F4A226100062CCE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit   // 新增
 
 // MARK: - CardModifier
 struct CardModifier: ViewModifier {
@@ -408,6 +409,7 @@ struct TransactionListView: View {
         context.delete(tx)
         do {
             try context.save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
         } catch {
             print("刪除失敗：\(error.localizedDescription)")
         }

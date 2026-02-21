@@ -342,3 +342,5 @@
 "subcategory_delete_title" = "Delete Subcategory";
 "subcategory_cancel" = "Cancel";
 "subcategory_delete" = "Delete";
+
+"default_payer_cannot_delete" = "The default payer \"%@\" is system default and cannot be deleted.";

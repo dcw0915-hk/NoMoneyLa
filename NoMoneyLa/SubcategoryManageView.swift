@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit   // 新增
 
 struct SubcategoryManagerView: View {
     @EnvironmentObject var langManager: LanguageManager
@@ -299,8 +300,13 @@ struct SubcategoryManagerView: View {
             tx.subcategoryID = nil
         }
         context.delete(sub)
-        try? context.save()
-        reorderSubcategories()
+        do {
+            try context.save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
+            reorderSubcategories()
+        } catch {
+            print("刪除子分類失敗：\(error)")
+        }
     }
 
     private func reorderSubcategories() {

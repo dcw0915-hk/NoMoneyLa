@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit   // 新增
 
 struct ContributionIssuesView: View {
     @EnvironmentObject var langManager: LanguageManager
@@ -336,6 +337,7 @@ struct ContributionIssuesView: View {
         // 保存所有更改
         do {
             try context.save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
             print("成功修復 \(fixedCount) 筆交易的分攤問題")
             
             // 重新載入數據

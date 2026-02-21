@@ -345,3 +345,6 @@
 "subcategory_delete_title" = "刪除子分類";
 "subcategory_cancel" = "取消";
 "subcategory_delete" = "刪除";
+
+"default_payer_cannot_delete" = "默認付款人「%@」是系統預設，無法刪除。";
+

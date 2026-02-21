@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import WidgetKit   // 新增
 
 // MARK: - ContributionEntry (表單暫存用)
 struct ContributionEntry: Identifiable {
@@ -1821,6 +1822,7 @@ struct TransactionFormView: View {
         
         do {
             try context.save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
             dismiss()
         } catch {
             print("保存交易時出錯: \(error)")
@@ -1837,6 +1839,7 @@ struct TransactionFormView: View {
         
         do {
             try context.save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
             dismiss()
         } catch {
             print("刪除交易時出錯: \(error)")

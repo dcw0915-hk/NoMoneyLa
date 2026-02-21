@@ -341,3 +341,5 @@
 "subcategory_delete_title" = "サブカテゴリを削除";
 "subcategory_cancel" = "キャンセル";
 "subcategory_delete" = "削除";
+
+"default_payer_cannot_delete" = "デフォルトの支払い者「%@」はシステムデフォルトのため、削除できません。";

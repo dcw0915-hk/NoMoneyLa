@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 @main
 struct NoMoneyLaApp: App {
@@ -44,6 +45,11 @@ struct NoMoneyLaApp: App {
                 .environmentObject(langManager)
                 .environmentObject(dashboardVM)
                 .preferredColorScheme(resolveColorScheme(appColorScheme))
+                .onOpenURL { url in
+                    if url.scheme == "nomoneyla" {
+                        // 處理導航（可選）
+                    }
+                }
         }
     }
 
