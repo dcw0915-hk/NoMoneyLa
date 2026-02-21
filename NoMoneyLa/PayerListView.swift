@@ -54,7 +54,7 @@ struct PayerListView: View {
                             if editingPayerID == payer.id {
                                 inlineEditView(for: payer)
                             } else {
-                                Text(payer.name)
+                                Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
                                     .font(.body)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
@@ -75,15 +75,20 @@ struct PayerListView: View {
                                 .frame(width: 30, height: 30)
                                 .clipShape(Circle())
 
-                                Button {
-                                    startInlineEdit(for: payer)
-                                } label: {
-                                    Image(systemName: "pencil")
-                                        .imageScale(.medium)
-                                        .foregroundColor(.primary)
+                                if !payer.isDefault {
+                                    Button {
+                                        startInlineEdit(for: payer)
+                                    } label: {
+                                        Image(systemName: "pencil")
+                                            .imageScale(.medium)
+                                            .foregroundColor(.primary)
+                                    }
+                                    .buttonStyle(BorderlessButtonStyle())
+                                    .frame(width: 32, height: 32)
+                                } else {
+                                    Spacer()
+                                        .frame(width: 32)
                                 }
-                                .buttonStyle(BorderlessButtonStyle())
-                                .frame(width: 32, height: 32)
                             }
                         }
                         .frame(height: 44)
@@ -105,7 +110,7 @@ struct PayerListView: View {
                 Button(langManager.localized("cancel_button"), role: .cancel) {}
                 Button(langManager.localized("delete_button"), role: .destructive) { safeDelete(payer) }
             } message: { payer in
-                Text(String(format: langManager.localized("delete_payer_confirmation"), payer.name))
+                Text(String(format: langManager.localized("delete_payer_confirmation"), payer.isDefault ? langManager.localized("default_payer_name") : payer.name))
             }
         }
     }
@@ -157,6 +162,7 @@ struct PayerListView: View {
 
     // MARK: - 方法
     private func startInlineEdit(for payer: Payer) {
+        guard !payer.isDefault else { return }
         editingPayerID = payer.id
         inlineEditedName = payer.name
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -236,17 +242,10 @@ struct PayerListView: View {
     }
     
     // MARK: - 重複名稱處理
-    
-    /// 生成唯一名稱，如果基礎名稱已存在，則自動添加 "- 2", "- 3" 等後綴
-    /// - Parameters:
-    ///   - baseName: 使用者輸入的原始名稱
-    ///   - excluding: 可選的UUID，用於排除檢查（編輯現有付款人時使用）
-    /// - Returns: 當前付款人列表中不存在的唯一名稱
     private func generateUniqueName(baseName: String, excluding payerID: UUID? = nil) -> String {
         var candidate = baseName
         var counter = 2
         
-        // 持續嘗試直到找到唯一名稱
         while payerNameExists(candidate, excluding: payerID) {
             candidate = "\(baseName) - \(counter)"
             counter += 1
@@ -255,17 +254,10 @@ struct PayerListView: View {
         return candidate
     }
     
-    /// 檢查付款人名稱是否已存在
-    /// - Parameters:
-    ///   - name: 要檢查的名稱
-    ///   - excluding: 可選的UUID，用於排除檢查（編輯現有付款人時使用）
-    /// - Returns: 如果名稱已存在則返回true
     private func payerNameExists(_ name: String, excluding payerID: UUID? = nil) -> Bool {
         if let excludingID = payerID {
-            // 編輯時：檢查是否有"其他"付款人使用此名稱
             return payers.contains { $0.id != excludingID && $0.name == name }
         } else {
-            // 新增時：檢查是否有"任何"付款人使用此名稱
             return payers.contains { $0.name == name }
         }
     }

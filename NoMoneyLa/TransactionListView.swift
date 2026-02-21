@@ -364,12 +364,12 @@ struct TransactionListView: View {
                 if let subID = tx.subcategoryID,
                    let sub = subcategories.first(where: { $0.id == subID }),
                    let parent = categories.first(where: { $0.id == sub.parentID }) {
-                    return parent.name
+                    return parent.isDefault ? langManager.localized("uncategorized_label") : parent.name
                 }
                 return ""
             }()
             
-            let payerNames = tx.contributions.map { $0.payer.name }.joined(separator: " ")
+            let payerNames = tx.contributions.map { $0.payer.isDefault ? langManager.localized("default_payer_name") : $0.payer.name }.joined(separator: " ")
 
             let haystack = [catName, note, parentName, payerNames]
                 .joined(separator: " ")
@@ -386,7 +386,8 @@ struct TransactionListView: View {
         
         if transaction.contributions.count == 1,
            let contribution = transaction.contributions.first {
-            return "\(contribution.payer.name): \(formatCurrency(contribution.amount, transaction.currencyCode))"
+            let payerName = contribution.payer.isDefault ? langManager.localized("default_payer_name") : contribution.payer.name
+            return "\(payerName): \(formatCurrency(contribution.amount, transaction.currencyCode))"
         } else {
             let payerCount = transaction.contributions.count
             let totalAmount = transaction.contributions.reduce(0) { $0 + $1.amount }
@@ -495,7 +496,7 @@ struct TransactionListView: View {
             var parts: [String] = []
             
             if let payer = filterPayer {
-                parts.append(payer.name)
+                parts.append(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
             }
             
             if let startDate = filterStartDate, let endDate = filterEndDate {

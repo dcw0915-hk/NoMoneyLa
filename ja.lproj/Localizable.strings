@@ -331,3 +331,5 @@
 "save_anyway_button" = "そのまま保存";
 "amount_mismatch_warning" = "支払金額不一致";
 "contribution_insufficient_format" = "分担不足 %@";
+
+"default_payer_name" = "自分";

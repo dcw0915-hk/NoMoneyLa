@@ -89,7 +89,7 @@ struct PayerHeaderView: View {
                 .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                 .frame(width: 24, height: 24)
             
-            Text(payer.name)
+            Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
                 .font(.title2)
                 .bold()
             
@@ -353,7 +353,7 @@ struct CategorySettlementView: View {
                                         .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                         .frame(width: 16, height: 16)
                                     
-                                    Text(payer.name)
+                                    Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
                                         .font(.body)
                                         .lineLimit(1)
                                     
@@ -399,7 +399,7 @@ struct CategorySettlementView: View {
                                             .fill(Color(hex: step.from.colorHex ?? "#A8A8A8"))
                                             .frame(width: 12, height: 12)
                                         
-                                        Text(step.from.name)
+                                        Text(step.from.isDefault ? langManager.localized("default_payer_name") : step.from.name)
                                             .font(.body)
                                         
                                         Text(langManager.localized("pays_to"))
@@ -410,7 +410,7 @@ struct CategorySettlementView: View {
                                             .fill(Color(hex: step.to.colorHex ?? "#A8A8A8"))
                                             .frame(width: 12, height: 12)
                                         
-                                        Text(step.to.name)
+                                        Text(step.to.isDefault ? langManager.localized("default_payer_name") : step.to.name)
                                             .font(.body)
                                         
                                         Spacer()
@@ -443,7 +443,7 @@ struct CategorySettlementView: View {
                                                     .fill(Color(hex: result.payer.colorHex ?? "#A8A8A8"))
                                                     .frame(width: 12, height: 12)
                                                 
-                                                Text(result.payer.name)
+                                                Text(result.payer.isDefault ? langManager.localized("default_payer_name") : result.payer.name)
                                                     .font(.headline)
                                                 
                                                 Spacer()
@@ -466,7 +466,7 @@ struct CategorySettlementView: View {
                                                 Spacer()
                                                 
                                                 if let toPayer = result.shouldPayTo {
-                                                    Text("\(langManager.localized("should_pay_to")) \(toPayer.name)")
+                                                    Text("\(langManager.localized("should_pay_to")) \(toPayer.isDefault ? langManager.localized("default_payer_name") : toPayer.name)")
                                                         .font(.caption)
                                                         .foregroundColor(.secondary)
                                                 }
@@ -631,7 +631,7 @@ struct CategorySettlementView: View {
                     shouldPayTo: nil,
                     amount: 0
                 ))
-                addDebugInfo("  \(payer.name): 實付=\(formatCurrency(paid, code: currency)), 應付=\(formatCurrency(shouldPay, code: currency)), 淨額=\(formatCurrency(netBalance, code: currency))")
+                addDebugInfo("  \(payerDisplayName(payer)): 實付=\(formatCurrency(paid, code: currency)), 應付=\(formatCurrency(shouldPay, code: currency)), 淨額=\(formatCurrency(netBalance, code: currency))")
             }
             
             // 計算最優結算步驟
@@ -662,6 +662,10 @@ struct CategorySettlementView: View {
         } else {
             return category.name
         }
+    }
+    
+    private func payerDisplayName(_ payer: Payer) -> String {
+        payer.isDefault ? langManager.localized("default_payer_name") : payer.name
     }
     
     // 獲取某組交易的參與者

@@ -63,6 +63,7 @@ struct PayerSelectionView: View {
 }
 
 struct PayerChipView: View {
+    @EnvironmentObject var langManager: LanguageManager
     let payer: Payer
     let isSelected: Bool
     
@@ -71,7 +72,7 @@ struct PayerChipView: View {
             Circle()
                 .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                 .frame(width: 16, height: 16)
-            Text(payer.name)
+            Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
                 .font(.subheadline)
                 .lineLimit(1)
         }
@@ -188,7 +189,7 @@ struct FilterBarView: View {
                         filterTag(text: sub.name, color: .blue.opacity(0.8))
                     }
                     if let payer = filterPayer {
-                        filterTag(text: payer.name, color: .green)
+                        filterTag(text: payer.isDefault ? langManager.localized("default_payer_name") : payer.name, color: .green)
                     }
                     if let dateRange = filterDateRange {
                         filterTag(text: dateRange, color: .orange)
@@ -309,7 +310,7 @@ struct ToolbarMenuView: View {
                             Circle()
                                 .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                 .frame(width: 8, height: 8)
-                            Text(payer.name)
+                            Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
                         }
                     }
                 }
@@ -732,7 +733,7 @@ struct SpendingInsightCard: View {
                     Text("\(langManager.localized("most_used_category"))：")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(category.name)
+                    Text(category.isDefault ? langManager.localized("uncategorized_label") : category.name)
                         .font(.caption)
                         .bold()
                     Spacer()
@@ -791,7 +792,7 @@ struct SpendingInsightCard: View {
                     Text("\(langManager.localized("yearly_most_used_category"))：")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(category.name)
+                    Text(category.isDefault ? langManager.localized("uncategorized_label") : category.name)
                         .font(.caption)
                         .bold()
                     Spacer()

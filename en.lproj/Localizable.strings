@@ -331,3 +331,5 @@
 "save_anyway_button" = "Save Anyway";
 "amount_mismatch_warning" = "Payment amount mismatch";
 "contribution_insufficient_format" = "Insufficient split %@";
+
+"default_payer_name" = "Myself";

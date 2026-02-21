@@ -278,7 +278,7 @@ struct TransactionFormView: View {
                                         }
                                     }) {
                                         HStack {
-                                            Text(cat.name)
+                                            Text(categoryDisplayName(cat))
                                                 .lineLimit(1)
                                                 .truncationMode(.tail)
                                             if selectedParentID == cat.id {
@@ -455,7 +455,7 @@ struct TransactionFormView: View {
                                                 Circle()
                                                     .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                                     .frame(width: 8, height: 8)
-                                                Text(payer.name)
+                                                Text(payerDisplayName(payer))
                                                 if contributions.count == 1 && contributions.first?.payerID == payer.id {
                                                     Spacer()
                                                     Image(systemName: "checkmark")
@@ -470,7 +470,7 @@ struct TransactionFormView: View {
                                             Circle()
                                                 .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                                 .frame(width: 12, height: 12)
-                                            Text(payer.name)
+                                            Text(payerDisplayName(payer))
                                                 .foregroundColor(.primary)
                                         } else {
                                             Text(langManager.localized("select_payer_placeholder"))
@@ -508,7 +508,7 @@ struct TransactionFormView: View {
                                             Circle()
                                                 .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                                 .frame(width: 12, height: 12)
-                                            Text(payer.name)
+                                            Text(payerDisplayName(payer))
                                                 .font(.body)
                                             Spacer()
                                             Text(langManager.localized("pays_full_amount"))
@@ -586,7 +586,7 @@ struct TransactionFormView: View {
                                                             Circle()
                                                                 .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                                                 .frame(width: 8, height: 8)
-                                                            Text(payer.name)
+                                                            Text(payerDisplayName(payer))
                                                             if contributions[index].payerID == payer.id {
                                                                 Spacer()
                                                                 Image(systemName: "checkmark")
@@ -730,7 +730,7 @@ struct TransactionFormView: View {
                                                     .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                                     .frame(width: 12, height: 12)
                                                 
-                                                Text(payer.name)
+                                                Text(payerDisplayName(payer))
                                                     .font(.body)
                                                 Spacer()
                                                 Text(formatCurrency(amount: amount, code: currencyCode))
@@ -778,7 +778,7 @@ struct TransactionFormView: View {
                                                 Circle()
                                                     .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                                     .frame(width: 8, height: 8)
-                                                Text(payer.name)
+                                                Text(payerDisplayName(payer))
                                                 if selectedIncomePayerID == payer.id {
                                                     Spacer()
                                                     Image(systemName: "checkmark")
@@ -794,7 +794,7 @@ struct TransactionFormView: View {
                                         Circle()
                                             .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                             .frame(width: 12, height: 12)
-                                        Text(payer.name)
+                                        Text(payerDisplayName(payer))
                                             .foregroundColor(.primary)
                                     } else {
                                         Text(langManager.localized("select_income_recipient"))
@@ -814,7 +814,7 @@ struct TransactionFormView: View {
                                let category = categories.first(where: { $0.id == parentID }) {
                                 let assignedPayers = category.assignedPayers(in: context)
                                 if !assignedPayers.isEmpty {
-                                    Text(String(format: langManager.localized("income_recipient_constraint_format"), category.name))
+                                    Text(String(format: langManager.localized("income_recipient_constraint_format"), categoryDisplayName(category)))
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                         .padding(.top, 4)
@@ -827,7 +827,7 @@ struct TransactionFormView: View {
                                     Circle()
                                         .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                         .frame(width: 12, height: 12)
-                                    Text(payer.name)
+                                    Text(payerDisplayName(payer))
                                     Spacer()
                                     Text(langManager.localized("income_recipient_label"))
                                         .font(.caption)
@@ -838,7 +838,7 @@ struct TransactionFormView: View {
                                     Circle()
                                         .fill(Color(hex: defaultPayer.colorHex ?? "#A8A8A8"))
                                         .frame(width: 12, height: 12)
-                                    Text(defaultPayer.name)
+                                    Text(payerDisplayName(defaultPayer))
                                         .foregroundColor(.secondary)
                                     Spacer()
                                     Text("\(langManager.localized("income_recipient_label")) (\(langManager.localized("default_label")))")
@@ -1022,10 +1022,14 @@ struct TransactionFormView: View {
         return true
     }
     
+    private func payerDisplayName(_ payer: Payer) -> String {
+        payer.isDefault ? langManager.localized("default_payer_name") : payer.name
+    }
+    
     private func getPayerName(for index: Int) -> String {
         if let payerID = contributions[index].payerID,
            let payer = payers.first(where: { $0.id == payerID }) {
-            return payer.name
+            return payerDisplayName(payer)
         } else {
             return langManager.localized("select_payer_placeholder")
         }
@@ -1853,6 +1857,14 @@ struct TransactionFormView: View {
         }
     }
     
+    private func categoryDisplayName(_ category: Category) -> String {
+        if category.isDefault {
+            return langManager.localized("uncategorized_label")
+        } else {
+            return category.name
+        }
+    }
+    
     private func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
@@ -1896,17 +1908,11 @@ struct TransactionFormView: View {
             return String(format: langManager.localized("contribution_insufficient_alert_message_format"), amountStr)
         }
     }
-    private func categoryDisplayName(_ category: Category) -> String {
-        if category.isDefault {
-            return langManager.localized("uncategorized_label")
-        } else {
-            return category.name
-        }
-    }
 }
 
 // MARK: - ParticipantChip
 struct ParticipantChip: View {
+    @EnvironmentObject var langManager: LanguageManager
     let payer: Payer
     
     var body: some View {
@@ -1914,7 +1920,7 @@ struct ParticipantChip: View {
             Circle()
                 .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                 .frame(width: 8, height: 8)
-            Text(payer.name)
+            Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
                 .font(.caption)
         }
         .padding(.horizontal, 8)
@@ -1956,7 +1962,7 @@ struct ParticipantSelectionSheet: View {
                                     .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                     .frame(width: 12, height: 12)
 
-                                Text(payer.name)
+                                Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
 
                                 Spacer()
 
@@ -2053,7 +2059,7 @@ struct PayerSelectionSheetForNew: View {
                                         .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                         .frame(width: 12, height: 12)
                                     
-                                    Text(payer.name)
+                                    Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
                                         .foregroundColor(.primary)
                                     
                                     Spacer()

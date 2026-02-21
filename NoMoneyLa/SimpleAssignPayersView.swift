@@ -32,7 +32,7 @@ struct SimpleAssignPayersView: View {
                                 .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                 .frame(width: 20, height: 20)
                             
-                            Text(payer.name)
+                            Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
                             
                             Spacer()
                             

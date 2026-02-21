@@ -142,7 +142,8 @@ struct SettlementTabView: View {
                 // 顯示已分配付款人數量
                 let assignedPayers = category.assignedPayers(in: context)
                 if !assignedPayers.isEmpty {
-                    Text("\(langManager.localized("assigned_payers"))：\(assignedPayers.map { $0.name }.joined(separator: ", "))")
+                    let assignedNames = assignedPayers.map { $0.isDefault ? langManager.localized("default_payer_name") : $0.name }.joined(separator: ", ")
+                    Text("\(langManager.localized("assigned_payers"))：\(assignedNames)")
                         .font(.caption)
                         .foregroundColor(.blue)
                         .lineLimit(1)

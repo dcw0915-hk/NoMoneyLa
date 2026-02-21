@@ -35,7 +35,7 @@ struct AssignPayersView: View {
                                         .fill(Color(hex: payer.colorHex ?? "#A8A8A8"))
                                         .frame(width: 20, height: 20)
 
-                                    Text(payer.name)
+                                    Text(payer.isDefault ? langManager.localized("default_payer_name") : payer.name)
                                         .font(.body)
 
                                     Spacer()
@@ -125,7 +125,7 @@ struct AssignPayersView: View {
                     let assigned = found.assignedPayers(in: self.context)
                     print("assignedPayers 函數返回數量: \(assigned.count)")
                     for payer in assigned {
-                        print("  - \(payer.name) (\(payer.id))")
+                        print("  - \(payer.isDefault ? langManager.localized("default_payer_name") : payer.name) (\(payer.id))")
                     }
                     print("======================")
                     
@@ -285,7 +285,7 @@ struct CategoryListView: View {
                             if let updatedCategory = categories.first(where: { $0.id == category.id }) {
                                 print("分類 \(updatedCategory.name) 的 assignedPayerIDs: \(updatedCategory.assignedPayerIDs)")
                                 let assigned = updatedCategory.assignedPayers(in: context)
-                                print("assignedPayers 函數返回: \(assigned.map { $0.name })")
+                                print("assignedPayers 函數返回: \(assigned.map { $0.isDefault ? langManager.localized("default_payer_name") : $0.name })")
                             }
                         } catch {
                             print("重新讀取分類錯誤: \(error)")
@@ -365,16 +365,21 @@ struct CategoryListView: View {
             .frame(width: 36, height: 36)
             .contentShape(Rectangle())
 
-            Button {
-                startInlineEdit(for: category)
-            } label: {
-                Image(systemName: "pencil")
-                    .imageScale(.large)
-                    .foregroundColor(.primary)
+            // 編輯分類按鈕（預設分類唔顯示）
+            if !category.isDefault {
+                Button {
+                    startInlineEdit(for: category)
+                } label: {
+                    Image(systemName: "pencil")
+                        .imageScale(.large)
+                        .foregroundColor(.primary)
+                }
+                .buttonStyle(BorderlessButtonStyle())
+                .frame(width: 36, height: 36)
+                .contentShape(Rectangle())
+            } else {
+                Spacer().frame(width: 36)
             }
-            .buttonStyle(BorderlessButtonStyle())
-            .frame(width: 36, height: 36)
-            .contentShape(Rectangle())
 
             NavigationLink {
                 SubcategoryManagerView(parentCategory: category)

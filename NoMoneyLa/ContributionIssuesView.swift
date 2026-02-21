@@ -132,7 +132,7 @@ struct ContributionIssuesView: View {
                                             .frame(width: 12, height: 12)
                                     }
                                     
-                                    Text(category.name)
+                                    Text(category.isDefault ? langManager.localized("uncategorized_label") : category.name)
                                         .font(.headline)
                                     
                                     Spacer()
@@ -278,7 +278,7 @@ struct ContributionIssuesView: View {
                                     .fill(Color(hex: contribution.payer.colorHex ?? "#A8A8A8"))
                                     .frame(width: 6, height: 6)
                                 
-                                Text(contribution.payer.name)
+                                Text(contribution.payer.isDefault ? langManager.localized("default_payer_name") : contribution.payer.name)
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
@@ -301,7 +301,9 @@ struct ContributionIssuesView: View {
         
         if let sub = allSubcategories.first(where: { $0.id == subID }),
            let parent = allCategories.first(where: { $0.id == sub.parentID }) {
-            return "\(parent.name) / \(sub.name)"
+            let parentName = parent.isDefault ? langManager.localized("uncategorized_label") : parent.name
+            let subName = sub.isUncategorized ? langManager.localized("uncategorized_label") : sub.name
+            return "\(parentName) / \(subName)"
         }
         
         return langManager.localized("uncategorized_label")
