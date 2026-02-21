@@ -333,3 +333,12 @@
 "contribution_insufficient_format" = "Insufficient split %@";
 
 "default_payer_name" = "Myself";
+
+"subcategory_add_section" = "Add Subcategory";
+"subcategory_name_placeholder" = "Enter subcategory name";
+"subcategory_add_button" = "Add";
+"subcategory_list_section" = "Existing Subcategories";
+"subcategory_name_label" = "Subcategory Name";
+"subcategory_delete_title" = "Delete Subcategory";
+"subcategory_cancel" = "Cancel";
+"subcategory_delete" = "Delete";

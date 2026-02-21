@@ -333,3 +333,11 @@
 "contribution_insufficient_format" = "分担不足 %@";
 
 "default_payer_name" = "自分";
+"subcategory_add_section" = "サブカテゴリを追加";
+"subcategory_name_placeholder" = "サブカテゴリ名を入力";
+"subcategory_add_button" = "追加";
+"subcategory_list_section" = "既存のサブカテゴリ";
+"subcategory_name_label" = "サブカテゴリ名";
+"subcategory_delete_title" = "サブカテゴリを削除";
+"subcategory_cancel" = "キャンセル";
+"subcategory_delete" = "削除";

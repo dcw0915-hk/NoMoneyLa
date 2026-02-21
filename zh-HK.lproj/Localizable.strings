@@ -336,3 +336,12 @@
 "contribution_issues_found_title" = "發現分攤問題";
 
 "default_payer_name" = "自己";
+/* SubcategoryManageView - 新增/修改部分 */
+"subcategory_add_section" = "新增子分類";
+"subcategory_name_placeholder" = "輸入子分類名稱";
+"subcategory_add_button" = "新增";
+"subcategory_list_section" = "已建立的子分類";
+"subcategory_name_label" = "子分類名稱";
+"subcategory_delete_title" = "刪除子分類";
+"subcategory_cancel" = "取消";
+"subcategory_delete" = "刪除";
