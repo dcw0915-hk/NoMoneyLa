@@ -1823,6 +1823,7 @@ struct TransactionFormView: View {
         do {
             try context.save()
             WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
+            WidgetCenter.shared.reloadTimelines(ofKind: "RecentTransactionWidget")
             dismiss()
         } catch {
             print("保存交易時出錯: \(error)")
@@ -1840,6 +1841,7 @@ struct TransactionFormView: View {
         do {
             try context.save()
             WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
+            WidgetCenter.shared.reloadTimelines(ofKind: "RecentTransactionWidget")
             dismiss()
         } catch {
             print("刪除交易時出錯: \(error)")

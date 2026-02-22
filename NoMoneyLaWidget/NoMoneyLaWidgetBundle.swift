@@ -1,10 +1,3 @@
-//
-//  NoMoneyLaWidgetBundle.swift
-//  NoMoneyLaWidget
-//
-//  Created by Ricky Ding on 22/2/2026.
-//
-
 import WidgetKit
 import SwiftUI
 
@@ -12,6 +5,7 @@ import SwiftUI
 struct NoMoneyLaWidgetBundle: WidgetBundle {
     var body: some Widget {
         NoMoneyLaWidget()
+        RecentTransactionWidget()   // <-- 新增
         NoMoneyLaWidgetControl()
         NoMoneyLaWidgetLiveActivity()
     }

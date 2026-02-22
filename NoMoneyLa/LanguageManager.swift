@@ -1,21 +1,28 @@
 import SwiftUI
 import Combine
+import WidgetKit   // 加入呢行
+
+let appGroupID = "group.Ricky.NoMoneyLa"
 
 @MainActor
 final class LanguageManager: ObservableObject {
     @Published var selectedLanguage: AppLanguage {
         didSet {
             loadBundle(for: selectedLanguage)
-            UserDefaults.standard.set(selectedLanguage.rawValue, forKey: Self.userDefaultsKey)
+            // 儲存到共享 UserDefaults
+            UserDefaults(suiteName: appGroupID)?.set(selectedLanguage.rawValue, forKey: Self.userDefaultsKey)
+            // 強制刷新所有 widget
+            WidgetCenter.shared.reloadAllTimelines()
         }
     }
 
-    @Published private(set) var bundle: Bundle = .main   // 改成 @Published
+    @Published private(set) var bundle: Bundle = .main
 
     private static let userDefaultsKey = "selectedLanguage"
 
     init() {
-        if let raw = UserDefaults.standard.string(forKey: Self.userDefaultsKey),
+        // 從共享 UserDefaults 讀取
+        if let raw = UserDefaults(suiteName: appGroupID)?.string(forKey: Self.userDefaultsKey),
            let saved = AppLanguage(rawValue: raw) {
             selectedLanguage = saved
         } else {

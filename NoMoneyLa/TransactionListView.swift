@@ -68,67 +68,60 @@ struct TransactionCardView: View {
                         .font(.title3)
                         .bold()
                         .foregroundColor(transaction.type == .expense ? .red : .green)
-                    
-                    // 只在有分攤問題時顯示狀態
-                    if transaction.type == .expense {
-                        let statusCode = transaction.contributionStatusCode
-                        if statusCode != .balanced {
-                            HStack(spacing: 2) {
-                                Image(systemName: getContributionIcon(for: statusCode))
-                                    .font(.caption2)
-                                    .foregroundColor(getContributionColor(for: statusCode))
-                                Text(getContributionStatusText(for: transaction))
-                                    .font(.caption2)
-                                    .foregroundColor(getContributionColor(for: statusCode))
-                            }
-                            .padding(.top, 2)
-                        }
+                }
+            }
+            
+            // 只喺有分攤問題時顯示狀態
+            if transaction.type == .expense {
+                let contributionStatus = getDetailedContributionStatus(for: transaction)
+                if !contributionStatus.message.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: contributionStatus.icon)
+                            .font(.caption2)
+                            .foregroundColor(contributionStatus.color)
+                        Text(contributionStatus.message)
+                            .font(.caption2)
+                            .foregroundColor(contributionStatus.color)
                     }
+                    .padding(.top, 2)
                 }
             }
         }
     }
     
-    private func getContributionIcon(for statusCode: Transaction.ContributionStatusCode) -> String {
-        switch statusCode {
-        case .noContributions:
-            return "exclamationmark.circle"
-        case .insufficient:
-            return "exclamationmark.triangle"
-        case .excess:
-            return "exclamationmark.triangle.fill"
-        case .balanced:
-            return "checkmark.circle"
+    private func getDetailedContributionStatus(for transaction: Transaction) -> (message: String, icon: String, color: Color) {
+        guard transaction.type == .expense else {
+            return ("", "", .clear)
         }
-    }
-    
-    private func getContributionColor(for statusCode: Transaction.ContributionStatusCode) -> Color {
-        switch statusCode {
-        case .noContributions, .insufficient, .excess:
-            return .orange
-        case .balanced:
-            return .green
-        }
-    }
-    
-    private func getContributionStatusText(for transaction: Transaction) -> String {
-        let diff = transaction.contributionDifference
-        let amountStr = formatCurrency(abs(diff), transaction.currencyCode)
         
-        switch transaction.contributionStatusCode {
-        case .noContributions:
-            return langManager.localized("no_contribution")
-        case .insufficient:
-            return String(format: langManager.localized("contribution_insufficient_format"), amountStr)
-        case .excess:
-            return String(format: langManager.localized("contribution_excess_format"), amountStr)
-        case .balanced:
-            return ""
+        // 冇分攤記錄
+        if transaction.contributions.isEmpty {
+            return (langManager.localized("no_contribution"), "exclamationmark.circle", .orange)
         }
+        
+        let sum = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
+        let difference = transaction.totalAmount - sum
+        
+        // 分攤正確（喺容差範圍內）- 唔顯示任何訊息
+        if abs(difference) <= Decimal(0.01) {
+            return ("", "", .clear)
+        }
+        
+        // 分攤不足
+        if difference > 0 {
+            let amount = formatCurrency(difference, transaction.currencyCode)
+            let message = String(format: langManager.localized("contribution_insufficient_format"), amount)
+            return (message, "exclamationmark.triangle", .orange)
+        }
+        
+        // 分攤過多
+        let amount = formatCurrency(abs(difference), transaction.currencyCode)
+        let message = String(format: langManager.localized("contribution_excess_format"), amount)
+        return (message, "exclamationmark.triangle.fill", .red)
     }
 }
 
-// MARK: - TransactionListView
+// MARK: - TransactionListView (其餘部分完全唔變)
 struct TransactionListView: View {
     @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
@@ -209,7 +202,7 @@ struct TransactionListView: View {
                                 }
                             }
                             .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                                if tx.type == .expense && tx.contributionStatusCode != .balanced {
+                                if tx.type == .expense && !tx.isAmountValid {
                                     Button {
                                         showFixContributionAlert(for: tx)
                                     } label: {
@@ -383,7 +376,9 @@ struct TransactionListView: View {
         do {
             try context.save()
             WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "RecentTransactionWidget")
         } catch {
+            print("刪除失敗：\(error.localizedDescription)")
         }
     }
 
@@ -565,7 +560,9 @@ struct TransactionListView: View {
         
         do {
             try context.save()
+            print("成功修復交易 \(transaction.id) 的分攤問題")
         } catch {
+            print("修復分攤時保存失敗：\(error)")
         }
     }
 }

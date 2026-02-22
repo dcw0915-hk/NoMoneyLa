@@ -74,26 +74,10 @@ struct SimpleEntry: TimelineEntry {
     let transactionCount: Int
 }
 
-// MARK: - Shared ModelContainer
-let appGroupID = "group.Ricky.NoMoneyLa"
-let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)!
-    .appendingPathComponent("DataModel.sqlite")
-
-let sharedModelContainer: ModelContainer = {
-    let config = ModelConfiguration(url: storeURL)
-    return try! ModelContainer(
-        for: Transaction.self,
-        Category.self,
-        Subcategory.self,
-        Payer.self,
-        PaymentContribution.self,
-        configurations: config
-    )
-}()
-
 // MARK: - Widget View
 struct NoMoneyLaWidgetEntryView: View {
     var entry: SimpleEntry
+    @Environment(\.widgetFamily) var family
 
     private var formattedAmount: String {
         let formatter = NumberFormatter()
@@ -105,12 +89,11 @@ struct NoMoneyLaWidgetEntryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // 標題行：紅色小圓點 + 本地化文字
             HStack(spacing: 6) {
                 Circle()
                     .fill(Color.red)
                     .frame(width: 8, height: 8)
-                Text("widget_today_expense")
+                Text(widgetLocalizedString("widget_today_expense"))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.primary)
                     .textCase(.uppercase)
@@ -119,9 +102,8 @@ struct NoMoneyLaWidgetEntryView: View {
 
             Spacer(minLength: 0)
 
-            // 貨幣符號 + 金額（垂直排列，強調金額）
             VStack(alignment: .leading, spacing: 2) {
-                Text("widget_currency_symbol")
+                Text(widgetLocalizedString("widget_currency_symbol"))
                     .font(.system(size: 16, weight: .regular))
                     .foregroundColor(.secondary)
 
@@ -134,11 +116,10 @@ struct NoMoneyLaWidgetEntryView: View {
 
             Spacer(minLength: 0)
 
-            // 底部：交易數量（用標籤樣式）
             HStack {
                 Label(
                     title: {
-                        Text("widget_transactions_count \(entry.transactionCount)")
+                        Text(String(format: widgetLocalizedString("widget_transactions_count"), entry.transactionCount))
                             .font(.system(size: 12, weight: .medium))
                     },
                     icon: {
@@ -170,8 +151,8 @@ struct NoMoneyLaWidget: Widget {
                 .modelContainer(sharedModelContainer)
                 .containerBackground(Color(UIColor.systemBackground), for: .widget)
         }
-        .configurationDisplayName("widget_display_name")
-        .description("widget_description")
+        .configurationDisplayName(widgetLocalizedString("widget_display_name"))
+        .description(widgetLocalizedString("widget_description"))
         .supportedFamilies([.systemSmall])
     }
 }

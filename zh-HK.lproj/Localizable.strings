@@ -372,3 +372,24 @@
 "contribution_excess_alert_message_format" = "支付總額比交易金額多 %@。\n\n建議修復支付金額以確保計算準確。";
 "contribution_insufficient_alert_message_format" = "支付總額比交易金額少 %@。\n\n建議修復支付金額以確保計算準確。";
 "pays_full_amount" = "支付全額";
+
+/* ===== 新增大專 widget 鍵值 ===== */
+
+// 原本今日支出 widget（如果已有就唔使重複）
+"widget_today_expense" = "今日支出";
+"widget_currency_symbol" = "HK$";
+"widget_transactions_count" = "%lld 筆交易";
+"widget_display_name" = "今日支出";
+"widget_description" = "快速查看今日總支出";
+
+// 新嘅「最近交易」widget
+"recent_transaction_title" = "最近交易";
+"no_transactions_yet" = "暫無交易";
+"widget_recent_display_name" = "最近交易";
+"widget_recent_description" = "顯示最近一筆交易的分類同金額";
+
+// 如果你打算將來加埋「月度支出」widget，可以預留：
+"monthly_widget_title" = "本月支出";
+"monthly_widget_top_category" = "主要分類";
+"widget_monthly_display_name" = "月度支出";
+"widget_monthly_description" = "顯示本月總支出同分類分佈";
