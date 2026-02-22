@@ -2,11 +2,12 @@ import WidgetKit
 import SwiftUI
 import SwiftData
 
+// MARK: - Provider
 struct Provider: TimelineProvider {
     typealias Entry = SimpleEntry
 
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), todayTotal: 0, yesterdayTotal: 0, changePercent: 0, transactionCount: 0, currencyCode: "HKD")
+        SimpleEntry(date: Date(), todayTotal: 12345, transactionCount: 3)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
@@ -28,11 +29,8 @@ struct Provider: TimelineProvider {
     @MainActor
     private func loadCurrentEntry() -> SimpleEntry {
         let todayTotal = calculateTotalExpense(for: Date())
-        let yesterdayTotal = calculateTotalExpense(for: Calendar.current.date(byAdding: .day, value: -1, to: Date())!)
-        let changePercent: Double = yesterdayTotal > 0 ? (Double(truncating: (todayTotal - yesterdayTotal) as NSDecimalNumber) / Double(truncating: yesterdayTotal as NSDecimalNumber) * 100) : 0
         let count = fetchTransactionCount(for: Date())
-        print("Widget Data - Today: \(todayTotal), Yesterday: \(yesterdayTotal), Count: \(count)")
-        return SimpleEntry(date: Date(), todayTotal: todayTotal, yesterdayTotal: yesterdayTotal, changePercent: changePercent, transactionCount: count, currencyCode: "HKD")
+        return SimpleEntry(date: Date(), todayTotal: todayTotal, transactionCount: count)
     }
 
     @MainActor
@@ -41,25 +39,13 @@ struct Provider: TimelineProvider {
         let start = calendar.startOfDay(for: date)
         let end = calendar.date(byAdding: .day, value: 1, to: start)!
         let context = sharedModelContainer.mainContext
-        
-        // 獲取默認付款人
-        let payerDescriptor = FetchDescriptor<Payer>(predicate: #Predicate { $0.isDefault == true })
-        guard let defaultPayer = try? context.fetch(payerDescriptor).first else {
-            return 0
-        }
-        
-        let transactionDescriptor = FetchDescriptor<Transaction>()
+
+        let descriptor = FetchDescriptor<Transaction>()
         do {
-            let all = try context.fetch(transactionDescriptor)
+            let all = try context.fetch(descriptor)
             let filtered = all.filter { $0.date >= start && $0.date < end && $0.type == .expense }
-            // 加總默認付款人的貢獻
-            let total = filtered.reduce(Decimal(0)) { sum, tx in
-                let contributions = tx.contributions.filter { $0.payer.id == defaultPayer.id }
-                return sum + contributions.reduce(0) { $0 + $1.amount }
-            }
-            return total
+            return filtered.reduce(Decimal(0)) { $0 + $1.totalAmount }
         } catch {
-            print("Fetch error: \(error)")
             return 0
         }
     }
@@ -70,37 +56,26 @@ struct Provider: TimelineProvider {
         let start = calendar.startOfDay(for: date)
         let end = calendar.date(byAdding: .day, value: 1, to: start)!
         let context = sharedModelContainer.mainContext
-        
-        // 獲取默認付款人
-        let payerDescriptor = FetchDescriptor<Payer>(predicate: #Predicate { $0.isDefault == true })
-        guard let defaultPayer = try? context.fetch(payerDescriptor).first else {
-            return 0
-        }
-        
-        let transactionDescriptor = FetchDescriptor<Transaction>()
+
+        let descriptor = FetchDescriptor<Transaction>()
         do {
-            let all = try context.fetch(transactionDescriptor)
-            return all.filter { transaction in
-                transaction.date >= start && transaction.date < end && transaction.type == .expense &&
-                transaction.contributions.contains { $0.payer.id == defaultPayer.id }
-            }.count
+            let all = try context.fetch(descriptor)
+            return all.filter { $0.date >= start && $0.date < end && $0.type == .expense }.count
         } catch {
             return 0
         }
     }
 }
 
+// MARK: - Entry
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let todayTotal: Decimal
-    let yesterdayTotal: Decimal
-    let changePercent: Double
     let transactionCount: Int
-    let currencyCode: String
 }
 
-// 共享 ModelContainer（需與主 App 相同配置）
-let appGroupID = "group.Ricky.NoMoneyLa" // 請換成你的 App Group ID
+// MARK: - Shared ModelContainer
+let appGroupID = "group.Ricky.NoMoneyLa"
 let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)!
     .appendingPathComponent("DataModel.sqlite")
 
@@ -116,68 +91,74 @@ let sharedModelContainer: ModelContainer = {
     )
 }()
 
+// MARK: - Widget View
 struct NoMoneyLaWidgetEntryView: View {
     var entry: SimpleEntry
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("今日支出")
-                .font(.headline)
-                .foregroundColor(.secondary)
-
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(formatCurrency(entry.todayTotal))
-                    .font(.title)
-                    .bold()
-                    .foregroundColor(.primary)
-                Text(entry.currencyCode)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            if entry.yesterdayTotal > 0 {
-                HStack(spacing: 4) {
-                    Image(systemName: entry.changePercent >= 0 ? "arrow.up" : "arrow.down")
-                        .font(.caption)
-                        .foregroundColor(entry.changePercent >= 0 ? .red : .green)
-                    Text("\(abs(entry.changePercent), specifier: "%.1f")%")
-                        .font(.caption)
-                        .bold()
-                        .foregroundColor(entry.changePercent >= 0 ? .red : .green)
-                    Text("vs 昨日")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            HStack {
-                Image(systemName: "list.bullet")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                Text("\(entry.transactionCount) 筆交易")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-
-            if entry.todayTotal == 0 && entry.transactionCount == 0 {
-                Text("今日尚無支出")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding()
+    private var formattedAmount: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        formatter.usesGroupingSeparator = true
+        return formatter.string(from: entry.todayTotal as NSDecimalNumber) ?? "0"
     }
 
-    private func formatCurrency(_ amount: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "HKD"
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 標題行：紅色小圓點 + 文字
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 8, height: 8)
+                Text("今日支出")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .textCase(.uppercase)
+                    .tracking(0.8)
+            }
+
+            Spacer(minLength: 0)
+
+            // 貨幣符號 + 金額（垂直排列，強調金額）
+            VStack(alignment: .leading, spacing: 2) {
+                Text("HK$")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.secondary)
+
+                Text(formattedAmount)
+                    .font(.system(size: 42, weight: .bold))
+                    .minimumScaleFactor(0.3)
+                    .lineLimit(1)
+                    .foregroundColor(.red)
+            }
+
+            Spacer(minLength: 0)
+
+            // 底部：交易數量（用標籤樣式）
+            HStack {
+                Label(
+                    title: { Text("\(entry.transactionCount) 筆交易")
+                        .font(.system(size: 12, weight: .medium))
+                    },
+                    icon: { Image(systemName: "list.bullet.rectangle.portrait")
+                        .font(.system(size: 12))
+                    }
+                )
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    Rectangle()
+                        .fill(.regularMaterial)
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(16)
     }
 }
 
+// MARK: - Widget
 struct NoMoneyLaWidget: Widget {
     let kind: String = "NoMoneyLaWidget"
 

@@ -12,12 +12,17 @@ struct NoMoneyLaApp: App {
 
     init() {
         // 加入 Payer 和 PaymentContribution 模型
+        let appGroupID = "group.Ricky.NoMoneyLa"  // 同 Widget 用同一個 Group ID
+        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)!
+            .appendingPathComponent("DataModel.sqlite")
+        let config = ModelConfiguration(url: storeURL)
         container = try! ModelContainer(
             for: Transaction.self,
             Category.self,
             Subcategory.self,
             Payer.self,
-            PaymentContribution.self
+            PaymentContribution.self,
+            configurations: config
         )
 
         let ctx = container.mainContext
