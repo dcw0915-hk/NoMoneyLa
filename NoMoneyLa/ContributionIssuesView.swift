@@ -1,6 +1,6 @@
 import SwiftUI
 import SwiftData
-import WidgetKit   // 新增
+import WidgetKit
 
 struct ContributionIssuesView: View {
     @EnvironmentObject var langManager: LanguageManager
@@ -15,19 +15,16 @@ struct ContributionIssuesView: View {
     @State private var isLoading = false
     @State private var showingFixAllAlert = false
     
-    // 分組顯示有問題的交易
     private var invalidTransactions: [Transaction] {
         allTransactions.filter { !$0.isAmountValid && $0.type == .expense }
     }
     
-    // 按分類分組
     private var transactionsByCategory: [UUID: [Transaction]] {
         var result: [UUID: [Transaction]] = [:]
         
         for transaction in invalidTransactions {
             guard let subcategoryID = transaction.subcategoryID else { continue }
             
-            // 找出父分類ID
             if let subcategory = allSubcategories.first(where: { $0.id == subcategoryID }) {
                 let categoryID = subcategory.parentID
                 if result[categoryID] == nil {
@@ -35,7 +32,6 @@ struct ContributionIssuesView: View {
                 }
                 result[categoryID]?.append(transaction)
             } else {
-                // 如果找不到子分類，使用預設分類
                 if let defaultCategory = allCategories.first(where: { $0.isDefault }) {
                     let categoryID = defaultCategory.id
                     if result[categoryID] == nil {
@@ -49,7 +45,6 @@ struct ContributionIssuesView: View {
         return result
     }
     
-    // 計算總差異金額
     private var totalMissingAmount: Decimal {
         invalidTransactions.reduce(Decimal(0)) { total, transaction in
             let sum = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
@@ -72,7 +67,6 @@ struct ContributionIssuesView: View {
                     )
                 } else {
                     List {
-                        // 摘要統計
                         Section {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
@@ -121,7 +115,6 @@ struct ContributionIssuesView: View {
                             .padding(.vertical, 8)
                         }
                         
-                        // 按分類顯示問題交易
                         ForEach(Array(transactionsByCategory.keys.sorted()), id: \.self) { categoryID in
                             if let category = allCategories.first(where: { $0.id == categoryID }),
                                let transactions = transactionsByCategory[categoryID] {
@@ -149,7 +142,6 @@ struct ContributionIssuesView: View {
                             }
                         }
                         
-                        // 快速修復選項
                         Section {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text(langManager.localized("quick_fix_title"))
@@ -224,21 +216,18 @@ struct ContributionIssuesView: View {
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    // 日期
                     Text(transaction.date, format: .dateTime.year().month().day())
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
                     Spacer()
                     
-                    // 金額
                     Text(formatCurrency(transaction.totalAmount))
                         .font(.body)
                         .bold()
                         .foregroundColor(.red)
                 }
                 
-                // 備註或分類
                 if let note = transaction.note, !note.isEmpty {
                     Text(note)
                         .font(.subheadline)
@@ -250,7 +239,6 @@ struct ContributionIssuesView: View {
                         .lineLimit(1)
                 }
                 
-                // 分攤狀態
                 HStack {
                     Image(systemName: difference > 0 ? "arrow.down.circle" : "arrow.up.circle")
                         .font(.caption2)
@@ -262,7 +250,6 @@ struct ContributionIssuesView: View {
                     
                     Spacer()
                     
-                    // 現有分攤
                     if !transaction.contributions.isEmpty {
                         Text(String(format: langManager.localized("people_count_format"), transaction.contributions.count) + " " + langManager.localized("split_label"))
                             .font(.caption2)
@@ -270,7 +257,6 @@ struct ContributionIssuesView: View {
                     }
                 }
                 
-                // 付款人列表
                 if !transaction.contributions.isEmpty {
                     HStack(spacing: 4) {
                         ForEach(transaction.contributions.prefix(3)) { contribution in
@@ -334,16 +320,10 @@ struct ContributionIssuesView: View {
             }
         }
         
-        // 保存所有更改
         do {
             try context.save()
-            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
-            print("成功修復 \(fixedCount) 筆交易的分攤問題")
-            
-            // 重新載入數據
-            reloadData()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget")
         } catch {
-            print("保存修復結果時出錯: \(error)")
         }
     }
     
@@ -351,7 +331,6 @@ struct ContributionIssuesView: View {
         guard transaction.type == .expense else { return false }
         
         if transaction.contributions.isEmpty {
-            // 如果沒有分攤，使用預設付款人
             if let defaultPayer = allPayers.first(where: { $0.isDefault }) ?? allPayers.first {
                 let contribution = PaymentContribution(
                     amount: transaction.totalAmount,
@@ -364,12 +343,10 @@ struct ContributionIssuesView: View {
             }
             return false
         } else {
-            // 如果有分攤但金額不匹配，嘗試平均分配
             let sum = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
             let difference = transaction.totalAmount - sum
             
             if abs(difference) > Decimal(0.01) {
-                // 平均分配差異
                 let perPersonAdjustment = difference / Decimal(transaction.contributions.count)
                 
                 for contribution in transaction.contributions {

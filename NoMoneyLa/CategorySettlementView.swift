@@ -168,7 +168,6 @@ struct PayerTransactionsView: View {
                 }
                 
                 Section(langManager.localized("statistics_label")) {
-                    // 總支付金額
                     HStack {
                         Text(langManager.localized("total_paid_amount"))
                         Spacer()
@@ -183,7 +182,6 @@ struct PayerTransactionsView: View {
                         }
                     }
                     
-                    // 交易筆數
                     HStack {
                         Text(langManager.localized("participating_transactions_count"))
                         Spacer()
@@ -268,19 +266,16 @@ struct CategorySettlementView: View {
     @State private var selectedPayer: Payer?
     @State private var showPayerTransactions = false
     
-    @State private var debugInfo: [String] = []
     @State private var invalidTransactionCount: Int = 0
     @State private var missingAmount: Decimal = 0
     @State private var hasContributionIssues: Bool = false
     
     // 用於控制詳細結果摺疊的狀態
     @State private var expandedDetails: [String: Bool] = [:]
-    // 用於控制 debug 資訊顯示
-    @State private var showDebugInfo: Bool = false
     
     var body: some View {
         List {
-            // 分攤問題警告（如果有問題先顯示）
+            // 分攤問題警告
             if hasContributionIssues {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
@@ -315,7 +310,7 @@ struct CategorySettlementView: View {
                 }
             }
             
-            // MARK: - 按貨幣分組顯示參與者及結算
+            // 按貨幣分組顯示參與者及結算
             ForEach(currencies, id: \.self) { currency in
                 let transactions = transactionsByCurrency[currency] ?? []
                 let participants = participantsByCurrency[currency] ?? []
@@ -323,7 +318,6 @@ struct CategorySettlementView: View {
                 let steps = settlementStepsByCurrency[currency] ?? []
                 
                 if !transactions.isEmpty {
-                    // 貨幣標題
                     Section {
                         HStack {
                             Image(systemName: "dollarsign.circle")
@@ -339,7 +333,6 @@ struct CategorySettlementView: View {
                         .padding(.vertical, 4)
                     }
                     
-                    // 參與者列表（該貨幣）
                     Section(langManager.localized("participants_label")) {
                         if participants.isEmpty {
                             Text(langManager.localized("no_participants_or_transactions"))
@@ -380,7 +373,6 @@ struct CategorySettlementView: View {
                         }
                     }
                     
-                    // 結算方案（該貨幣）
                     if !steps.isEmpty {
                         Section(langManager.localized("optimal_settlement_solution")) {
                             VStack(alignment: .leading, spacing: 8) {
@@ -427,7 +419,6 @@ struct CategorySettlementView: View {
                         }
                     }
                     
-                    // 詳細計算結果（該貨幣）- 可摺疊
                     if !results.isEmpty {
                         Section {
                             DisclosureGroup(
@@ -486,7 +477,6 @@ struct CategorySettlementView: View {
                 }
             }
             
-            // MARK: 計算方法說明
             Section(langManager.localized("calculation_explanation")) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(langManager.localized("calc_explanation_1"))
@@ -500,36 +490,6 @@ struct CategorySettlementView: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(.vertical, 8)
-            }
-            
-            // MARK: 除錯信息 - 改為可摺疊
-            if !debugInfo.isEmpty {
-                Section {
-                    DisclosureGroup(
-                        isExpanded: $showDebugInfo,
-                        content: {
-                            ForEach(debugInfo.indices, id: \.self) { index in
-                                Text(debugInfo[index])
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.vertical, 2)
-                            }
-                        },
-                        label: {
-                            HStack {
-                                Image(systemName: "hammer.fill")
-                                    .foregroundColor(.gray)
-                                Text(langManager.localized("debug_calculation_details"))
-                                    .font(.headline)
-                                    .foregroundColor(.gray)
-                                Spacer()
-                                Text(showDebugInfo ? langManager.localized("hide_button") : langManager.localized("show_button"))
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                    )
-                }
             }
         }
         .navigationTitle(langManager.localized("debt_settlement"))
@@ -565,31 +525,22 @@ struct CategorySettlementView: View {
     
     // MARK: - 按貨幣計算結算
     private func calculateSettlement() {
-        clearDebugInfo()
-        addDebugInfo("=== 開始按貨幣分組結算 ===")
-        addDebugInfo("分類: \(categoryDisplayName)")
-        
         checkContributionIssues()
         
-        // 按貨幣重置
         participantsByCurrency = [:]
         settlementResultsByCurrency = [:]
         settlementStepsByCurrency = [:]
         
         for currency in currencies {
             let transactions = transactionsByCurrency[currency] ?? []
-            addDebugInfo("--- 貨幣: \(currency) (\(transactions.count) 筆交易) ---")
             
-            // 獲取該貨幣的參與者
             let participants = getParticipants(for: transactions)
             participantsByCurrency[currency] = participants
             
             if participants.isEmpty {
-                addDebugInfo("  無參與者")
                 continue
             }
             
-            // 計算每人實付及應付
             var paidAmounts: [Payer: Decimal] = [:]
             var shouldPayAmounts: [Payer: Decimal] = [:]
             
@@ -616,7 +567,6 @@ struct CategorySettlementView: View {
                 }
             }
             
-            // 計算淨結餘
             var netBalances: [Payer: Decimal] = [:]
             var results: [SettlementResult] = []
             
@@ -631,14 +581,11 @@ struct CategorySettlementView: View {
                     shouldPayTo: nil,
                     amount: 0
                 ))
-                addDebugInfo("  \(payerDisplayName(payer)): 實付=\(formatCurrency(paid, code: currency)), 應付=\(formatCurrency(shouldPay, code: currency)), 淨額=\(formatCurrency(netBalance, code: currency))")
             }
             
-            // 計算最優結算步驟
             let steps = calculateOptimalSettlement(balances: netBalances)
             settlementStepsByCurrency[currency] = steps
             
-            // 更新結算結果中的應付款信息
             for step in steps {
                 if let index = results.firstIndex(where: { $0.payer.id == step.from.id }) {
                     results[index] = SettlementResult(
@@ -651,11 +598,9 @@ struct CategorySettlementView: View {
             }
             
             settlementResultsByCurrency[currency] = results.sorted { $0.netBalance > $1.netBalance }
-            addDebugInfo("  結算步驟數: \(steps.count)")
         }
     }
     
-    // 獲取分類顯示名稱（用於除錯）
     private var categoryDisplayName: String {
         if category.isDefault {
             return langManager.localized("uncategorized_label")
@@ -668,7 +613,6 @@ struct CategorySettlementView: View {
         payer.isDefault ? langManager.localized("default_payer_name") : payer.name
     }
     
-    // 獲取某組交易的參與者
     private func getParticipants(for transactions: [Transaction]) -> [Payer] {
         var participantIDs = Set<UUID>()
         for transaction in transactions {
@@ -690,7 +634,6 @@ struct CategorySettlementView: View {
         return category.assignedPayers(in: context)
     }
     
-    // 計算指定貨幣下某付款人的總實付
     private func totalPaidByPayer(_ payer: Payer, in currency: String) -> Decimal {
         let transactions = transactionsByCurrency[currency] ?? []
         return transactions.reduce(Decimal(0)) { total, transaction in
@@ -701,7 +644,6 @@ struct CategorySettlementView: View {
         }
     }
     
-    // 最優結算算法
     private func calculateOptimalSettlement(balances: [Payer: Decimal]) -> [(from: Payer, to: Payer, amount: Decimal)] {
         var creditors: [(payer: Payer, amount: Decimal)] = []
         var debtors: [(payer: Payer, amount: Decimal)] = []
@@ -735,7 +677,6 @@ struct CategorySettlementView: View {
         return steps
     }
     
-    // 分攤問題檢查（匯總）
     private func checkContributionIssues() {
         invalidTransactionCount = 0
         missingAmount = 0
@@ -747,14 +688,5 @@ struct CategorySettlementView: View {
             let sum = transaction.contributions.reduce(Decimal(0)) { $0 + $1.amount }
             missingAmount += transaction.totalAmount - sum
         }
-    }
-    
-    private func addDebugInfo(_ message: String) {
-        debugInfo.append(message)
-        print("DEBUG: \(message)")
-    }
-    
-    private func clearDebugInfo() {
-        debugInfo.removeAll()
     }
 }

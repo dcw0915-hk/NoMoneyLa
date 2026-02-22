@@ -1,6 +1,6 @@
 import SwiftUI
 import SwiftData
-import WidgetKit   // 新增
+import WidgetKit
 
 // AssignPayersView.swift
 struct AssignPayersView: View {
@@ -102,41 +102,20 @@ struct AssignPayersView: View {
 
         DispatchQueue.main.async {
             do {
-                // 取得所有付款人
                 let payersFetch = FetchDescriptor<Payer>(sortBy: [SortDescriptor(\.order)])
                 let payers = try context.fetch(payersFetch)
                 self.allPayers = payers
                 
-                // 取得受管理的 category 實例（以 id 比對）
                 let categoriesFetch = FetchDescriptor<Category>()
                 let categories = try context.fetch(categoriesFetch)
                 if let found = categories.first(where: { $0.id == self.categoryID }) {
                     self.managedCategory = found
                     self.selectedPayerIDs = Set(found.assignedPayerIDs)
-                    
-                    // 除錯信息
-                    print("=== DEBUG [AssignPayersView] ===")
-                    print("分類名稱: \(found.name)")
-                    print("分類ID: \(found.id)")
-                    print("assignedPayerIDs: \(found.assignedPayerIDs)")
-                    print("selectedPayerIDs: \(self.selectedPayerIDs)")
-                    print("付款人總數: \(payers.count)")
-                    
-                    // 測試 assignedPayers 函數
-                    let assigned = found.assignedPayers(in: self.context)
-                    print("assignedPayers 函數返回數量: \(assigned.count)")
-                    for payer in assigned {
-                        print("  - \(payer.isDefault ? langManager.localized("default_payer_name") : payer.name) (\(payer.id))")
-                    }
-                    print("======================")
-                    
                 } else {
-                    print("DEBUG [AssignPayersView]: 無法在 ModelContext 中找到 category id: \(self.categoryID)")
                     self.managedCategory = nil
                     self.selectedPayerIDs = []
                 }
             } catch {
-                print("DEBUG [AssignPayersView]: 載入付款人或分類時出錯：\(error)")
                 self.allPayers = []
                 self.managedCategory = nil
                 self.selectedPayerIDs = []
@@ -157,33 +136,16 @@ struct AssignPayersView: View {
     // MARK: - Save
     private func saveAssignedPayers() {
         guard let category = managedCategory else {
-            print("DEBUG [AssignPayersView]: 無受管理的 Category，無法儲存")
             dismiss()
             return
         }
 
-        // 去重並儲存
         let newAssignedIDs = Array(Set(selectedPayerIDs))
         category.assignedPayerIDs = newAssignedIDs
         
-        // 除錯信息
-        print("=== DEBUG [AssignPayersView - Save] ===")
-        print("分類: \(category.name)")
-        print("儲存前 assignedPayerIDs: \(category.assignedPayerIDs)")
-        
         do {
             try context.save()
-            
-            // 重新讀取確認儲存
-            let categoriesFetch = FetchDescriptor<Category>()
-            let categories = try context.fetch(categoriesFetch)
-            if let savedCategory = categories.first(where: { $0.id == category.id }) {
-                print("儲存後 assignedPayerIDs: \(savedCategory.assignedPayerIDs)")
-                print("儲存成功！")
-            }
-            print("======================")
         } catch {
-            print("DEBUG [AssignPayersView]: 儲存 assignedPayerIDs 時發生錯誤：\(error)")
         }
 
         dismiss()
@@ -235,14 +197,12 @@ struct CategoryListView: View {
 
                             Spacer()
 
-                            // 編輯模式時隱藏操作按鈕
                             if editingCategoryID != category.id {
                                 actionButtons(for: category)
                             }
                         }
                         .padding(.vertical, 4)
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        // 添加左滑刪除功能（預設分類除外）
                         .swipeActions(edge: .trailing, allowsFullSwipe: !category.isDefault) {
                             if !category.isDefault {
                                 Button(role: .destructive) {
@@ -261,7 +221,6 @@ struct CategoryListView: View {
                 Button(langManager.localized("cancel_button"), role: .cancel) {}
                 Button(langManager.localized("delete_button"), role: .destructive) { safeDelete(category) }
             } message: { category in
-                // 顯示分類名稱時，如果是預設分類則使用本地化字串
                 let displayName = category.isDefault ? langManager.localized("uncategorized_label") : category.name
                 Text(String(format: langManager.localized("delete_category_confirmation"), displayName))
             }
@@ -275,22 +234,6 @@ struct CategoryListView: View {
                     .environment(\.modelContext, context)
                     .onDisappear {
                         showingAssignPayersForCategory = nil
-                        // 在關閉時打印除錯信息
-                        print("DEBUG [CategoryListView]: AssignPayersView 已關閉")
-                        print("DEBUG [CategoryListView]: 重新檢查分類狀態")
-                        
-                        // 重新讀取分類數據
-                        do {
-                            let categoriesFetch = FetchDescriptor<Category>()
-                            let categories = try context.fetch(categoriesFetch)
-                            if let updatedCategory = categories.first(where: { $0.id == category.id }) {
-                                print("分類 \(updatedCategory.name) 的 assignedPayerIDs: \(updatedCategory.assignedPayerIDs)")
-                                let assigned = updatedCategory.assignedPayers(in: context)
-                                print("assignedPayers 函數返回: \(assigned.map { $0.isDefault ? langManager.localized("default_payer_name") : $0.name })")
-                            }
-                        } catch {
-                            print("重新讀取分類錯誤: \(error)")
-                        }
                     }
             }
         }
@@ -342,7 +285,6 @@ struct CategoryListView: View {
     }
 
     private func normalView(for category: Category) -> some View {
-        // 如果是預設分類，顯示本地化字串；否則顯示儲存的名稱
         let displayName = category.isDefault ? langManager.localized("uncategorized_label") : category.name
         return Text(displayName)
             .font(.body)
@@ -366,7 +308,6 @@ struct CategoryListView: View {
             .frame(width: 36, height: 36)
             .contentShape(Rectangle())
 
-            // 編輯分類按鈕（預設分類唔顯示）
             if !category.isDefault {
                 Button {
                     startInlineEdit(for: category)
@@ -397,14 +338,12 @@ struct CategoryListView: View {
 
     // MARK: - 方法
     private func startInlineEdit(for category: Category) {
-        // 預設分類唔可以改名
         if category.isDefault { return }
         editingCategoryID = category.id
         inlineEditedName = category.name
     }
 
     private func commitInlineEdit(for category: Category) {
-        // 預設分類唔可以改名
         if category.isDefault {
             editingCategoryID = nil
             return
@@ -417,7 +356,6 @@ struct CategoryListView: View {
                 try context.save()
                 reorderCategories()
             } catch {
-                print("儲存分類名稱失敗：\(error.localizedDescription)")
             }
         }
         editingCategoryID = nil
@@ -434,7 +372,6 @@ struct CategoryListView: View {
     private func addCategory() {
         let trimmed = newName.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        // 防止建立重複嘅「未分類」分類
         guard trimmed != langManager.localized("uncategorized_label") else {
             newName = ""
             return
@@ -447,7 +384,6 @@ struct CategoryListView: View {
             try context.save()
             reorderCategories()
         } catch {
-            print("新增分類失敗：\(error.localizedDescription)")
         }
         newName = ""
     }
@@ -455,10 +391,8 @@ struct CategoryListView: View {
     private func moveCategory(from source: IndexSet, to destination: Int) {
         var revised = categories
         
-        // 確保預設分類唔可以移動
         let defaultCategoryIndex = revised.firstIndex(where: { $0.isDefault })
         if let defaultIndex = defaultCategoryIndex {
-            // 如果嘗試移動預設分類，直接返回
             if source.contains(defaultIndex) {
                 return
             }
@@ -469,11 +403,8 @@ struct CategoryListView: View {
         try? context.save()
     }
 
-    // 左滑刪除觸發的方法
     private func deleteCategory(_ category: Category) {
-        // 檢查是否為預設分類
         if category.isDefault {
-            // 顯示提示，唔准刪除
             showCannotDeleteAlert = true
             return
         }
@@ -481,9 +412,7 @@ struct CategoryListView: View {
         showDeleteAlert = true
     }
 
-    // 實際執行刪除的方法
     private func safeDelete(_ category: Category) {
-        // 再次檢查是否為預設分類
         guard !category.isDefault else { return }
         
         let subs = allSubcategories.filter { $0.parentID == category.id }
@@ -496,10 +425,9 @@ struct CategoryListView: View {
         context.delete(category)
         do {
             try context.save()
-            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget")
             reorderCategories()
         } catch {
-            print("刪除分類失敗：\(error.localizedDescription)")
         }
     }
 

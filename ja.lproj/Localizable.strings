@@ -1,13 +1,13 @@
 /* Common */
 "loading_label" = "読み込み中...";
-"no_payers_title" = "支払い者がいません";
-"create_payers_first" = "先に「支払い者管理」で支払い者を作成してください。";
-"available_payers_section" = "選択可能な支払い者";
-"no_payers_selected" = "支払い者が選択されていません";
-"selected_payers_count" = "%d 人の支払い者を選択";
+"no_payers_title" = "支払者がいません";
+"create_payers_first" = "「支払者管理」で先に支払者を作成してください。";
+"available_payers_section" = "選択可能な支払者";
+"no_payers_selected" = "支払者が選択されていません";
+"selected_payers_count" = "%d 人の支払者を選択済み";
 "cancel_button" = "キャンセル";
 "save_button" = "保存";
-"assign_payers_title" = "支払い者の割り当て";
+"assign_payers_title" = "支払者の割り当て";
 "add_category_section" = "カテゴリを追加";
 "enter_name_placeholder" = "名前を入力";
 "add_button" = "追加";
@@ -15,39 +15,39 @@
 "delete_button" = "削除";
 "manage_categories_title" = "カテゴリ管理";
 "delete_category_title" = "カテゴリを削除";
-"delete_category_confirmation" = "カテゴリ「%@」を削除すると、サブカテゴリも削除され、関連するトランザクションのリンクが失われます。よろしいですか？";
+"delete_category_confirmation" = "カテゴリ「%@」を削除すると、そのサブカテゴリも削除され、関連する取引のリンクが切れます。本当に削除しますか？";
 "cannot_delete_title" = "削除できません";
 "understand_button" = "了解";
-"cannot_delete_default_category" = "「未分類」はシステムのデフォルトカテゴリであり、未分類のトランザクションを格納するために使用されます。すべてのトランザクションにはカテゴリが必要なため、このカテゴリは削除できません。";
+"cannot_delete_default_category" = "「未分類」はシステムのデフォルトカテゴリで、未割り当ての取引を格納します。すべての取引にはカテゴリが必要なため、このカテゴリは削除できません。";
 "name_label" = "名前";
 "uncategorized_label" = "未分類";
-"add_payer_section" = "支払い者を追加";
-"existing_payers_section" = "既存の支払い者";
-"manage_payers_title" = "支払い者管理";
-"delete_payer_title" = "支払い者を削除";
-"delete_payer_confirmation" = "支払い者「%@」を削除すると、すべてのトランザクションからその支払い者の負担記録が削除されます。よろしいですか？";
-"enable_contribution_toggle" = "分担を有効にする";
-"contribution_label" = "分担";
+"add_payer_section" = "支払者を追加";
+"existing_payers_section" = "既存の支払者";
+"manage_payers_title" = "支払者管理";
+"delete_payer_title" = "支払者を削除";
+"delete_payer_confirmation" = "支払者「%@」を削除すると、すべての取引からその支払者の分担記録も削除されます。本当に削除しますか？";
+"enable_contribution_toggle" = "割り勘を有効にする";
+"contribution_label" = "割り勘";
 "contribution_enabled" = "有効";
 "contribution_disabled" = "無効";
-"contribution_enabled_description" = "分担が有効です。このトランザクションに複数の支払い者を割り当てることができます。";
-"contribution_disabled_description" = "分担は無効です。デフォルトの支払い者が使用されます。";
-"select_payer_prompt" = "支払い者を選択";
-"add_new_payer" = "新しい支払い者を追加";
-"contribution_total" = "分担合計";
-"contribution_amount_mismatch" = "分担合計がトランザクション金額と一致しません";
-"no_payers" = "支払い者なし";
+"contribution_enabled_description" = "割り勘が有効です。この取引に複数の支払者を割り当てられます。";
+"contribution_disabled_description" = "割り勘は無効です。デフォルトの支払者が使用されます。";
+"select_payer_prompt" = "支払者を選択";
+"add_new_payer" = "新しい支払者を追加";
+"contribution_total" = "割り勘合計";
+"contribution_amount_mismatch" = "割り勘合計金額が取引金額と一致しません";
+"no_payers" = "支払者なし";
 "total_label" = "合計";
-"payers_split_format" = "%d 人の支払い者で分担";
+"payers_split_format" = "%d 人で割り勘";
 "filter_label" = "フィルター";
 "done_button" = "完了";
 "view_all" = "すべて表示";
-"no_transactions_in_period" = "この期間にトランザクションはありません";
-"no_contribution" = "分担なし";
+"no_transactions_in_period" = "この期間に取引はありません";
+"no_contribution" = "割り勘なし";
 "insufficient" = "不足";
 "excess" = "超過";
-"contribution_insufficient" = "分担不足";
-"contribution_excess" = "分担超過";
+"contribution_insufficient" = "割り勘不足";
+"contribution_excess" = "割り勘超過";
 "income_recipient_section" = "受取人";
 "select_income_recipient" = "受取人を選択";
 "income_recipient_label" = "受取人";
@@ -57,19 +57,19 @@
 
 /* SubcategoryManageView */
 "subcategory_manage_title_format" = "サブカテゴリ管理：%@";
-"subcategory_delete_message" = "サブカテゴリ「%@」を削除すると、関連するトランザクションからサブカテゴリのリンクが削除されます。よろしいですか？";
+"subcategory_delete_message" = "サブカテゴリ「%@」を削除すると、関連する取引のリンクが切れます。本当に削除しますか？";
 
 /* TransactionFormView */
-"contribution_header" = "支払い者分担";
-"distribute_equally_button" = "均等に分担";
+"contribution_header" = "支払者の割り勘";
+"distribute_equally_button" = "均等に割り勘";
 "amount_label" = "金額";
-"select_payer" = "支払い者を選択";
+"select_payer" = "支払者を選択";
 "select_parent_first" = "先に親カテゴリを選択してください";
 "category_section_header" = "カテゴリ";
 
 /* TransactionFormView - Section Headers */
 "form_amount" = "金額";
-"form_type" = "種類";
+"form_type" = "種別";
 "form_note" = "メモ";
 "form_date" = "日付";
 "form_cancel" = "キャンセル";
@@ -77,7 +77,7 @@
 "form_delete" = "削除";
 
 /* TransactionFormView - Labels and Placeholders */
-"form_type_label" = "取引種類";
+"form_type_label" = "取引種別";
 "form_amount_placeholder" = "金額を入力";
 "form_note_placeholder" = "メモを入力";
 
@@ -106,13 +106,13 @@
 /* TransactionFormView - Validation Messages */
 "form_amount_required" = "金額は必須です";
 "form_amount_invalid" = "有効な金額を入力してください";
-"category_required" = "カテゴリは必須です";
+"category_required" = "カテゴリを選択してください";
 
 /* TransactionListView */
 "search_placeholder" = "取引を検索...";
 "transactions_title" = "取引履歴";
 
-/* DashboardComponents - Additions/Modifications */
+/* DashboardComponents - 新增/修改部分 */
 "categories_label" = "カテゴリ";
 "filter_current" = "現在のフィルター";
 "clear_button" = "クリア";
@@ -121,33 +121,31 @@
 "period_month" = "月";
 "period_year" = "年";
 "all_label" = "すべて";
-"type_label" = "種類";
+"type_label" = "種別";
 "all_parent_category" = "すべての親カテゴリ";
 "form_parent_category" = "親カテゴリ";
 "all_subcategory" = "すべてのサブカテゴリ";
 "form_subcategory" = "サブカテゴリ";
-"all_payers" = "すべての支払い者";
-"payer_label" = "支払い者";
-"monthly_total_spending" = "今月の総支出";
-"yearly_total_spending" = "今年の総支出";
+"all_payers" = "すべての支払者";
+"payer_label" = "支払者";
+"monthly_total_spending" = "月間総支出";
+"yearly_total_spending" = "年間総支出";
 "no_data" = "データなし";
 "vs_last_month" = "前月比";
 "vs_last_year" = "前年比";
 "dashboard_include_all_transactions" = "すべての取引を含む";
 "category_distribution" = "カテゴリ分布";
 "no_category_data" = "カテゴリデータなし";
-"view_more_categories" = "もっと見る";
-"daily_average_spending" = "1日あたりの平均支出";
+"view_more_categories" = "さらに表示";
+"daily_average_spending" = "1日平均支出";
 "day_unit" = "日";
 "calculation_method" = "計算方法";
 "total_spending" = "総支出額";
 "days_unit" = "日";
 "total_days" = "合計";
 "monthly_average" = "月平均";
-/* Modified strings for clarity */
 "highest_single_spending" = "最高単一支出：";
-"yearly_highest_spending" = "今年の最高支出：";
-/* New strings for date display */
+"yearly_highest_spending" = "年間最高単一支出：";
 "highest_spending_day" = "最高支出日";
 "highest_spending_date" = "最高支出日付";
 "month_highest_transaction" = "今月の最高取引";
@@ -155,19 +153,18 @@
 "spending_insights" = "支出インサイト";
 "primary_time_period" = "主な支出時間帯";
 "weekend_spending" = "週末支出割合";
-"total_transactions_label" = "総取引数";
+"total_transactions_label" = "総取引件数";
 "transactions_unit" = "件";
-/* Removed duplicate "highest_spending" */
 "most_used_category" = "最も使用されたカテゴリ";
-"yearly_most_used_category" = "今年最も使用されたカテゴリ";
-"highest_spending_month" = "支出が最も多い月";
-"month_amount" = "その月の金額";
+"yearly_most_used_category" = "年間で最も使用されたカテゴリ";
+"highest_spending_month" = "最高支出月";
+"month_amount" = "月間金額";
 "spending_time_distribution" = "支出時間分布";
 "weekday" = "平日";
 "weekend" = "週末";
-"no_insights_data" = "支出インサイトはありません";
-"record_more_transactions_for_insights" = "インサイトを得るにはさらに取引を記録してください";
-"transactions_label" = "取引";
+"no_insights_data" = "インサイトデータがありません";
+"record_more_transactions_for_insights" = "インサイトを得るにはもっと取引を記録してください";
+"transactions_label" = "件の取引";
 
 /* DashboardView */
 "dashboard_title" = "ダッシュボード";
@@ -176,6 +173,7 @@
 "view_all_transactions" = "すべての取引を見る";
 "recent_transactions" = "最近の取引";
 "transaction_default_name" = "取引";
+"highest_spending" = "最高支出";
 
 /* MainTabView */
 "transactions_tab" = "取引";
@@ -184,37 +182,37 @@
 "settlement_tab" = "精算";
 "settlement_select_category" = "精算カテゴリを選択";
 "search_categories" = "カテゴリを検索";
-"no_category_selected" = "カテゴリが選択されていません";
+"no_category_selected" = "カテゴリ未選択";
 "select_category_for_settlement" = "精算するカテゴリを選択してください";
 "select_category" = "カテゴリを選択";
 "start_settlement" = "精算を開始";
 "settlement_description" = "カテゴリを選択して、参加者間の精算プランを表示します。";
-"settlement_how_it_works" = "システムが自動的に各人の負担額を計算し、最も少ない送金回数で精算できるプランを提供します。";
+"settlement_how_it_works" = "システムが各人の収支を計算し、最小限の振替回数で精算する最適なプランを提案します。";
 "no_categories" = "カテゴリがありません";
 "create_categories_first" = "先にカテゴリを作成してください";
 "change_button" = "変更";
 "default_label" = "デフォルト";
-"assigned_payers" = "割り当てられた支払い者";
-"transactions" = "取引";
+"assigned_payers" = "割り当てられた支払者";
+"transactions" = "件の取引";
 "total_amount" = "合計金額";
 "settlement_title" = "精算";
 
 /* SimpleAssignPayersView */
-"assign_payers_to_category" = "支払い者を割り当てる：%@";
+"assign_payers_to_category" = "支払者を割り当て：%@";
 "category_id_label" = "カテゴリID";
-"assigned_payers_count" = "割り当てられた支払い者数";
+"assigned_payers_count" = "割り当て済み支払者数";
 
 /* SettingsView */
 "settings_appearance_section" = "外観";
 "settings_appearance_label" = "テーマ";
-"settings_appearance_system" = "システム";
+"settings_appearance_system" = "システム設定に従う";
 "settings_appearance_light" = "ライト";
 "settings_appearance_dark" = "ダーク";
 "settings_language_section" = "言語";
-"settings_language_label" = "アプリ言語";
+"settings_language_label" = "アプリの言語";
 "settings_data_management" = "データ管理";
 "settings_manage_categories" = "カテゴリ管理";
-"settings_manage_payers" = "支払い者管理";
+"settings_manage_payers" = "支払者管理";
 "settings_about" = "このアプリについて";
 "settings_version" = "バージョン";
 "settings_settlement_feature" = "精算機能";
@@ -226,113 +224,114 @@
 "no_participants_or_transactions" = "参加者または取引がありません";
 "calculation_explanation" = "計算方法の説明";
 "calculation_principle" = "計算原理";
-"calculation_point_1" = "支出タイプの取引のみ計算";
-"calculation_point_2" = "各取引は参加者全員に均等に分割";
-"calculation_point_3" = "各人の負担額 = すべての取引の均等分割額の合計";
-"calculation_point_4" = "ネットバランス = 実際に支払った額 - 負担額";
-"example_label" = "例";
-"example_1" = "$300の取引、参加者3人、各人負担額$100";
-"example_2" = "Aが$150支払い、ネットバランス=+$50 (受取)";
-"example_3" = "Bが$100支払い、ネットバランス=$0 (均衡)";
-"example_4" = "Cが$50支払い、ネットバランス=-$50 (支払)";
+"calculation_point_1" = "支出取引のみを対象とします";
+"calculation_point_2" = "各取引は参加者全員で均等に割り勘されます";
+"calculation_point_3" = "各人の負担額 = すべての取引の均等割り勘の合計";
+"calculation_point_4" = "正味残高 = 実際に支払った額 - 負担額";
+"example_label" = "簡単な例";
+"example_1" = "$300の取引、3人参加、各人負担額 $100";
+"example_2" = "Aは $150 支払い済み、正味 = +$50 (受け取る)";
+"example_3" = "Bは $100 支払い済み、正味 = $0 (均衡)";
+"example_4" = "Cは $50 支払い済み、正味 = -$50 (支払う)";
 "optimal_settlement_solution" = "最適精算プラン";
-"optimal_settlement_description" = "送金回数を最小限に抑え、迅速な精算を実現";
-"only_transfers_needed" = "わずか";
-"transfers_to_clear_debts" = "回の送金で精算完了";
-"pays_to" = "支払う先";
-"transfer_amount" = "送金額";
-"all_debts_cleared" = "すべての債務が清算されました";
-"detailed_calculation_results" = "詳細計算結果";
-"actual_paid" = "実際の支払額";
-"net_balance" = "ネットバランス";
+"optimal_settlement_description" = "最小限の振替回数で精算";
+"only_transfers_needed" = "必要な振替回数";
+"transfers_to_clear_debts" = "回で精算完了";
+"pays_to" = "が支払う →";
+"transfer_amount" = "振替金額";
+"all_debts_cleared" = "すべての債務が精算されました";
+"detailed_calculation_results" = "詳細な計算結果";
+"actual_paid" = "実際に支払った額";
+"net_balance" = "正味残高";
 "should_pay_to" = "支払うべき相手";
-"faq_1_question" = "なぜ支出のみを計算するのですか？";
-"faq_1_answer" = "収入タイプの取引は通常分割されません。支出のみを計算することで、精算のシナリオにより適しています。";
+"faq_1_question" = "なぜ支出取引のみを計算するのですか？";
+"faq_1_answer" = "収入取引は通常割り勘の対象外であり、精算には支出のみを考慮する方が適切だからです。";
 "faq_2_question" = "各人の負担額はどのように計算されますか？";
-"faq_2_answer" = "各取引金額を参加者全員で均等に分割し、各人の負担額を合計します。";
+"faq_2_answer" = "各取引金額を参加者数で均等に割り、すべての取引でその合計を求めます。";
 "faq_3_question" = "最適精算プランとは何ですか？";
-"faq_3_answer" = "最小送金回数アルゴリズムを使用し、債務者が直接債権者に支払うことで送金回数を減らします。";
+"faq_3_answer" = "債務者が直接債権者に支払うよう最適化し、振替回数を最小限に抑えるアルゴリズムを使用します。";
 "faq_4_question" = "参加者を変更できますか？";
-"faq_4_answer" = "はい、カテゴリ管理で固定の支払い者を割り当てると、システムは割り当てられた支払い者を優先して使用します。";
+"faq_4_answer" = "はい。カテゴリ管理で固定の支払者を割り当てることができ、システムはその割り当てを優先します。";
 "faq_title" = "よくある質問";
 "calculation_details" = "計算詳細";
 "debt_settlement" = "債務精算";
 "recalculate_button" = "再計算";
 "transaction_records" = "取引記録";
-"no_payer_transactions_in_category" = "このカテゴリにはこの支払い者の取引がありません";
+"no_payer_transactions_in_category" = "このカテゴリにはこの支払者の取引がありません";
 "statistics_label" = "統計";
-"total_paid_amount" = "支払総額";
-"participating_transactions_count" = "参加取引数";
-"total_transactions" = "総取引数";
+"total_paid_amount" = "総支払額";
+"participating_transactions_count" = "参加取引件数";
+"total_transactions" = "総取引件数";
 
-/* ===== Newly Added Keys ===== */
-/* CategorySettlementView Additions */
-"contribution_issue_warning" = "分担問題警告";
-"transactions_incomplete_format" = "%d 件の取引で分担が不完全です";
-"contribution_difference_label" = "差異：";
+/* CategorySettlementView 新增 */
+"contribution_issue_warning" = "割り勘問題の警告";
+"transactions_incomplete_format" = "%d 件の取引で割り勘が不完全です";
+"contribution_difference_label" = "割り勘差額：";
 "suggestion_check_transactions" = "取引一覧で確認・修正してください";
 "currency_header_format" = "通貨：%@";
 "optimal_settlement_for_currency_format" = "%@ の最適精算プラン";
 "debug_calculation_details" = "計算詳細（デバッグ）";
 "show_button" = "表示";
 "hide_button" = "非表示";
-"calc_explanation_1" = "• 通貨ごとに個別に計算";
+"calc_explanation_1" = "• 通貨ごとに独立して精算を計算";
 "calc_explanation_2" = "• 取引金額は元の通貨で表示";
-"calc_explanation_3" = "• カテゴリに複数通貨が含まれる場合は別々に処理";
+"calc_explanation_3" = "• カテゴリに複数通貨が含まれる場合は個別に処理";
 
-/* TransactionFormView Additions */
+/* TransactionFormView 新增 */
 "payment_method_section" = "支払い方法";
-"simple_payment_mode" = "単一支払い（デフォルト）";
-"detailed_payment_mode" = "複数人で分担";
-"simple_payment_description" = "一人が全額を支払い、後で他の人が返金します。（デフォルトモード）";
-"detailed_payment_description" = "複数人がそれぞれの負担分を即時に支払います。";
-"payment_details_section" = "支払詳細";
-"select_payer_placeholder" = "支払い者を選択";
+"simple_payment_mode" = "一人が全額支払う（デフォルト）";
+"detailed_payment_mode" = "複数人で割り勘";
+"simple_payment_description" = "通常、一人が全額を立て替え、後で他の人が返金します。（デフォルト）";
+"detailed_payment_description" = "複数の支払者が即時に金額を分割し、各々が自分の分を支払います。";
+"payment_details_section" = "支払い詳細";
+"select_payer_placeholder" = "支払者を選択";
 "payment_amount_label" = "支払金額";
-"auto_distribute_remaining" = "残りを自動分配";
-"add_payer_button" = "支払い者を追加";
+"auto_distribute_remaining" = "残額を自動配分";
+"add_payer_button" = "支払者を追加";
 "total_paid_label" = "支払合計";
-"income_recipient_description" = "受取人を選択（このカテゴリに割り当てられた支払い者のみ選択可能）";
-"income_recipient_constraint_format" = "「%@」に割り当てられた支払い者のみ選択できます";
-"assigned_payers_section" = "このカテゴリの割り当て済み支払い者";
-"other_payers_section" = "その他の支払い者";
+"income_recipient_description" = "受取人を選択（このカテゴリに割り当てられた支払者のみ）";
+"income_recipient_constraint_format" = "「%@」に割り当てられた支払者のみ選択できます";
+"assigned_payers_section" = "このカテゴリの支払者";
+"other_payers_section" = "その他の支払者";
 "selected_label" = "選択済み";
-"no_available_payers" = "利用可能な支払い者がいません";
-"all_payers_already_selected" = "すべての支払い者が既に選択されています";
-"contribution_excess_message_format" = "支払合計が取引金額より %@ 多くなっています。\n\n正確な計算のため、支払金額を調整することをお勧めします。";
-"contribution_insufficient_message_format" = "支払合計が取引金額より %@ 少なくなっています。\n\n正確な計算のため、支払金額を調整することをお勧めします。";
+"no_available_payers" = "利用可能な支払者がいません";
+"all_payers_already_selected" = "すべての支払者が既に選択されています";
+"contribution_excess_message_format" = "支払合計が取引金額を %@ 超過しています。\n\n正確な計算のために支払金額を修正することをお勧めします。";
+"contribution_insufficient_message_format" = "支払合計が取引金額より %@ 不足しています。\n\n正確な計算のために支払金額を修正することをお勧めします。";
 "select_category_placeholder" = "カテゴリを選択";
 "participants_section" = "参加者";
 "select_participants" = "参加者を選択";
 "no_participants" = "参加者なし";
-"detailed_payment_header" = "分担支払詳細";
-"auto_distribute_remaining_button" = "残りを自動分配";
+"detailed_payment_header" = "割り勘支払い詳細";
+"auto_distribute_remaining_button" = "残額を自動配分";
 "amount_placeholder" = "金額";
-"select_payer_title" = "支払い者を選択";
-"assigned_payers_section_header" = "割り当て済み支払い者";
-"available_payers_section_header" = "選択可能な支払い者";
+"select_payer_title" = "支払者を選択";
+"assigned_payers_section_header" = "このカテゴリの支払者";
+"available_payers_section_header" = "選択可能な支払者";
 "multiple_currencies" = "複数通貨";
 "people_count_format" = "%d 人";
 
-/* TransactionListView Additions */
-"fix_contribution" = "分担を修正";
-"fix_no_contribution_message" = "この取引には分担記録がありません。編集モードで支払い者を追加してください。";
-"fix_insufficient_message_format" = "分担が %@ 不足しています。残額を均等に分配しますか？";
-"fix_excess_message_format" = "分担が %@ 超過しています。各人の負担を比例して減らしますか？";
-
-"contribution_issues_check" = "分担問題を確認";
-"no_contribution_issues_title" = "分担問題なし";
-"no_contribution_issues_description" = "すべての取引の分担金額は正しいです";
+/* TransactionListView 新增 */
+"fix_contribution" = "割り勘を修正";
+"fix_no_contribution_message" = "この取引には割り勘記録がありません。編集モードで支払者を追加してください。";
+"fix_insufficient_message_format" = "割り勘が %@ 不足しています。残額を均等に配分しますか？";
+"fix_excess_message_format" = "割り勘が %@ 超過しています。各支払者の金額を比例して減らしますか？";
+"contribution_issues_check" = "割り勘問題の確認";
+"no_contribution_issues_title" = "割り勘問題なし";
+"no_contribution_issues_description" = "すべての取引の割り勘金額は正しいです。";
 "payment_method_label" = "支払い方法";
-"contribution_issues_found_title" = "分担問題が見つかりました";
+"contribution_issues_found_title" = "割り勘問題が見つかりました";
 "contribution_mismatch_alert_title" = "支払金額不一致";
-"contribution_insufficient_alert_message_format" = "支払合計が取引金額より %@ 少なくなっています。\n\n正確な計算のため、支払金額を修正することをお勧めします。";
+"contribution_insufficient_alert_message_format" = "支払合計が取引金額より %@ 不足しています。\n\n正確な計算のために支払金額を修正することをお勧めします。";
 "fix_and_save_button" = "修正して保存";
 "save_anyway_button" = "そのまま保存";
-"amount_mismatch_warning" = "支払金額不一致";
-"contribution_insufficient_format" = "分担不足 %@";
+"amount_mismatch_warning" = "支払金額が一致しません";
+"contribution_insufficient_format" = "割り勘不足 %@";
+"contribution_excess_format" = "割り勘超過 %@";
 
 "default_payer_name" = "自分";
+
+/* SubcategoryManageView 新增 */
 "subcategory_add_section" = "サブカテゴリを追加";
 "subcategory_name_placeholder" = "サブカテゴリ名を入力";
 "subcategory_add_button" = "追加";
@@ -342,4 +341,33 @@
 "subcategory_cancel" = "キャンセル";
 "subcategory_delete" = "削除";
 
-"default_payer_cannot_delete" = "デフォルトの支払い者「%@」はシステムデフォルトのため、削除できません。";
+"default_payer_cannot_delete" = "デフォルト支払者「%@」は削除できません。";
+
+/* ===== Widget 本地化鍵值 ===== */
+"widget_today_expense" = "本日の支出";
+"widget_currency_symbol" = "HK$";
+"widget_transactions_count" = "%lld 件の取引";
+"widget_display_name" = "本日の支出";
+"widget_description" = "本日の総支出をすばやく確認";
+
+/* ===== ContributionIssuesView 新增 ===== */
+"transactions_need_fix_format" = "%d 件の取引に修正が必要です";
+"involved_categories_label" = "関連カテゴリ";
+"total_difference_label" = "総差額";
+"count_categories_format" = "合計 %d カテゴリ";
+"transactions_count_format" = "%d 件の取引";
+"split_label" = "割り勘";
+"quick_fix_title" = "クイック修正";
+"quick_fix_description" = "割り勘金額を取引総額に合うよう自動調整します。";
+"fix_all_button" = "すべて修正";
+"contribution_issues_nav_title" = "割り勘問題";
+
+/* ContributionIssuesView - 確認全部修復 */
+"confirm_fix_all_title" = "一括修正の確認";
+"confirm_fix_all_message_format" = "%d 件の取引の割り勘問題を自動修正してもよろしいですか？\n\n取引総額に基づいて各支払者の金額が調整されます。";
+"fix_button" = "修正";
+
+/* ===== 其他已提供但可能重複的鍵 ===== */
+"contribution_excess_alert_message_format" = "支払合計が取引金額を %@ 超過しています。\n\n正確な計算のために支払金額を修正することをお勧めします。";
+"contribution_insufficient_alert_message_format" = "支払合計が取引金額より %@ 不足しています。\n\n正確な計算のために支払金額を修正することをお勧めします。";
+"pays_full_amount" = "全額支払う";

@@ -144,10 +144,8 @@
 "days_unit" = "天";
 "total_days" = "共";
 "monthly_average" = "月均消費";
-/* 修改以下兩個字符串以更清晰 */
 "highest_single_spending" = "最高單筆消費：";
 "yearly_highest_spending" = "本年最高單筆消費：";
-/* 新增字符串用於日期顯示 */
 "highest_spending_day" = "最高消費日";
 "highest_spending_date" = "最高消費日期";
 "month_highest_transaction" = "本月最高交易";
@@ -157,7 +155,6 @@
 "weekend_spending" = "週末消費比例";
 "total_transactions_label" = "總交易筆數";
 "transactions_unit" = "筆";
-/* 修改：移除重複的"highest_spending" */
 "most_used_category" = "最常用分類";
 "yearly_most_used_category" = "本年最常用分類";
 "highest_spending_month" = "消費最高月份";
@@ -176,6 +173,8 @@
 "view_all_transactions" = "查看所有交易";
 "recent_transactions" = "最近交易";
 "transaction_default_name" = "交易";
+"highest_spending" = "最高消費";
+
 
 /* MainTabView */
 "transactions_tab" = "交易";
@@ -265,7 +264,6 @@
 "participating_transactions_count" = "參與交易筆數";
 "total_transactions" = "總交易筆數";
 
-/* ===== 新增遺漏鍵值 ===== */
 /* CategorySettlementView 新增 */
 "contribution_issue_warning" = "分攤問題警告";
 "transactions_incomplete_format" = "%d 筆交易分攤不完整";
@@ -302,7 +300,6 @@
 "contribution_excess_message_format" = "支付總額比交易金額多 %@。\n\n建議修復支付金額以確保計算準確。";
 "contribution_insufficient_message_format" = "支付總額比交易金額少 %@。\n\n建議修復支付金額以確保計算準確。";
 "select_category_placeholder" = "選擇分類";
-"select_category_placeholder" = "選擇分類";
 "participants_section" = "參與者";
 "select_participants" = "選擇參與者";
 "no_participants" = "無參與者";
@@ -320,7 +317,6 @@
 "fix_no_contribution_message" = "此交易沒有分攤記錄。請在編輯交易中添加付款人分攤。";
 "fix_insufficient_message_format" = "分攤不足 %@。是否要平均分配剩餘金額？";
 "fix_excess_message_format" = "分攤過多 %@。是否要按比例減少各人分攤金額？";
-
 "contribution_issues_check" = "分攤問題檢查";
 "no_contribution_issues_title" = "沒有分攤問題";
 "no_contribution_issues_description" = "所有交易的分攤金額都正確";
@@ -332,11 +328,11 @@
 "save_anyway_button" = "仍然儲存";
 "amount_mismatch_warning" = "支付金額不匹配";
 "contribution_insufficient_format" = "分攤不足 %@";
-"payment_method_label" = "支付方式";
-"contribution_issues_found_title" = "發現分攤問題";
+"contribution_excess_format" = "分攤過多 %@";
 
 "default_payer_name" = "自己";
-/* SubcategoryManageView - 新增/修改部分 */
+
+/* SubcategoryManageView 新增 */
 "subcategory_add_section" = "新增子分類";
 "subcategory_name_placeholder" = "輸入子分類名稱";
 "subcategory_add_button" = "新增";
@@ -348,3 +344,31 @@
 
 "default_payer_cannot_delete" = "默認付款人「%@」是系統預設，無法刪除。";
 
+/* ===== Widget 本地化鍵值 ===== */
+"widget_today_expense" = "今日支出";
+"widget_currency_symbol" = "HK$";
+"widget_transactions_count" = "%lld 筆交易";
+"widget_display_name" = "今日支出";
+"widget_description" = "快速查看今日總支出";
+
+/* ===== ContributionIssuesView 新增 ===== */
+"transactions_need_fix_format" = "%d 筆交易需要修正";
+"involved_categories_label" = "涉及分類";
+"total_difference_label" = "總差異";
+"count_categories_format" = "共 %d 個分類";
+"transactions_count_format" = "%d 筆交易";
+"split_label" = "分攤";
+"quick_fix_title" = "快速修復";
+"quick_fix_description" = "自動調整分攤金額，使其與交易總額一致。";
+"fix_all_button" = "全部修復";
+"contribution_issues_nav_title" = "分攤問題檢查";
+
+/* ContributionIssuesView - 確認全部修復 */
+"confirm_fix_all_title" = "確認全部修復";
+"confirm_fix_all_message_format" = "確定要自動修復全部 %d 筆交易的分攤問題嗎？\n\n系統將根據交易總額調整各付款人的分攤金額。";
+"fix_button" = "修復";
+
+/* ===== 其他已提供但可能重複的鍵 ===== */
+"contribution_excess_alert_message_format" = "支付總額比交易金額多 %@。\n\n建議修復支付金額以確保計算準確。";
+"contribution_insufficient_alert_message_format" = "支付總額比交易金額少 %@。\n\n建議修復支付金額以確保計算準確。";
+"pays_full_amount" = "支付全額";

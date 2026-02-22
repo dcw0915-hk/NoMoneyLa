@@ -52,14 +52,6 @@ struct SettingsView: View {
                         Text("1.0.0")
                             .foregroundColor(.secondary)
                     }
-                    
-                    HStack {
-                        Text(langManager.localized("settings_settlement_feature"))
-                        Spacer()
-                        Text(langManager.localized("settings_standalone_page"))
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                    }
                 }
             }
             .navigationTitle(langManager.localized("settings_title"))

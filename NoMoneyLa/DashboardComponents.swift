@@ -1,16 +1,11 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - 共用類型定義（UI 層使用）
 enum TimePeriod: String, CaseIterable {
     case month = "month"
     case year = "year"
 }
 
-// MARK: - ✅ CategoryStat 已在 ViewModel 定義，此處唔重複
-//        UI 層直接使用 ViewModel 嘅 CategoryStat
-
-// MARK: - 控制欄組件（不變）
 struct DashboardControlBar: View {
     @Binding var selectedPayer: Payer?
     @Binding var selectedPeriod: TimePeriod
@@ -150,7 +145,6 @@ struct PeriodSelectionView: View {
     }
 }
 
-// MARK: - 篩選欄組件（不變）
 struct FilterBarView: View {
     @EnvironmentObject var langManager: LanguageManager
     let filterType: TransactionType?
@@ -226,7 +220,6 @@ struct FilterBarView: View {
     }
 }
 
-// MARK: - 工具欄菜單組件（不變）
 struct ToolbarMenuView: View {
     @EnvironmentObject var langManager: LanguageManager
     let categories: [Category]
@@ -321,7 +314,6 @@ struct ToolbarMenuView: View {
     }
 }
 
-// MARK: - 總消費卡片（支援多貨幣，不變）
 struct TotalSpendingCard: View {
     @EnvironmentObject var langManager: LanguageManager
     let totalAmounts: [String: Decimal]
@@ -431,7 +423,6 @@ struct TotalSpendingCard: View {
     }
 }
 
-// MARK: - ✅ 分類分佈卡片（支援多貨幣）
 struct CategoryBreakdownCard: View {
     @EnvironmentObject var langManager: LanguageManager
     let categories: [CategoryStat]
@@ -457,7 +448,6 @@ struct CategoryBreakdownCard: View {
                                     Circle()
                                         .fill(Color(hex: stat.category.colorHex ?? "#A8A8A8"))
                                         .frame(width: 10, height: 10)
-                                    // 使用條件顯示名稱
                                     let displayName = stat.category.isDefault ? langManager.localized("uncategorized_label") : stat.category.name
                                     Text(displayName)
                                         .font(.body)
@@ -465,17 +455,14 @@ struct CategoryBreakdownCard: View {
                                 }
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 2) {
-                                    // ✅ 使用分類本身嘅貨幣代碼
                                     Text(formatCurrency(amount: stat.amount, code: stat.currencyCode))
                                         .font(.body)
                                         .bold()
-                                    // 顯示貨幣代碼作為輔助信息
                                     Text("\(stat.currencyCode) · \(Int(stat.percentage))%")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            // 進度條仍然以百分比顯示，唔受貨幣影響
                             GeometryReader { geometry in
                                 let barWidth = geometry.size.width * CGFloat(stat.percentage / 100)
                                 ZStack(alignment: .leading) {
@@ -519,7 +506,6 @@ struct CategoryBreakdownCard: View {
     }
 }
 
-// MARK: - 日均消費卡片（不變）
 struct DailyAverageCard: View {
     @EnvironmentObject var langManager: LanguageManager
     let stats: MonthlyStats?
@@ -652,7 +638,6 @@ struct DailyAverageCard: View {
     }
 }
 
-// MARK: - 消費洞察卡片（不變）
 struct SpendingInsightCard: View {
     @EnvironmentObject var langManager: LanguageManager
     let insights: SpendingInsights?
@@ -880,7 +865,6 @@ struct SpendingInsightCard: View {
     }
 }
 
-// MARK: - 通用卡片容器（不變）
 struct DashboardCard<Content: View>: View {
     let title: String
     let icon: String

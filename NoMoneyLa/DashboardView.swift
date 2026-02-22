@@ -29,7 +29,6 @@ struct DashboardView: View {
                 
                 ScrollView {
                     VStack(spacing: 16) {
-                        // ✅ 使用新的 TotalSpendingCard，傳入多貨幣字典
                         TotalSpendingCard(
                             totalAmounts: dashboardVM.monthlyStats?.totalAmounts ?? [:],
                             transactionCount: dashboardVM.monthlyStats?.transactionCount ?? 0,
@@ -127,7 +126,7 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - 最近交易組件（不變）
+// MARK: - 最近交易組件
 struct RecentTransactionsSection: View {
     @EnvironmentObject var langManager: LanguageManager
     @EnvironmentObject var dashboardVM: DashboardViewModel
@@ -170,8 +169,9 @@ struct RecentTransactionsSection: View {
                     TransactionRow(transaction: transaction)
                 }
                 
-                if let payerName = dashboardVM.selectedPayer?.name {
-                    Text("\(langManager.localized("filter_label"))：\(payerName)｜\(formatPeriod())")
+                if let payer = dashboardVM.selectedPayer {
+                    let displayName = payer.isDefault ? langManager.localized("default_payer_name") : payer.name
+                    Text("\(langManager.localized("filter_label"))：\(displayName)｜\(formatPeriod())")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -217,7 +217,6 @@ struct RecentTransactionsSection: View {
             totalFilteredTransactions = filtered.count
             recentTransactions = Array(filtered.prefix(5))
         } catch {
-            print("載入最近交易失敗: \(error)")
             recentTransactions = []
             totalFilteredTransactions = 0
         }
@@ -263,7 +262,6 @@ struct TransactionRow: View {
             
             Spacer()
             
-            // ✅ 使用交易本身的貨幣代碼
             Text(formatCurrency(amount: transaction.totalAmount, code: transaction.currencyCode))
                 .font(.headline)
                 .foregroundColor(transaction.type == .expense ? .red : .green)

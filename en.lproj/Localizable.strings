@@ -1,10 +1,10 @@
 /* Common */
 "loading_label" = "Loading...";
 "no_payers_title" = "No Payers";
-"create_payers_first" = "Please create a payer in 'Manage Payers' first.";
+"create_payers_first" = "Please create payers first in 'Manage Payers'.";
 "available_payers_section" = "Available Payers";
 "no_payers_selected" = "No payers selected";
-"selected_payers_count" = "%d payers selected";
+"selected_payers_count" = "%d payer(s) selected";
 "cancel_button" = "Cancel";
 "save_button" = "Save";
 "assign_payers_title" = "Assign Payers";
@@ -15,30 +15,30 @@
 "delete_button" = "Delete";
 "manage_categories_title" = "Manage Categories";
 "delete_category_title" = "Delete Category";
-"delete_category_confirmation" = "Deleting category \"%@\" will also delete its subcategories and remove links from related transactions. Are you sure?";
+"delete_category_confirmation" = "Deleting category \"%@\" will also delete its subcategories and may break related transactions. Are you sure?";
 "cannot_delete_title" = "Cannot Delete";
 "understand_button" = "OK";
-"cannot_delete_default_category" = "\"Uncategorized\" is a system default category used to store unclassified transactions. All transactions must have a category, so this category cannot be deleted.";
+"cannot_delete_default_category" = "\"Uncategorized\" is the system default category for unassigned transactions. All transactions need a category, so this one cannot be deleted.";
 "name_label" = "Name";
 "uncategorized_label" = "Uncategorized";
 "add_payer_section" = "Add Payer";
 "existing_payers_section" = "Existing Payers";
 "manage_payers_title" = "Manage Payers";
 "delete_payer_title" = "Delete Payer";
-"delete_payer_confirmation" = "Deleting payer \"%@\" will also remove their contributions from all transactions. Are you sure?";
+"delete_payer_confirmation" = "Deleting payer \"%@\" will also remove their contribution records from all transactions. Are you sure?";
 "enable_contribution_toggle" = "Enable Split";
 "contribution_label" = "Split";
 "contribution_enabled" = "Enabled";
 "contribution_disabled" = "Disabled";
-"contribution_enabled_description" = "Splitting is enabled. You can assign multiple payers to this transaction.";
-"contribution_disabled_description" = "Splitting is disabled. The default payer will be used.";
+"contribution_enabled_description" = "Split is enabled. You can assign multiple payers to this transaction.";
+"contribution_disabled_description" = "Split is disabled. The default payer will be used.";
 "select_payer_prompt" = "Select Payer";
 "add_new_payer" = "Add New Payer";
 "contribution_total" = "Total Split";
 "contribution_amount_mismatch" = "Total split amount does not match transaction amount";
 "no_payers" = "No payers";
 "total_label" = "Total";
-"payers_split_format" = "Split between %d payers";
+"payers_split_format" = "Split among %d payer(s)";
 "filter_label" = "Filter";
 "done_button" = "Done";
 "view_all" = "View All";
@@ -46,18 +46,18 @@
 "no_contribution" = "No split";
 "insufficient" = "Insufficient";
 "excess" = "Excess";
-"contribution_insufficient" = "Insufficient split";
-"contribution_excess" = "Excess split";
+"contribution_insufficient" = "Split insufficient";
+"contribution_excess" = "Split excess";
 "income_recipient_section" = "Recipient";
 "select_income_recipient" = "Select Recipient";
 "income_recipient_label" = "Recipient";
 "expense_label" = "Expense";
 "income_label" = "Income";
-"this_month" = "This Month";
+"this_month" = "This month";
 
 /* SubcategoryManageView */
 "subcategory_manage_title_format" = "Manage Subcategories: %@";
-"subcategory_delete_message" = "Deleting subcategory \"%@\" will remove the subcategory link from related transactions. Are you sure?";
+"subcategory_delete_message" = "Deleting subcategory \"%@\" will break its link to related transactions. Are you sure?";
 
 /* TransactionFormView */
 "contribution_header" = "Payer Split";
@@ -106,17 +106,17 @@
 /* TransactionFormView - Validation Messages */
 "form_amount_required" = "Amount is required";
 "form_amount_invalid" = "Please enter a valid amount";
-"category_required" = "Category is required";
+"category_required" = "Please select a category";
 
 /* TransactionListView */
 "search_placeholder" = "Search transactions...";
 "transactions_title" = "Transactions";
 
-/* DashboardComponents - Additions/Modifications */
-"categories_label" = "categories";
+/* DashboardComponents - 新增/修改部分 */
+"categories_label" = "Categories";
 "filter_current" = "Current Filters";
 "clear_button" = "Clear";
-"dashboard_analyze_target" = "Analysis Target";
+"dashboard_analyze_target" = "Analyze Target";
 "dashboard_period" = "Period";
 "period_month" = "Month";
 "period_year" = "Year";
@@ -131,12 +131,12 @@
 "monthly_total_spending" = "Monthly Total Spending";
 "yearly_total_spending" = "Yearly Total Spending";
 "no_data" = "No Data";
-"vs_last_month" = "vs last month";
-"vs_last_year" = "vs last year";
+"vs_last_month" = "vs Last Month";
+"vs_last_year" = "vs Last Year";
 "dashboard_include_all_transactions" = "Includes all transactions";
 "category_distribution" = "Category Distribution";
 "no_category_data" = "No category data";
-"view_more_categories" = "View more categories";
+"view_more_categories" = "View More Categories";
 "daily_average_spending" = "Daily Average Spending";
 "day_unit" = "day";
 "calculation_method" = "Calculation Method";
@@ -144,29 +144,26 @@
 "days_unit" = "days";
 "total_days" = "Total";
 "monthly_average" = "Monthly Average";
-/* Modified strings for clarity */
-"highest_single_spending" = "Highest Single Spending:";
-"yearly_highest_spending" = "Highest Spending This Year:";
-/* New strings for date display */
+"highest_single_spending" = "Highest Single Expense:";
+"yearly_highest_spending" = "Yearly Highest Single Expense:";
 "highest_spending_day" = "Highest Spending Day";
 "highest_spending_date" = "Highest Spending Date";
 "month_highest_transaction" = "Highest Transaction This Month";
 "year_highest_transaction" = "Highest Transaction This Year";
 "spending_insights" = "Spending Insights";
-"primary_time_period" = "Primary Spending Time";
+"primary_time_period" = "Primary Time Period";
 "weekend_spending" = "Weekend Spending Ratio";
 "total_transactions_label" = "Total Transactions";
-"transactions_unit" = "txns";
-/* Removed duplicate "highest_spending" */
+"transactions_unit" = "transactions";
 "most_used_category" = "Most Used Category";
-"yearly_most_used_category" = "Most Used Category This Year";
+"yearly_most_used_category" = "Yearly Most Used Category";
 "highest_spending_month" = "Highest Spending Month";
 "month_amount" = "Amount";
 "spending_time_distribution" = "Spending Time Distribution";
 "weekday" = "Weekday";
 "weekend" = "Weekend";
-"no_insights_data" = "No spending insights";
-"record_more_transactions_for_insights" = "Record more transactions to get insights";
+"no_insights_data" = "No insights data";
+"record_more_transactions_for_insights" = "Record more transactions to get spending insights";
 "transactions_label" = "transactions";
 
 /* DashboardView */
@@ -176,6 +173,8 @@
 "view_all_transactions" = "View All Transactions";
 "recent_transactions" = "Recent Transactions";
 "transaction_default_name" = "Transaction";
+"highest_spending" = "Highest Spending";
+
 
 /* MainTabView */
 "transactions_tab" = "Transactions";
@@ -183,15 +182,15 @@
 "settings_tab" = "Settings";
 "settlement_tab" = "Settlement";
 "settlement_select_category" = "Select Settlement Category";
-"search_categories" = "Search Categories";
+"search_categories" = "Search categories";
 "no_category_selected" = "No Category Selected";
 "select_category_for_settlement" = "Please select a category for settlement";
 "select_category" = "Select Category";
 "start_settlement" = "Start Settlement";
 "settlement_description" = "Select a category to view the settlement plan among participants.";
-"settlement_how_it_works" = "The system automatically calculates each person's share and provides a settlement plan with the fewest transfers.";
+"settlement_how_it_works" = "The system calculates each person's balance and suggests an optimal transfer plan with minimal transactions.";
 "no_categories" = "No Categories";
-"create_categories_first" = "Please create a category first";
+"create_categories_first" = "Please create categories first";
 "change_button" = "Change";
 "default_label" = "Default";
 "assigned_payers" = "Assigned Payers";
@@ -226,34 +225,34 @@
 "no_participants_or_transactions" = "No participants or transactions";
 "calculation_explanation" = "Calculation Explanation";
 "calculation_principle" = "Principle";
-"calculation_point_1" = "Only expense transactions are calculated";
+"calculation_point_1" = "Only expense transactions are considered";
 "calculation_point_2" = "Each transaction is split equally among all participants";
-"calculation_point_3" = "Amount owed = sum of equal shares from all transactions";
-"calculation_point_4" = "Net balance = paid amount - owed amount";
+"calculation_point_3" = "Each person's share = sum of equal splits from all transactions";
+"calculation_point_4" = "Net balance = Actual paid - Share";
 "example_label" = "Example";
 "example_1" = "A $300 transaction with 3 participants, each owes $100";
-"example_2" = "A paid $150, net balance = +$50 (receivable)";
-"example_3" = "B paid $100, net balance = $0 (balanced)";
-"example_4" = "C paid $50, net balance = -$50 (payable)";
-"optimal_settlement_solution" = "Optimal Settlement Plan";
-"optimal_settlement_description" = "Minimize the number of transfers for quick settlement";
+"example_2" = "A paid $150, net = +$50 (to receive)";
+"example_3" = "B paid $100, net = $0 (balanced)";
+"example_4" = "C paid $50, net = -$50 (to pay)";
+"optimal_settlement_solution" = "Optimal Settlement";
+"optimal_settlement_description" = "Minimal transfers to settle debts quickly";
 "only_transfers_needed" = "Only";
-"transfers_to_clear_debts" = "transfers needed to settle debts";
+"transfers_to_clear_debts" = "transfer(s) needed to settle";
 "pays_to" = "pays to";
-"transfer_amount" = "Transfer Amount";
+"transfer_amount" = "Amount";
 "all_debts_cleared" = "All debts cleared";
 "detailed_calculation_results" = "Detailed Calculation Results";
 "actual_paid" = "Actual Paid";
 "net_balance" = "Net Balance";
 "should_pay_to" = "Should pay to";
 "faq_1_question" = "Why only expense transactions?";
-"faq_1_answer" = "Income transactions are not typically split. Focusing on expenses better suits the settlement scenario.";
+"faq_1_answer" = "Income transactions are usually not split, focusing on expenses is more appropriate for settlement.";
 "faq_2_question" = "How is each person's share calculated?";
-"faq_2_answer" = "Each transaction amount is split equally among all participants, then the amounts owed are summed up.";
-"faq_3_question" = "What is the optimal settlement plan?";
-"faq_3_answer" = "It uses a minimum transfer algorithm, so debtors pay directly to creditors, reducing the number of transfers.";
+"faq_2_answer" = "Each transaction amount is divided equally among participants, and then accumulated across all transactions.";
+"faq_3_question" = "What is the optimal settlement?";
+"faq_3_answer" = "It uses a minimal-transfer algorithm so that debtors pay directly to creditors, minimizing the number of transfers.";
 "faq_4_question" = "Can I modify participants?";
-"faq_4_answer" = "Yes, assign fixed payers in category management, and the system will prioritize using those assigned payers.";
+"faq_4_answer" = "Yes, you can assign fixed payers in category management; the system will prioritize those assigned payers.";
 "faq_title" = "FAQ";
 "calculation_details" = "Calculation Details";
 "debt_settlement" = "Debt Settlement";
@@ -261,79 +260,79 @@
 "transaction_records" = "Transaction Records";
 "no_payer_transactions_in_category" = "No transactions for this payer in this category";
 "statistics_label" = "Statistics";
-"total_paid_amount" = "Total Paid Amount";
+"total_paid_amount" = "Total Paid";
 "participating_transactions_count" = "Participating Transactions";
 "total_transactions" = "Total Transactions";
 
-/* ===== Newly Added Keys ===== */
-/* CategorySettlementView Additions */
+/* CategorySettlementView 新增 */
 "contribution_issue_warning" = "Contribution Issue Warning";
-"transactions_incomplete_format" = "%d transactions with incomplete splits";
-"contribution_difference_label" = "Difference:";
-"suggestion_check_transactions" = "Please check and fix in the transaction list";
+"transactions_incomplete_format" = "%d transaction(s) have incomplete splits";
+"contribution_difference_label" = "Split difference:";
+"suggestion_check_transactions" = "Please check and fix these transactions";
 "currency_header_format" = "Currency: %@";
 "optimal_settlement_for_currency_format" = "Optimal Settlement for %@";
 "debug_calculation_details" = "Calculation Details (Debug)";
 "show_button" = "Show";
 "hide_button" = "Hide";
-"calc_explanation_1" = "• Each currency is calculated separately";
+"calc_explanation_1" = "• Each currency is settled independently";
 "calc_explanation_2" = "• Transaction amounts are shown in their original currency";
-"calc_explanation_3" = "• If a category contains multiple currencies, handle them separately";
+"calc_explanation_3" = "• If the category contains multiple currencies, handle them separately";
 
-/* TransactionFormView Additions */
+/* TransactionFormView 新增 */
 "payment_method_section" = "Payment Method";
-"simple_payment_mode" = "Single Payer (Default)";
+"simple_payment_mode" = "One Person Pays Full (Default)";
 "detailed_payment_mode" = "Multiple Payers Split";
-"simple_payment_description" = "One person pays the full amount, others reimburse later. (Default mode)";
-"detailed_payment_description" = "Multiple people pay their shares immediately.";
+"simple_payment_description" = "Typically, one person pays the full amount upfront, and others reimburse later. (Default)";
+"detailed_payment_description" = "Multiple payers split the amount immediately, each paying their share.";
 "payment_details_section" = "Payment Details";
 "select_payer_placeholder" = "Select Payer";
 "payment_amount_label" = "Payment Amount";
-"auto_distribute_remaining" = "Auto Distribute Remaining";
+"auto_distribute_remaining" = "Auto-distribute remaining";
 "add_payer_button" = "Add Payer";
 "total_paid_label" = "Total Paid";
-"income_recipient_description" = "Select recipient (only payers assigned to this category are allowed)";
+"income_recipient_description" = "Select the recipient (only payers assigned to this category)";
 "income_recipient_constraint_format" = "Only payers assigned to \"%@\" can be selected";
-"assigned_payers_section" = "Assigned Payers for This Category";
+"assigned_payers_section" = "Payers for this category";
 "other_payers_section" = "Other Payers";
 "selected_label" = "Selected";
 "no_available_payers" = "No available payers";
-"all_payers_already_selected" = "All payers have already been selected";
-"contribution_excess_message_format" = "Total paid exceeds transaction amount by %@.\n\nIt is recommended to adjust payment amounts for accurate calculation.";
-"contribution_insufficient_message_format" = "Total paid is less than transaction amount by %@.\n\nIt is recommended to adjust payment amounts for accurate calculation.";
+"all_payers_already_selected" = "All payers are already selected";
+"contribution_excess_message_format" = "Total paid exceeds transaction amount by %@.\n\nIt is recommended to fix the payment amounts to ensure accurate calculation.";
+"contribution_insufficient_message_format" = "Total paid is less than transaction amount by %@.\n\nIt is recommended to fix the payment amounts to ensure accurate calculation.";
 "select_category_placeholder" = "Select Category";
 "participants_section" = "Participants";
 "select_participants" = "Select Participants";
-"no_participants" = "No Participants";
+"no_participants" = "No participants";
 "detailed_payment_header" = "Split Payment Details";
-"auto_distribute_remaining_button" = "Auto Distribute Remaining";
+"auto_distribute_remaining_button" = "Auto-distribute remaining";
 "amount_placeholder" = "Amount";
 "select_payer_title" = "Select Payer";
-"assigned_payers_section_header" = "Assigned Payers";
+"assigned_payers_section_header" = "Payers for this category";
 "available_payers_section_header" = "Available Payers";
 "multiple_currencies" = "Multiple Currencies";
-"people_count_format" = "%d people";
+"people_count_format" = "%d person(s)";
 
-/* TransactionListView Additions */
+/* TransactionListView 新增 */
 "fix_contribution" = "Fix Split";
-"fix_no_contribution_message" = "This transaction has no split records. Please add payers in edit mode.";
-"fix_insufficient_message_format" = "Split is short by %@. Would you like to distribute the remaining amount equally?";
-"fix_excess_message_format" = "Split exceeds by %@. Would you like to reduce each person's share proportionally?";
-
+"fix_no_contribution_message" = "This transaction has no split records. Please add a payer split in edit mode.";
+"fix_insufficient_message_format" = "Split insufficient by %@. Would you like to equally distribute the remaining amount?";
+"fix_excess_message_format" = "Split exceeds by %@. Would you like to proportionally reduce each payer's amount?";
 "contribution_issues_check" = "Check Split Issues";
 "no_contribution_issues_title" = "No Split Issues";
-"no_contribution_issues_description" = "All transaction splits are correct";
+"no_contribution_issues_description" = "All transaction splits are correct.";
 "payment_method_label" = "Payment Method";
 "contribution_issues_found_title" = "Split Issues Found";
 "contribution_mismatch_alert_title" = "Payment Amount Mismatch";
-"contribution_insufficient_alert_message_format" = "Total paid is %@ less than transaction amount.\n\nIt is recommended to fix payment amounts for accurate calculation.";
+"contribution_insufficient_alert_message_format" = "Total paid is less than transaction amount by %@.\n\nIt is recommended to fix the payment amounts to ensure accurate calculation.";
 "fix_and_save_button" = "Fix and Save";
 "save_anyway_button" = "Save Anyway";
 "amount_mismatch_warning" = "Payment amount mismatch";
 "contribution_insufficient_format" = "Insufficient split %@";
+"contribution_excess_format" = "Excess split %@";
 
 "default_payer_name" = "Myself";
 
+/* SubcategoryManageView 新增 */
 "subcategory_add_section" = "Add Subcategory";
 "subcategory_name_placeholder" = "Enter subcategory name";
 "subcategory_add_button" = "Add";
@@ -343,4 +342,33 @@
 "subcategory_cancel" = "Cancel";
 "subcategory_delete" = "Delete";
 
-"default_payer_cannot_delete" = "The default payer \"%@\" is system default and cannot be deleted.";
+"default_payer_cannot_delete" = "Default payer \"%@\" cannot be deleted.";
+
+/* ===== Widget 本地化鍵值 ===== */
+"widget_today_expense" = "Today's Expenses";
+"widget_currency_symbol" = "HK$";
+"widget_transactions_count" = "%lld transactions";
+"widget_display_name" = "Today's Expenses";
+"widget_description" = "Quickly view today's total expenses";
+
+/* ===== ContributionIssuesView 新增 ===== */
+"transactions_need_fix_format" = "%d transaction(s) need fixing";
+"involved_categories_label" = "Involved Categories";
+"total_difference_label" = "Total Difference";
+"count_categories_format" = "%d categories total";
+"transactions_count_format" = "%d transaction(s)";
+"split_label" = "Split";
+"quick_fix_title" = "Quick Fix";
+"quick_fix_description" = "Automatically adjust split amounts to match the transaction total.";
+"fix_all_button" = "Fix All";
+"contribution_issues_nav_title" = "Split Issues";
+
+/* ContributionIssuesView - 確認全部修復 */
+"confirm_fix_all_title" = "Confirm Fix All";
+"confirm_fix_all_message_format" = "Are you sure you want to automatically fix split issues for %d transaction(s)?\n\nThe system will adjust each payer's amount based on the transaction total.";
+"fix_button" = "Fix";
+
+/* ===== 其他已提供但可能重複的鍵 ===== */
+"contribution_excess_alert_message_format" = "Total paid exceeds transaction amount by %@.\n\nIt is recommended to fix the payment amounts to ensure accurate calculation.";
+"contribution_insufficient_alert_message_format" = "Total paid is less than transaction amount by %@.\n\nIt is recommended to fix the payment amounts to ensure accurate calculation.";
+"pays_full_amount" = "Pays full amount";

@@ -12,14 +12,12 @@ extension Color {
         let r, g, b, a: UInt64
         switch hexStr.count {
         case 3:
-            // "RGB" -> expand to "RRGGBB"
             (r, g, b, a) = ((int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17, 255)
         case 6:
             (r, g, b, a) = (int >> 16, int >> 8 & 0xFF, int & 0xFF, 255)
         case 8:
             (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
         default:
-            // 解析失敗時回傳灰色（避免黑色或 nil）
             (r, g, b, a) = (160, 160, 160, 255)
         }
 

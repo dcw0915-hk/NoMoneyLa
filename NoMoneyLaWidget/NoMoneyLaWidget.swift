@@ -105,12 +105,12 @@ struct NoMoneyLaWidgetEntryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // 標題行：紅色小圓點 + 文字
+            // 標題行：紅色小圓點 + 本地化文字
             HStack(spacing: 6) {
                 Circle()
                     .fill(Color.red)
                     .frame(width: 8, height: 8)
-                Text("今日支出")
+                Text("widget_today_expense")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.primary)
                     .textCase(.uppercase)
@@ -121,7 +121,7 @@ struct NoMoneyLaWidgetEntryView: View {
 
             // 貨幣符號 + 金額（垂直排列，強調金額）
             VStack(alignment: .leading, spacing: 2) {
-                Text("HK$")
+                Text("widget_currency_symbol")
                     .font(.system(size: 16, weight: .regular))
                     .foregroundColor(.secondary)
 
@@ -137,11 +137,13 @@ struct NoMoneyLaWidgetEntryView: View {
             // 底部：交易數量（用標籤樣式）
             HStack {
                 Label(
-                    title: { Text("\(entry.transactionCount) 筆交易")
-                        .font(.system(size: 12, weight: .medium))
+                    title: {
+                        Text("widget_transactions_count \(entry.transactionCount)")
+                            .font(.system(size: 12, weight: .medium))
                     },
-                    icon: { Image(systemName: "list.bullet.rectangle.portrait")
-                        .font(.system(size: 12))
+                    icon: {
+                        Image(systemName: "list.bullet.rectangle.portrait")
+                            .font(.system(size: 12))
                     }
                 )
                 .foregroundColor(.secondary)
@@ -168,8 +170,8 @@ struct NoMoneyLaWidget: Widget {
                 .modelContainer(sharedModelContainer)
                 .containerBackground(Color(UIColor.systemBackground), for: .widget)
         }
-        .configurationDisplayName("今日支出")
-        .description("快速查看今日總支出")
+        .configurationDisplayName("widget_display_name")
+        .description("widget_description")
         .supportedFamilies([.systemSmall])
     }
 }
