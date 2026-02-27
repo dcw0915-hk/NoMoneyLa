@@ -39,9 +39,21 @@ struct CategoryStat: Identifiable {
 
 @MainActor
 class DashboardViewModel: ObservableObject {
-    @Published var selectedPayer: Payer?
-    @Published var selectedPeriod: TimePeriod = .month
-    @Published var selectedDate: Date = Date()
+    @Published var selectedPayer: Payer? {
+        didSet {
+            refreshData()
+        }
+    }
+    @Published var selectedPeriod: TimePeriod = .month {
+        didSet {
+            refreshData()
+        }
+    }
+    @Published var selectedDate: Date = Date() {
+        didSet {
+            refreshData()
+        }
+    }
     
     @Published var monthlyStats: MonthlyStats?
     @Published var categoryStats: [CategoryStat] = []
@@ -68,49 +80,55 @@ class DashboardViewModel: ObservableObject {
                 sortBy: [SortDescriptor(\.order)]
             )
             allPayers = try context.fetch(fetchDescriptor)
+            print("✅ DashboardViewModel: 載入 \(allPayers.count) 個付款人")
+            for payer in allPayers {
+                print("   - \(payer.name) (default: \(payer.isDefault))")
+            }
         } catch {
-            print("載入付款人失敗: \(error)")
+            print("❌ 載入付款人失敗: \(error)")
             allPayers = []
         }
     }
     
-    func loadDashboardData() async {
-        guard let payer = selectedPayer else { return }
-        isLoading = true
-        
-        let (startDate, endDate) = calculateDateRange()
-        
-        do {
-            let transactions = try await fetchTransactions(
-                payerID: payer.id,
-                startDate: startDate,
-                endDate: endDate
-            )
-            
-            monthlyStats = calculateMonthlyStats(
-                transactions: transactions,
-                payer: payer,
-                startDate: startDate,
-                endDate: endDate
-            )
-            
-            // ✅ 使用改寫後嘅分類統計方法
-            categoryStats = calculateCategoryStats(
-                transactions: transactions,
-                context: context
-            )
-            
-            spendingInsights = calculateSpendingInsights(
-                transactions: transactions,
-                startDate: startDate,
-                endDate: endDate
-            )
-        } catch {
-            print("載入 Dashboard 數據失敗: \(error)")
+    func loadDashboardData() {
+        guard let payer = selectedPayer else {
+            // 如果冇揀付款人，清空資料
             monthlyStats = nil
             categoryStats = []
             spendingInsights = nil
+            return
         }
+        isLoading = true
+        
+        let (startDate, endDate) = calculateDateRange()
+        print("📅 統計區間: \(startDate) 至 \(endDate)")
+        
+        // 同步 fetch，因為 ModelContext 係 MainActor
+        let transactions = fetchTransactions(
+            payerID: payer.id,
+            startDate: startDate,
+            endDate: endDate
+        )
+        
+        print("📊 交易數量: \(transactions.count)")
+        
+        monthlyStats = calculateMonthlyStats(
+            transactions: transactions,
+            payer: payer,
+            startDate: startDate,
+            endDate: endDate
+        )
+        
+        categoryStats = calculateCategoryStats(
+            transactions: transactions,
+            context: context
+        )
+        
+        spendingInsights = calculateSpendingInsights(
+            transactions: transactions,
+            startDate: startDate,
+            endDate: endDate
+        )
         
         isLoading = false
     }
@@ -120,48 +138,62 @@ class DashboardViewModel: ObservableObject {
         payerID: UUID,
         startDate: Date,
         endDate: Date
-    ) async throws -> [Transaction] {
+    ) -> [Transaction] {
         var fetchDescriptor = FetchDescriptor<Transaction>(
-            predicate: #Predicate<Transaction> { transaction in
-                transaction.date >= startDate &&
-                transaction.date <= endDate
-            },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         
-        if selectedPeriod == .year {
-            fetchDescriptor.fetchLimit = 1000
-        }
-        
-        let allTransactions = try context.fetch(fetchDescriptor)
-        return allTransactions.filter { transaction in
-            transaction.contributions.contains { $0.payer.id == payerID }
+        // 因為要過濾包含指定 payer 的交易，唔用 predicate，先 fetch 再 filter
+        do {
+            let allTransactions = try context.fetch(fetchDescriptor)
+            let filtered = allTransactions.filter { transaction in
+                // 日期範圍檢查
+                guard transaction.date >= startDate && transaction.date <= endDate else {
+                    return false
+                }
+                // 檢查交易係咪包含所選 payer
+                return transaction.contributions.contains { $0.payer.id == payerID }
+            }
+            return filtered
+        } catch {
+            print("❌ fetch 交易失敗: \(error)")
+            return []
         }
     }
     
     // MARK: - 數據計算
     func calculateDateRange() -> (startDate: Date, endDate: Date) {
-        let calendar = Calendar.current
-        var startDate: Date
-        var endDate: Date
-        
         switch selectedPeriod {
         case .month:
-            let components = calendar.dateComponents([.year, .month], from: selectedDate)
-            startDate = calendar.date(from: components)!
-            var endComponents = DateComponents()
-            endComponents.month = 1
-            endComponents.day = -1
-            endDate = calendar.date(byAdding: endComponents, to: startDate)!
+            // 使用 calendar.dateInterval 取得該月嘅準確範圍
+            guard let interval = calendar.dateInterval(of: .month, for: selectedDate) else {
+                // fallback
+                let components = calendar.dateComponents([.year, .month], from: selectedDate)
+                let start = calendar.date(from: components)!
+                var endComponents = DateComponents()
+                endComponents.month = 1
+                endComponents.day = -1
+                let end = calendar.date(byAdding: endComponents, to: start)!
+                return (start, end)
+            }
+            // interval.start 係月份第一天 00:00，interval.end 係下個月第一天 00:00
+            // 所以我哋將 end 設定為 interval.end 減一秒，令到當日 23:59:59 都計入
+            let end = interval.end.addingTimeInterval(-1)
+            return (interval.start, end)
+            
         case .year:
-            let components = calendar.dateComponents([.year], from: selectedDate)
-            startDate = calendar.date(from: components)!
-            var endComponents = DateComponents()
-            endComponents.year = 1
-            endComponents.day = -1
-            endDate = calendar.date(byAdding: endComponents, to: startDate)!
+            guard let interval = calendar.dateInterval(of: .year, for: selectedDate) else {
+                let components = calendar.dateComponents([.year], from: selectedDate)
+                let start = calendar.date(from: components)!
+                var endComponents = DateComponents()
+                endComponents.year = 1
+                endComponents.day = -1
+                let end = calendar.date(byAdding: endComponents, to: start)!
+                return (start, end)
+            }
+            let end = interval.end.addingTimeInterval(-1)
+            return (interval.start, end)
         }
-        return (startDate, endDate)
     }
     
     private func calculateMonthlyStats(
@@ -225,23 +257,19 @@ class DashboardViewModel: ObservableObject {
     }
     
     private func calculatePreviousMonthAmount(payerID: UUID, currentMonth: Date) -> Decimal {
-        let calendar = Calendar.current
         guard let previousMonth = calendar.date(byAdding: .month, value: -1, to: currentMonth) else { return 0 }
-        let startComponents = calendar.dateComponents([.year, .month], from: previousMonth)
-        guard let startDate = calendar.date(from: startComponents) else { return 0 }
-        var endComponents = DateComponents()
-        endComponents.month = 1
-        endComponents.day = -1
-        guard let endDate = calendar.date(byAdding: endComponents, to: startDate) else { return 0 }
+        guard let interval = calendar.dateInterval(of: .month, for: previousMonth) else { return 0 }
+        let startDate = interval.start
+        let endDate = interval.end.addingTimeInterval(-1)
         
         do {
-            var fetchDescriptor = FetchDescriptor<Transaction>(
-                predicate: #Predicate<Transaction> { transaction in
-                    transaction.date >= startDate && transaction.date <= endDate
-                }
-            )
+            let fetchDescriptor = FetchDescriptor<Transaction>()
             let allTransactions = try context.fetch(fetchDescriptor)
-            return allTransactions.reduce(Decimal(0)) { total, transaction in
+            let filtered = allTransactions.filter { transaction in
+                transaction.date >= startDate && transaction.date <= endDate &&
+                transaction.contributions.contains { $0.payer.id == payerID }
+            }
+            return filtered.reduce(Decimal(0)) { total, transaction in
                 let payerContributions = transaction.contributions.filter { $0.payer.id == payerID }
                 let contributionSum = payerContributions.reduce(Decimal(0)) { $0 + $1.amount }
                 return total + contributionSum
@@ -253,23 +281,19 @@ class DashboardViewModel: ObservableObject {
     }
     
     private func calculatePreviousYearAmount(payerID: UUID, currentYear: Date) -> Decimal {
-        let calendar = Calendar.current
         guard let previousYear = calendar.date(byAdding: .year, value: -1, to: currentYear) else { return 0 }
-        let startComponents = calendar.dateComponents([.year], from: previousYear)
-        guard let startDate = calendar.date(from: startComponents) else { return 0 }
-        var endComponents = DateComponents()
-        endComponents.year = 1
-        endComponents.day = -1
-        guard let endDate = calendar.date(byAdding: endComponents, to: startDate) else { return 0 }
+        guard let interval = calendar.dateInterval(of: .year, for: previousYear) else { return 0 }
+        let startDate = interval.start
+        let endDate = interval.end.addingTimeInterval(-1)
         
         do {
-            var fetchDescriptor = FetchDescriptor<Transaction>(
-                predicate: #Predicate<Transaction> { transaction in
-                    transaction.date >= startDate && transaction.date <= endDate
-                }
-            )
+            let fetchDescriptor = FetchDescriptor<Transaction>()
             let allTransactions = try context.fetch(fetchDescriptor)
-            return allTransactions.reduce(Decimal(0)) { total, transaction in
+            let filtered = allTransactions.filter { transaction in
+                transaction.date >= startDate && transaction.date <= endDate &&
+                transaction.contributions.contains { $0.payer.id == payerID }
+            }
+            return filtered.reduce(Decimal(0)) { total, transaction in
                 let payerContributions = transaction.contributions.filter { $0.payer.id == payerID }
                 let contributionSum = payerContributions.reduce(Decimal(0)) { $0 + $1.amount }
                 return total + contributionSum
@@ -453,9 +477,7 @@ class DashboardViewModel: ObservableObject {
     
     // MARK: - 公開方法
     func refreshData() {
-        Task {
-            await loadDashboardData()
-        }
+        loadDashboardData()
     }
     
     func selectPreviousPeriod() {
@@ -467,7 +489,6 @@ class DashboardViewModel: ObservableObject {
         }
         if let newDate = calendar.date(byAdding: dateComponent, to: selectedDate) {
             selectedDate = newDate
-            refreshData()
         }
     }
     
@@ -480,7 +501,6 @@ class DashboardViewModel: ObservableObject {
         }
         if let newDate = calendar.date(byAdding: dateComponent, to: selectedDate) {
             selectedDate = newDate
-            refreshData()
         }
     }
 }

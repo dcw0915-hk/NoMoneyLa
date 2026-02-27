@@ -88,9 +88,9 @@ struct DashboardView: View {
                 }
             }
             .onAppear {
-                if dashboardVM.selectedPayer != nil && !dashboardVM.isLoading {
-                    dashboardVM.refreshData()
-                }
+                // 確保每次出現時都 load 最新付款人，並 refresh data
+                dashboardVM.loadAllPayers()
+                dashboardVM.refreshData()
             }
         }
     }

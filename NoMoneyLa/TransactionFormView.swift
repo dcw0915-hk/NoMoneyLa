@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
-import WidgetKit   // 新增
+import WidgetKit
 
 // MARK: - ContributionEntry (表單暫存用)
 struct ContributionEntry: Identifiable {
@@ -1190,12 +1190,17 @@ struct TransactionFormView: View {
         }
     }
     
+    // ⭐️ 修改：updateAssignedPayersForCategory - 當 assignedPayers 為空時，如果已有有效貢獻就保留
     private func updateAssignedPayersForCategory(_ category: Category) {
         let assignedPayers = category.assignedPayers(in: context)
         assignedPayersForCategory = assignedPayers.sorted { $0.order < $1.order }
         
         if assignedPayersForCategory.isEmpty {
             participantEntries = []
+            // 如果 contributions 已經有有效付款人，保留唔變
+            if contributions.first?.payerID != nil {
+                return
+            }
             if let defaultPayer = payers.sorted(by: { $0.order < $1.order }).first {
                 contributionMode = .simple
                 contributions = [
@@ -1247,10 +1252,16 @@ struct TransactionFormView: View {
         updatePaymentSetup()
     }
     
+    // ⭐️ 修改：updatePaymentSetup - 當 assignedPayers 為空時，如果已有有效貢獻就保留
     private func updatePaymentSetup() {
         cleanupInvalidContributions()
         
         if assignedPayersForCategory.isEmpty {
+            // 如果 contributions 已經有有效付款人，就保留
+            if contributions.first?.payerID != nil {
+                return
+            }
+            // 否則用 defaultPayer
             contributionMode = .simple
             if let defaultPayer = payers.sorted(by: { $0.order < $1.order }).first {
                 contributions = [
@@ -1271,37 +1282,47 @@ struct TransactionFormView: View {
             contributions = []
         } else {
             if contributionMode == .simple {
-                setupSinglePayerPayment()
+                // 如果已經有貢獻，嘗試保留當前嘅付款人
+                if let currentPayerID = contributions.first?.payerID,
+                   let _ = payers.first(where: { $0.id == currentPayerID }) {
+                    // 當前付款人有效，唔做任何改變
+                } else {
+                    setupSinglePayerPayment()
+                }
             }
         }
     }
     
-    private func setupSinglePayerPayment() {
+    private func setupSinglePayerPayment(preferredPayerID: UUID? = nil) {
         let participatingPayers = participantEntries
             .filter { $0.isParticipating }
             .map { $0.payer }
             .sorted { $0.order < $1.order }
         
-        if let firstParticipant = participatingPayers.first {
+        var targetPayer: Payer? = nil
+        
+        if let preferredID = preferredPayerID {
+            targetPayer = payers.first(where: { $0.id == preferredID })
+        }
+        
+        if targetPayer == nil, let firstParticipant = participatingPayers.first {
+            targetPayer = firstParticipant
+        }
+        
+        if targetPayer == nil, let defaultPayer = defaultPayer {
+            targetPayer = defaultPayer
+        }
+        
+        if let payer = targetPayer {
             contributions = [
                 ContributionEntry(
-                    payerID: firstParticipant.id,
+                    payerID: payer.id,
                     amountText: totalAmountText.isEmpty ? "" : totalAmountText,
                     isRemovable: false
                 )
             ]
         } else {
-            if let defaultPayer = defaultPayer {
-                contributions = [
-                    ContributionEntry(
-                        payerID: defaultPayer.id,
-                        amountText: totalAmountText.isEmpty ? "" : totalAmountText,
-                        isRemovable: false
-                    )
-                ]
-            } else {
-                contributions = []
-            }
+            contributions = []
         }
     }
     
@@ -1482,19 +1503,22 @@ struct TransactionFormView: View {
         }
     }
     
+    // 修改：只移除付款人已被刪除的貢獻，唔再根據 assignedPayers 過濾
     private func cleanupInvalidContributions() {
         guard !contributions.isEmpty else { return }
         
-        let validPayerIDs = Set(assignedPayersForCategory.map { $0.id })
-        let allPayerIDs = validPayerIDs.isEmpty ? Set(payers.map { $0.id }) : validPayerIDs
+        // 獲取所有有效付款人 ID（存在於 payers 中）
+        let validPayerIDs = Set(payers.map { $0.id })
         
+        // 過濾掉 payerID 唔存在於 validPayerIDs 的貢獻（即該付款人已被刪除）
         contributions = contributions.filter { entry in
             if let payerID = entry.payerID {
-                return allPayerIDs.contains(payerID)
+                return validPayerIDs.contains(payerID)
             }
-            return true
+            return true // 如果 payerID 為 nil，暫時保留（因為用戶可能未揀）
         }
         
+        // 如果過濾後貢獻為空，重新設定
         if contributions.isEmpty {
             setupPaymentBasedOnParticipants()
         }
@@ -1507,7 +1531,19 @@ struct TransactionFormView: View {
             .sorted { $0.order < $1.order }
         
         if participatingPayers.isEmpty {
-            contributions = []
+            // 如果參與者為空，用默認付款人設定簡單模式
+            if let defaultPayer = defaultPayer {
+                contributionMode = .simple
+                contributions = [
+                    ContributionEntry(
+                        payerID: defaultPayer.id,
+                        amountText: totalAmountText.isEmpty ? "" : totalAmountText,
+                        isRemovable: false
+                    )
+                ]
+            } else {
+                contributions = []
+            }
             return
         }
         
@@ -1718,12 +1754,24 @@ struct TransactionFormView: View {
                     contributions[0].amountText = decimalToString(totalAmount)
                 }
             } else {
-                let perPersonAdjustment = difference / Decimal(contributions.count)
+                // 計算有效貢獻數量（那些有金額或需要設定的）
+                var validCount = 0
+                for i in contributions.indices {
+                    if decimalFromString(contributions[i].amountText) != nil {
+                        validCount += 1
+                    }
+                }
+                if validCount == 0 { validCount = contributions.count }
+                
+                let perPersonAdjustment = difference / Decimal(validCount)
                 
                 for i in contributions.indices {
                     if let currentAmount = decimalFromString(contributions[i].amountText) {
                         let newAmount = currentAmount + perPersonAdjustment
                         contributions[i].amountText = decimalToString(newAmount)
+                    } else {
+                        // 如果原來金額為空，設定為 perPersonAdjustment
+                        contributions[i].amountText = decimalToString(perPersonAdjustment)
                     }
                 }
             }
@@ -1770,20 +1818,11 @@ struct TransactionFormView: View {
         transactionToSave.contributions.removeAll()
         
         if selectedType == .expense {
-            for contribution in contributions {
-                if let payerID = contribution.payerID,
-                   let payer = payers.first(where: { $0.id == payerID }),
-                   let amount = decimalFromString(contribution.amountText), amount > 0 {
-                    let paymentContribution = PaymentContribution(
-                        amount: amount,
-                        payer: payer,
-                        transaction: transactionToSave
-                    )
-                    transactionToSave.contributions.append(paymentContribution)
-                }
-            }
+            // 計算有效貢獻（有 payerID）
+            let validContributions = contributions.filter { $0.payerID != nil }
             
-            if transactionToSave.contributions.isEmpty {
+            if validContributions.isEmpty {
+                // 如果沒有任何有效貢獻，用默認付款人
                 if let defaultPayer = defaultPayer {
                     let paymentContribution = PaymentContribution(
                         amount: totalAmount,
@@ -1791,6 +1830,57 @@ struct TransactionFormView: View {
                         transaction: transactionToSave
                     )
                     transactionToSave.contributions.append(paymentContribution)
+                }
+            } else {
+                // 計算當前總和
+                var currentTotal: Decimal = 0
+                var contributionsToSave: [(payer: Payer, amount: Decimal)] = []
+                
+                for contribution in validContributions {
+                    if let payerID = contribution.payerID,
+                       let payer = payers.first(where: { $0.id == payerID }) {
+                        let amount = decimalFromString(contribution.amountText) ?? 0
+                        if amount > 0 {
+                            currentTotal += amount
+                            contributionsToSave.append((payer, amount))
+                        }
+                    }
+                }
+                
+                // 如果所有貢獻金額都為零，平均分配
+                if contributionsToSave.isEmpty {
+                    let share = totalAmount / Decimal(validContributions.count)
+                    for contribution in validContributions {
+                        if let payerID = contribution.payerID,
+                           let payer = payers.first(where: { $0.id == payerID }) {
+                            let paymentContribution = PaymentContribution(
+                                amount: share,
+                                payer: payer,
+                                transaction: transactionToSave
+                            )
+                            transactionToSave.contributions.append(paymentContribution)
+                        }
+                    }
+                } else {
+                    // 檢查總和是否等於 totalAmount，如果唔等，調整最後一筆
+                    let difference = totalAmount - currentTotal
+                    if abs(difference) > Decimal(0.01) && !contributionsToSave.isEmpty {
+                        // 調整最後一筆貢獻嘅金額
+                        var adjusted = contributionsToSave
+                        let lastIndex = adjusted.count - 1
+                        adjusted[lastIndex].amount += difference
+                        contributionsToSave = adjusted
+                    }
+                    
+                    // 建立貢獻
+                    for (payer, amount) in contributionsToSave {
+                        let paymentContribution = PaymentContribution(
+                            amount: amount,
+                            payer: payer,
+                            transaction: transactionToSave
+                        )
+                        transactionToSave.contributions.append(paymentContribution)
+                    }
                 }
             }
         } else {
@@ -1822,7 +1912,7 @@ struct TransactionFormView: View {
         
         do {
             try context.save()
-            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget")
             WidgetCenter.shared.reloadTimelines(ofKind: "RecentTransactionWidget")
             dismiss()
         } catch {
@@ -1840,7 +1930,7 @@ struct TransactionFormView: View {
         
         do {
             try context.save()
-            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget") // 新增
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget")
             WidgetCenter.shared.reloadTimelines(ofKind: "RecentTransactionWidget")
             dismiss()
         } catch {
