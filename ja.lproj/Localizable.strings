@@ -383,3 +383,5 @@
 "monthly_widget_top_category" = "主なカテゴリ";
 "widget_monthly_display_name" = "月間支出";
 "widget_monthly_description" = "月間総支出とカテゴリ別内訳を表示";
+
+"duplicate_button" = "複製";

@@ -393,3 +393,5 @@
 "monthly_widget_top_category" = "主要分類";
 "widget_monthly_display_name" = "月度支出";
 "widget_monthly_description" = "顯示本月總支出同分類分佈";
+
+"duplicate_button" = "複製";

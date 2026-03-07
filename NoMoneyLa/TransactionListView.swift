@@ -121,7 +121,7 @@ struct TransactionCardView: View {
     }
 }
 
-// MARK: - TransactionListView (其餘部分完全唔變)
+// MARK: - TransactionListView
 struct TransactionListView: View {
     @EnvironmentObject var langManager: LanguageManager
     @Environment(\.modelContext) private var context
@@ -202,6 +202,7 @@ struct TransactionListView: View {
                                 }
                             }
                             .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                // 修復分攤按鈕（只喺有問題時顯示）
                                 if tx.type == .expense && !tx.isAmountValid {
                                     Button {
                                         showFixContributionAlert(for: tx)
@@ -210,6 +211,14 @@ struct TransactionListView: View {
                                     }
                                     .tint(.blue)
                                 }
+                                
+                                // 新增：複製交易按鈕
+                                Button {
+                                    duplicateTransaction(tx)
+                                } label: {
+                                    Label(langManager.localized("duplicate_button"), systemImage: "doc.on.doc")
+                                }
+                                .tint(.green)
                             }
                         }
                     }
@@ -563,6 +572,42 @@ struct TransactionListView: View {
             print("成功修復交易 \(transaction.id) 的分攤問題")
         } catch {
             print("修復分攤時保存失敗：\(error)")
+        }
+    }
+    
+    // MARK: - 新增：複製交易
+    private func duplicateTransaction(_ transaction: Transaction) {
+        // 建立新交易，日期設為今日
+        let newTransaction = Transaction(
+            totalAmount: transaction.totalAmount,
+            date: Date(),
+            note: transaction.note,
+            subcategoryID: transaction.subcategoryID,
+            type: transaction.type,
+            currencyCode: transaction.currencyCode,
+            participatingPayerIDs: transaction.participatingPayerIDs
+        )
+        
+        context.insert(newTransaction)
+        
+        // 複製所有貢獻
+        for contribution in transaction.contributions {
+            let newContribution = PaymentContribution(
+                amount: contribution.amount,
+                payer: contribution.payer,
+                transaction: newTransaction
+            )
+            context.insert(newContribution)
+            newTransaction.contributions.append(newContribution)
+        }
+        
+        do {
+            try context.save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "RecentTransactionWidget")
+            // 可選：顯示成功提示
+        } catch {
+            print("複製交易失敗：\(error)")
         }
     }
 }

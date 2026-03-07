@@ -903,8 +903,24 @@ struct TransactionFormView: View {
                     }
                 } else {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(langManager.localized("form_edit_title")) {
-                            isEditing = true
+                        HStack {
+                            Button(langManager.localized("form_edit_title")) {
+                                isEditing = true
+                            }
+                            
+                            Button {
+                                duplicateCurrentTransaction()
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            Button(role: .destructive) {
+                                showDeleteAlert = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
                         }
                     }
                 }
@@ -2001,6 +2017,42 @@ struct TransactionFormView: View {
             return String(format: langManager.localized("contribution_excess_alert_message_format"), amountStr)
         } else {
             return String(format: langManager.localized("contribution_insufficient_alert_message_format"), amountStr)
+        }
+    }
+    
+    // MARK: - 新增：複製當前交易
+    private func duplicateCurrentTransaction() {
+        guard let transaction = currentTransaction else { return }
+        
+        let newTransaction = Transaction(
+            totalAmount: transaction.totalAmount,
+            date: Date(),
+            note: transaction.note,
+            subcategoryID: transaction.subcategoryID,
+            type: transaction.type,
+            currencyCode: transaction.currencyCode,
+            participatingPayerIDs: transaction.participatingPayerIDs
+        )
+        
+        context.insert(newTransaction)
+        
+        for contribution in transaction.contributions {
+            let newContribution = PaymentContribution(
+                amount: contribution.amount,
+                payer: contribution.payer,
+                transaction: newTransaction
+            )
+            context.insert(newContribution)
+            newTransaction.contributions.append(newContribution)
+        }
+        
+        do {
+            try context.save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "NoMoneyLaWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "RecentTransactionWidget")
+            dismiss()
+        } catch {
+            print("複製交易失敗：\(error)")
         }
     }
 }

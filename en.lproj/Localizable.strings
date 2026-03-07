@@ -383,3 +383,5 @@
 "monthly_widget_top_category" = "Top Category";
 "widget_monthly_display_name" = "Monthly Expense";
 "widget_monthly_description" = "Show monthly total and category breakdown";
+
+"duplicate_button" = "Duplicate";
